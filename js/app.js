@@ -556,3 +556,126 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   recalcNetSales();
 });
+
+// FTE employee allocation block: employee cost attached to each product.
+document.addEventListener('DOMContentLoaded', () => {
+  const table = document.getElementById('budgetTable');
+  if (!table) return;
+  const groupRow = table.querySelector('thead tr.group-row');
+  const columnRow = table.querySelector('thead tr.column-row');
+  if (!groupRow || !columnRow || columnRow.querySelector('.fte-head')) return;
+
+  const style = document.createElement('style');
+  style.textContent = `
+    .fte-group{background:#385f78!important;color:#fff!important}
+    .fte-head{min-width:108px;background:#31566e!important;color:#fff!important;line-height:1.15}
+    .fte-sep-head,.fte-sep{min-width:22px!important;width:22px!important;max-width:22px!important;padding-left:3px!important;padding-right:3px!important;text-align:center!important;background:#e8eff3!important;color:#6f8796!important}
+    .fte-pct{background:#f3f8fb!important;color:#31566e!important;font-weight:900!important;cursor:text;outline:none}
+    .fte-usd{background:#eef5f8!important;color:#274f68!important;font-weight:900!important;cursor:text;outline:none}
+    .fte-pct:focus,.fte-usd:focus{background:#e8f3f8!important;box-shadow:inset 0 0 0 2px rgba(49,86,110,.18)}
+    .fte-total-cell{background:#dfeef4!important;color:#244d65!important;font-weight:900!important}
+    .fte-total-row{background:#d5e8f0!important;color:#244d65!important;font-weight:900!important}
+  `;
+  document.head.appendChild(style);
+
+  const gpGroup = groupRow.querySelector('.gp-group');
+  const fteGroup = document.createElement('th');
+  fteGroup.className = 'fte-group';
+  fteGroup.colSpan = 7;
+  fteGroup.textContent = 'FTE / PRODUCT';
+  if (gpGroup) gpGroup.after(fteGroup); else groupRow.appendChild(fteGroup);
+
+  const gpPctHead = columnRow.querySelector('.gp-pct-head');
+  if (!gpPctHead) return;
+  const headDefs = [
+    ['FTE %\nMR','fte-mr-pct'],
+    ['FTE USD\nMR','fte-mr-usd'],
+    ['.','fte-sep'],
+    ['FTE %\nMGR, SUPR','fte-mgr-pct'],
+    ['FTE USD\nMGR, SUPR','fte-mgr-usd'],
+    ['.','fte-sep'],
+    ['Total FTE','fte-total-head']
+  ];
+  let headAnchor = gpPctHead;
+  headDefs.forEach(([label, cls]) => {
+    const th = document.createElement('th');
+    th.className = `fte-head ${cls.includes('sep') ? 'fte-sep-head' : ''} ${cls}`;
+    th.innerHTML = label.replace('\n','<br>');
+    headAnchor.after(th);
+    headAnchor = th;
+  });
+
+  const toNum = (v) => {
+    const n = Number(String(v ?? '').replace(/,/g,'').replace('%','').trim());
+    return Number.isFinite(n) ? n : 0;
+  };
+  const money = (v) => Number(v).toLocaleString(undefined,{maximumFractionDigits:2});
+
+  function recalcRow(row) {
+    const mrUsd = toNum(row.querySelector('.fte-mr-usd-cell')?.dataset.raw ?? row.querySelector('.fte-mr-usd-cell')?.textContent);
+    const mgrUsd = toNum(row.querySelector('.fte-mgr-usd-cell')?.dataset.raw ?? row.querySelector('.fte-mgr-usd-cell')?.textContent);
+    const total = mrUsd + mgrUsd;
+    const totalCell = row.querySelector('.fte-total-cell');
+    if (totalCell) totalCell.textContent = money(total);
+    recalcTotals();
+  }
+
+  table.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
+    const gpPct = row.querySelector('.gp-pct-cell');
+    if (!gpPct) return;
+    const cells = [];
+    const mrPct = document.createElement('td');
+    mrPct.className = 'fte-pct fte-mr-pct-cell'; mrPct.contentEditable = 'true'; mrPct.dataset.raw = '0'; mrPct.textContent = '0.00%'; cells.push(mrPct);
+    const mrUsd = document.createElement('td');
+    mrUsd.className = 'fte-usd fte-mr-usd-cell'; mrUsd.contentEditable = 'true'; mrUsd.dataset.raw = '0'; mrUsd.textContent = '0'; cells.push(mrUsd);
+    const sep1 = document.createElement('td'); sep1.className = 'fte-sep'; cells.push(sep1);
+    const mgrPct = document.createElement('td');
+    mgrPct.className = 'fte-pct fte-mgr-pct-cell'; mgrPct.contentEditable = 'true'; mgrPct.dataset.raw = '0'; mgrPct.textContent = '0.00%'; cells.push(mgrPct);
+    const mgrUsd = document.createElement('td');
+    mgrUsd.className = 'fte-usd fte-mgr-usd-cell'; mgrUsd.contentEditable = 'true'; mgrUsd.dataset.raw = '0'; mgrUsd.textContent = '0'; cells.push(mgrUsd);
+    const sep2 = document.createElement('td'); sep2.className = 'fte-sep'; cells.push(sep2);
+    const total = document.createElement('td'); total.className = 'fte-total-cell'; total.textContent = '0'; cells.push(total);
+    gpPct.after(...cells);
+
+    [mrPct,mgrPct].forEach((cell) => {
+      cell.addEventListener('focus', () => { cell.textContent = cell.dataset.raw || '0'; });
+      cell.addEventListener('input', () => { cell.dataset.raw = String(toNum(cell.textContent)); });
+      cell.addEventListener('blur', () => { const v = toNum(cell.textContent); cell.dataset.raw = String(v); cell.textContent = v.toFixed(2) + '%'; });
+    });
+    [mrUsd,mgrUsd].forEach((cell) => {
+      cell.addEventListener('focus', () => { cell.textContent = cell.dataset.raw || '0'; });
+      cell.addEventListener('input', () => { cell.dataset.raw = String(toNum(cell.textContent)); recalcRow(row); });
+      cell.addEventListener('blur', () => { const v = toNum(cell.textContent); cell.dataset.raw = String(v); cell.textContent = money(v); recalcRow(row); });
+    });
+    recalcRow(row);
+  });
+
+  const totalRow = table.querySelector('tbody tr.total-row');
+  if (totalRow) {
+    const gpPctTotal = totalRow.querySelector('.gp-pct-total');
+    if (gpPctTotal) {
+      const defs = [
+        ['—','fte-total-row'],['0','fte-total-row fte-mr-usd-total'],['','fte-sep'],
+        ['—','fte-total-row'],['0','fte-total-row fte-mgr-usd-total'],['','fte-sep'],
+        ['0','fte-total-row fte-grand-total']
+      ];
+      let anchor = gpPctTotal;
+      defs.forEach(([text, cls]) => {
+        const td = document.createElement('td'); td.className = cls; td.textContent = text; anchor.after(td); anchor = td;
+      });
+    }
+  }
+
+  function recalcTotals() {
+    let mr = 0, mgr = 0;
+    table.querySelectorAll('tbody tr:not(.total-row) .fte-mr-usd-cell').forEach((cell) => { mr += toNum(cell.dataset.raw ?? cell.textContent); });
+    table.querySelectorAll('tbody tr:not(.total-row) .fte-mgr-usd-cell').forEach((cell) => { mgr += toNum(cell.dataset.raw ?? cell.textContent); });
+    const mrTotal = table.querySelector('.fte-mr-usd-total');
+    const mgrTotal = table.querySelector('.fte-mgr-usd-total');
+    const grandTotal = table.querySelector('.fte-grand-total');
+    if (mrTotal) mrTotal.textContent = money(mr);
+    if (mgrTotal) mgrTotal.textContent = money(mgr);
+    if (grandTotal) grandTotal.textContent = money(mr + mgr);
+  }
+  recalcTotals();
+});
