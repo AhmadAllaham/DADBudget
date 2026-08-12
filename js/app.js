@@ -420,7 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
   reductionGroup.textContent = 'REDUCTIONS';
   groupRow.insertBefore(reductionGroup, costGroup);
 
-  const defs = [['Commission %','commission-pct'],['Commission USD','commission-usd'],['.','reduction-sep'],['Returns %','returns-pct'],['Returns USD','returns-usd'],['.','reduction-sep'],['Discount %','discount-pct'],['Discount USD','discount-usd']];
+  const defs = [['Commission %','commission-pct'],['Commission USD','commission-usd'],['','reduction-sep'],['Returns %','returns-pct'],['Returns USD','returns-usd'],['','reduction-sep'],['Discount %','discount-pct'],['Discount USD','discount-usd']];
   const bonusQtyHead = [...columnRow.children].find((th) => th.textContent.trim().toLowerCase() === 'bonus qty');
   if (!bonusQtyHead) return;
   let headerAnchor = bonusQtyHead;
@@ -590,10 +590,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const headDefs = [
     ['FTE %\nMR','fte-mr-pct'],
     ['FTE USD\nMR','fte-mr-usd'],
-    ['.','fte-sep'],
+    ['','fte-sep'],
     ['FTE %\nMGR, SUPR','fte-mgr-pct'],
     ['FTE USD\nMGR, SUPR','fte-mgr-usd'],
-    ['.','fte-sep'],
+    ['','fte-sep'],
     ['Total FTE','fte-total-head']
   ];
   let headAnchor = gpPctHead;
@@ -714,9 +714,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const defs = [
     ['B26<br>Samples QTY','samples-qty-head'],
     ['B26<br>Samples USD','samples-usd-head'],
-    ['.','direct-cost-sep-head'],
+    ['','direct-cost-sep-head'],
     ['A&P<br>USD $','ap-head'],
-    ['.','direct-cost-sep-head'],
+    ['','direct-cost-sep-head'],
     ['Profit after direct costs','profit-direct-head'],
     ['Net Profit %','net-profit-pct-head']
   ];
