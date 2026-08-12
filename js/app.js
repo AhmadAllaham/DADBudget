@@ -61,6 +61,12 @@ document.addEventListener('DOMContentLoaded', () => {
     .budget-table tbody tr:not(.total-row):hover td{font-weight:900!important;color:#063f3d!important;background:#e6fffb!important;text-shadow:0 0 7px rgba(20,225,205,.72);box-shadow:inset 0 0 14px rgba(28,222,202,.22),0 0 9px rgba(28,222,202,.12)}
     .budget-table tbody tr:not(.total-row):hover td.sticky-1,.budget-table tbody tr:not(.total-row):hover td.sticky-2,.budget-table tbody tr:not(.total-row):hover td.sticky-3,.budget-table tbody tr:not(.total-row):hover td.sticky-4,.budget-table tbody tr:not(.total-row):hover td.sticky-5,.budget-table tbody tr:not(.total-row):hover td.sticky-6,.budget-table tbody tr:not(.total-row):hover td.sticky-7,.budget-table tbody tr:not(.total-row):hover td.sticky-8,.budget-table tbody tr:not(.total-row):hover td.sticky-9,.budget-table tbody tr:not(.total-row):hover td.sticky-10{background:#e6fffb!important}
     .budget-table tbody tr:not(.total-row):hover td.unmatched-cost{color:#a72f2f!important;background:#ffecec!important;text-shadow:0 0 6px rgba(255,80,80,.18)!important}
+    .bonus-group{background:#875f8f!important}
+    .bonus-head{min-width:96px;background:#714f79!important;color:#fff!important}
+    .bonus-percent,.bonus-qty{background:#fbf5fc!important;color:#5f3768!important;font-weight:900!important}
+    .bonus-percent{cursor:text;outline:none}
+    .bonus-percent:focus{background:#f7eafa!important;box-shadow:inset 0 0 0 2px rgba(135,95,143,.25),0 0 9px rgba(163,99,177,.22)}
+    .bonus-total{background:#eee0f1!important;color:#5f3768!important;font-weight:900!important}
     .cost-detail-toggle{border:1px solid #50d7ca;background:linear-gradient(90deg,#eafffc,#fff);color:#086d67;border-radius:8px;padding:9px 13px;font-size:12px;font-weight:900;box-shadow:0 0 8px rgba(38,255,235,.30),0 0 16px rgba(38,255,235,.16);transition:.18s ease}
     .cost-detail-toggle:hover,.cost-detail-toggle.active{background:#dffffa;color:#064f4b;box-shadow:0 0 9px rgba(38,255,235,.65),0 0 20px rgba(38,255,235,.34);text-shadow:0 0 7px rgba(38,255,235,.55)}
     .cost-menu-wrap{position:relative;display:inline-flex}
@@ -97,6 +103,79 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const fmt = (v) => Number(v).toLocaleString(undefined, { maximumFractionDigits: 4 });
 
+  // B26 order: IMS Amount -> Bonus % -> Bonus QTY -> Cost/COGS.
+  const groupRow = budgetTable.querySelector('thead tr.group-row');
+  const columnRow = budgetTable.querySelector('thead tr.column-row');
+  const costGroup = budgetTable.querySelector('.cost-group');
+  const totalUsdIndex = [...columnRow.children].findIndex((th) => th.textContent.trim().toLowerCase() === 'total usd');
+
+  if (totalUsdIndex >= 0 && !columnRow.querySelector('.bonus-head')) {
+    const bonusGroup = document.createElement('th');
+    bonusGroup.className = 'bonus-group';
+    bonusGroup.colSpan = 2;
+    bonusGroup.textContent = 'BONUS 2026';
+    groupRow.insertBefore(bonusGroup, costGroup);
+
+    const bonusPctHead = document.createElement('th');
+    bonusPctHead.className = 'bonus-head';
+    bonusPctHead.textContent = 'Bonus %';
+    const bonusQtyHead = document.createElement('th');
+    bonusQtyHead.className = 'bonus-head';
+    bonusQtyHead.textContent = 'Bonus QTY';
+    const totalUsdHead = columnRow.children[totalUsdIndex];
+    totalUsdHead.after(bonusPctHead, bonusQtyHead);
+
+    const sampleBonus = { SKU0001:10, SKU0002:5 };
+    budgetTable.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
+      const sku = norm(row.dataset.sku || row.children[7]?.textContent);
+      const totalQty = num(row.children[22]?.textContent);
+      const pct = sampleBonus[sku] ?? 0;
+      const pctTd = document.createElement('td');
+      pctTd.className = 'bonus-percent';
+      pctTd.contentEditable = 'true';
+      pctTd.dataset.raw = String(pct);
+      pctTd.textContent = pct.toFixed(2) + '%';
+      const qtyTd = document.createElement('td');
+      qtyTd.className = 'bonus-qty';
+      qtyTd.textContent = Math.round(totalQty * pct / 100).toLocaleString();
+      row.children[totalUsdIndex].after(pctTd, qtyTd);
+
+      const recalcBonus = () => {
+        let raw = String(pctTd.textContent || '').replace('%','').trim();
+        const value = Number(raw.replace(/,/g,''));
+        const pctValue = Number.isFinite(value) ? value : 0;
+        pctTd.dataset.raw = String(pctValue);
+        qtyTd.textContent = Math.round(totalQty * pctValue / 100).toLocaleString();
+        recalcBonusTotal();
+      };
+      pctTd.addEventListener('focus', () => { pctTd.textContent = pctTd.dataset.raw || '0'; });
+      pctTd.addEventListener('input', recalcBonus);
+      pctTd.addEventListener('blur', () => {
+        recalcBonus();
+        pctTd.textContent = Number(pctTd.dataset.raw || 0).toFixed(2) + '%';
+      });
+    });
+
+    const totalRow = budgetTable.querySelector('tbody tr.total-row');
+    if (totalRow) {
+      const pctTotal = document.createElement('td');
+      pctTotal.className = 'bonus-total';
+      pctTotal.textContent = '—';
+      const qtyTotal = document.createElement('td');
+      qtyTotal.className = 'bonus-total bonus-qty-total';
+      totalRow.children[totalUsdIndex].after(pctTotal, qtyTotal);
+    }
+  }
+
+  function recalcBonusTotal() {
+    const totalCell = budgetTable.querySelector('.bonus-qty-total');
+    if (!totalCell) return;
+    let total = 0;
+    budgetTable.querySelectorAll('tbody tr:not(.total-row) .bonus-qty').forEach((cell) => total += num(cell.textContent));
+    totalCell.textContent = total.toLocaleString();
+  }
+  recalcBonusTotal();
+
   const cogsHeaders = ['RM', 'PM', 'Direct DL', 'Direct OH', 'In-Direct DL', 'In-Direct OH', 'Cost Rate'];
   let detailHeaders = [...cogsHeaders];
   let detailMap = {
@@ -120,8 +199,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   } catch (e) {}
 
-  const columnRow = budgetTable.querySelector('thead tr.column-row');
-  const costGroup = budgetTable.querySelector('.cost-group');
   const baseCostIndex = [...columnRow.children].findIndex((th) => th.textContent.trim().toLowerCase() === 'unit cost');
 
   if (baseCostIndex >= 0) {
