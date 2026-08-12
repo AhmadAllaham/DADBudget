@@ -679,3 +679,153 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   recalcTotals();
 });
+
+// Samples, A&P and profit after direct costs block, aligned with the B26 sheet.
+document.addEventListener('DOMContentLoaded', () => {
+  const table = document.getElementById('budgetTable');
+  if (!table) return;
+  const groupRow = table.querySelector('thead tr.group-row');
+  const columnRow = table.querySelector('thead tr.column-row');
+  if (!groupRow || !columnRow || columnRow.querySelector('.direct-cost-head')) return;
+
+  const fteGroup = groupRow.querySelector('.fte-group');
+  const style = document.createElement('style');
+  style.textContent = `
+    .direct-cost-group{background:#5c587c!important;color:#fff!important}
+    .direct-cost-head{min-width:112px;background:#514d70!important;color:#fff!important;line-height:1.15}
+    .direct-cost-sep-head,.direct-cost-sep{min-width:22px!important;width:22px!important;max-width:22px!important;padding-left:3px!important;padding-right:3px!important;text-align:center!important;background:#ecebf2!important;color:#817e96!important}
+    .samples-qty-cell,.ap-cell{background:#f7f6fb!important;color:#514d70!important;font-weight:900!important;cursor:text;outline:none}
+    .samples-usd-cell{background:#f3f1f8!important;color:#514d70!important;font-weight:900!important}
+    .profit-direct-cell,.net-profit-pct-cell{background:#e9f4ef!important;color:#176255!important;font-weight:900!important}
+    .profit-direct-cell.negative,.net-profit-pct-cell.negative{background:#fff0f0!important;color:#b53c3c!important}
+    .direct-cost-total{background:#e6e4ef!important;color:#514d70!important;font-weight:900!important}
+    .profit-direct-total,.net-profit-pct-total{background:#dceee7!important;color:#176255!important;font-weight:900!important}
+  `;
+  document.head.appendChild(style);
+
+  const group = document.createElement('th');
+  group.className = 'direct-cost-group';
+  group.colSpan = 7;
+  group.textContent = 'DIRECT COSTS / PROFIT';
+  if (fteGroup) fteGroup.after(group); else groupRow.appendChild(group);
+
+  const totalFteHead = columnRow.querySelector('.fte-total-head');
+  if (!totalFteHead) return;
+  const defs = [
+    ['B26<br>Samples QTY','samples-qty-head'],
+    ['B26<br>Samples USD','samples-usd-head'],
+    ['.','direct-cost-sep-head'],
+    ['A&P<br>USD $','ap-head'],
+    ['.','direct-cost-sep-head'],
+    ['Profit after direct costs','profit-direct-head'],
+    ['Net Profit %','net-profit-pct-head']
+  ];
+  let headAnchor = totalFteHead;
+  defs.forEach(([label, cls]) => {
+    const th = document.createElement('th');
+    th.className = `direct-cost-head ${cls}`;
+    th.innerHTML = label;
+    headAnchor.after(th);
+    headAnchor = th;
+  });
+
+  const toNum = (v) => {
+    const n = Number(String(v ?? '').replace(/,/g,'').replace('%','').trim());
+    return Number.isFinite(n) ? n : 0;
+  };
+  const money = (v) => Number(v).toLocaleString(undefined,{maximumFractionDigits:2});
+
+  function recalcRow(row) {
+    const sampleQtyCell = row.querySelector('.samples-qty-cell');
+    const sampleUsdCell = row.querySelector('.samples-usd-cell');
+    const apCell = row.querySelector('.ap-cell');
+    const costRate = toNum(row.querySelector('.cost-unit')?.textContent);
+    const samplesQty = toNum(sampleQtyCell?.dataset.raw ?? sampleQtyCell?.textContent);
+    const samplesUsd = samplesQty * costRate;
+    if (sampleUsdCell) sampleUsdCell.textContent = money(samplesUsd);
+
+    const gp = toNum(row.querySelector('.gp-cell')?.textContent);
+    const totalFte = toNum(row.querySelector('.fte-total-cell')?.textContent);
+    const ap = toNum(apCell?.dataset.raw ?? apCell?.textContent);
+    const profit = gp - totalFte - samplesUsd - ap;
+    const netSales = toNum(row.querySelector('.net-sales-cell')?.textContent);
+    const npPct = netSales !== 0 ? (profit / netSales) * 100 : null;
+    const profitCell = row.querySelector('.profit-direct-cell');
+    const pctCell = row.querySelector('.net-profit-pct-cell');
+    if (profitCell) {
+      profitCell.textContent = money(profit);
+      profitCell.classList.toggle('negative', profit < 0);
+    }
+    if (pctCell) {
+      pctCell.textContent = npPct == null ? '—' : npPct.toFixed(2) + '%';
+      pctCell.classList.toggle('negative', npPct != null && npPct < 0);
+    }
+    recalcTotals();
+  }
+
+  table.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
+    const totalFte = row.querySelector('.fte-total-cell');
+    if (!totalFte) return;
+    const sampleQty = document.createElement('td');
+    sampleQty.className = 'samples-qty-cell'; sampleQty.contentEditable = 'true'; sampleQty.dataset.raw = '0'; sampleQty.textContent = '0';
+    const sampleUsd = document.createElement('td');
+    sampleUsd.className = 'samples-usd-cell'; sampleUsd.textContent = '0';
+    const sep1 = document.createElement('td'); sep1.className = 'direct-cost-sep';
+    const ap = document.createElement('td');
+    ap.className = 'ap-cell'; ap.contentEditable = 'true'; ap.dataset.raw = '0'; ap.textContent = '0';
+    const sep2 = document.createElement('td'); sep2.className = 'direct-cost-sep';
+    const profit = document.createElement('td'); profit.className = 'profit-direct-cell'; profit.textContent = '0';
+    const pct = document.createElement('td'); pct.className = 'net-profit-pct-cell'; pct.textContent = '0.00%';
+    totalFte.after(sampleQty, sampleUsd, sep1, ap, sep2, profit, pct);
+
+    sampleQty.addEventListener('focus', () => { sampleQty.textContent = sampleQty.dataset.raw || '0'; });
+    sampleQty.addEventListener('input', () => { sampleQty.dataset.raw = String(toNum(sampleQty.textContent)); recalcRow(row); });
+    sampleQty.addEventListener('blur', () => { const v = toNum(sampleQty.textContent); sampleQty.dataset.raw = String(v); sampleQty.textContent = v.toLocaleString(); recalcRow(row); });
+    ap.addEventListener('focus', () => { ap.textContent = ap.dataset.raw || '0'; });
+    ap.addEventListener('input', () => { ap.dataset.raw = String(toNum(ap.textContent)); recalcRow(row); });
+    ap.addEventListener('blur', () => { const v = toNum(ap.textContent); ap.dataset.raw = String(v); ap.textContent = money(v); recalcRow(row); });
+
+    [row.querySelector('.gp-cell'), row.querySelector('.fte-total-cell'), row.querySelector('.net-sales-cell'), row.querySelector('.cost-unit')].forEach((cell) => {
+      if (cell) new MutationObserver(() => recalcRow(row)).observe(cell,{childList:true,characterData:true,subtree:true});
+    });
+    recalcRow(row);
+  });
+
+  const totalRow = table.querySelector('tbody tr.total-row');
+  if (totalRow) {
+    const fteGrand = totalRow.querySelector('.fte-grand-total');
+    if (fteGrand) {
+      const totalDefs = [
+        ['0','direct-cost-total samples-qty-total'],['0','direct-cost-total samples-usd-total'],['','direct-cost-sep'],
+        ['0','direct-cost-total ap-total'],['','direct-cost-sep'],['0','profit-direct-total'],['0.00%','net-profit-pct-total']
+      ];
+      let anchor = fteGrand;
+      totalDefs.forEach(([text, cls]) => {
+        const td = document.createElement('td'); td.className = cls; td.textContent = text; anchor.after(td); anchor = td;
+      });
+    }
+  }
+
+  function recalcTotals() {
+    let qty = 0, sampleUsd = 0, ap = 0, profit = 0, netSales = 0;
+    table.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
+      qty += toNum(row.querySelector('.samples-qty-cell')?.dataset.raw ?? row.querySelector('.samples-qty-cell')?.textContent);
+      sampleUsd += toNum(row.querySelector('.samples-usd-cell')?.textContent);
+      ap += toNum(row.querySelector('.ap-cell')?.dataset.raw ?? row.querySelector('.ap-cell')?.textContent);
+      profit += toNum(row.querySelector('.profit-direct-cell')?.textContent);
+      netSales += toNum(row.querySelector('.net-sales-cell')?.textContent);
+    });
+    const npPct = netSales !== 0 ? (profit / netSales) * 100 : null;
+    const qtyTotal = table.querySelector('.samples-qty-total');
+    const sampleUsdTotal = table.querySelector('.samples-usd-total');
+    const apTotal = table.querySelector('.ap-total');
+    const profitTotal = table.querySelector('.profit-direct-total');
+    const pctTotal = table.querySelector('.net-profit-pct-total');
+    if (qtyTotal) qtyTotal.textContent = qty.toLocaleString();
+    if (sampleUsdTotal) sampleUsdTotal.textContent = money(sampleUsd);
+    if (apTotal) apTotal.textContent = money(ap);
+    if (profitTotal) profitTotal.textContent = money(profit);
+    if (pctTotal) pctTotal.textContent = npPct == null ? '—' : npPct.toFixed(2) + '%';
+  }
+  recalcTotals();
+});
