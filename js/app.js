@@ -18,6 +18,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (appShell && sidebar) {
+    const nav = sidebar.querySelector('.sidebar-nav');
+    if (nav && !nav.querySelector('a[href="data-admin.html"]')) {
+      const section = document.createElement('div');
+      section.className = 'nav-section';
+      section.textContent = 'ADMIN';
+      const link = document.createElement('a');
+      link.href = 'data-admin.html';
+      link.textContent = 'Data Admin';
+      nav.append(section, link);
+    }
+
     const toggleBtn = document.createElement('button');
     toggleBtn.type = 'button';
     toggleBtn.className = 'sidebar-toggle';
@@ -41,6 +52,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const style = document.createElement('style');
   style.textContent = `
     .cost-strip{display:none!important}
+    .ims-actions #downloadCostTemplate,
+    .ims-actions #uploadCostBtn,
+    .ims-actions #costFileInput,
+    .ims-actions > .teal-btn{display:none!important}
     .budget-table .col-hover{font-weight:inherit!important;color:inherit!important;background:inherit!important;text-shadow:none!important;box-shadow:none!important}
     .budget-table thead .col-hover{color:#fff!important;background:#173f68!important;text-shadow:none!important;box-shadow:none!important}
     .budget-table tbody tr:not(.total-row):hover td{font-weight:900!important;color:#063f3d!important;background:#e6fffb!important;text-shadow:0 0 7px rgba(20,225,205,.72);box-shadow:inset 0 0 14px rgba(28,222,202,.22),0 0 9px rgba(28,222,202,.12)}
@@ -66,7 +81,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }, true);
 
   const imsActions = document.querySelector('.ims-actions');
-  const costFileInput = document.getElementById('costFileInput');
   const norm = (v) => String(v ?? '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
   const num = (v) => {
     const n = Number(String(v ?? '').replace(/,/g, '').trim());
@@ -104,10 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
     detailBtn.className = 'cost-detail-toggle';
     detailBtn.textContent = 'Show Cost Detail';
     detailBtn.title = 'Show the same cost-rate breakdown used in the COGS sheet';
-    if (imsActions) {
-      const uploadCostBtn = document.getElementById('uploadCostBtn');
-      imsActions.insertBefore(detailBtn, uploadCostBtn || imsActions.firstChild);
-    }
+    if (imsActions) imsActions.insertBefore(detailBtn, imsActions.firstChild);
   }
 
   function getUnitCostIndex() {
@@ -180,90 +191,4 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   detailBtn.addEventListener('click', () => detailVisible ? removeDetailColumns() : addDetailColumns());
-
-  if (costFileInput) {
-    costFileInput.addEventListener('change', async (event) => {
-      const file = event.target.files?.[0];
-      if (!file || typeof XLSX === 'undefined') return;
-      try {
-        const data = await file.arrayBuffer();
-        const wb = XLSX.read(data, {type:'array'});
-        const cogsSheetName = wb.SheetNames.find((name) => String(name).trim().toUpperCase() === 'COGS');
-        const ws = wb.Sheets[cogsSheetName || wb.SheetNames[0]];
-        const matrix = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-        if (!matrix.length) return;
-
-        const headerRowIndex = matrix.findIndex((row) => {
-          const cells = row.map((v) => String(v).trim().toUpperCase());
-          return cells.includes('COUNTRY') && cells.includes('ITEM SPM') && cells.includes('RM') && cells.includes('PM');
-        });
-
-        if (headerRowIndex >= 0) {
-          const hdr = matrix[headerRowIndex].map((v) => String(v).trim());
-          const countryIdx = hdr.findIndex((h) => /^country$/i.test(h));
-          const itemIdx = hdr.findIndex((h) => /^item spm$/i.test(h));
-          const rmIdx = hdr.findIndex((h) => /^rm$/i.test(h));
-          const pmIdx = hdr.findIndex((h) => /^pm$/i.test(h));
-          const dlIndexes = hdr.map((h, i) => /^dl$/i.test(h) ? i : -1).filter((i) => i >= 0);
-          const ohIndexes = hdr.map((h, i) => /^oh$/i.test(h) ? i : -1).filter((i) => i >= 0);
-          const b25Idx = hdr.findIndex((h) => /^b25$/i.test(h));
-
-          const nextMap = {};
-          for (let r = headerRowIndex + 1; r < matrix.length; r++) {
-            const row = matrix[r];
-            const item = row[itemIdx];
-            if (!item) continue;
-            const key = norm(item);
-            const breakdown = {
-              'RM': num(row[rmIdx]),
-              'PM': num(row[pmIdx]),
-              'Direct DL': num(row[dlIndexes[0]]),
-              'Direct OH': num(row[ohIndexes[0]]),
-              'In-Direct DL': num(row[dlIndexes[1]]),
-              'In-Direct OH': num(row[ohIndexes[1]]),
-              'Cost Rate': num(row[b25Idx])
-            };
-            nextMap[key] = breakdown;
-            if (countryIdx >= 0 && row[countryIdx]) nextMap[norm(row[countryIdx] + '|' + item)] = breakdown;
-          }
-          detailHeaders = [...cogsHeaders];
-          detailMap = nextMap;
-          localStorage.setItem('dadBudgetCostBreakdown', JSON.stringify({headers: detailHeaders, map: detailMap}));
-          removeDetailColumns();
-          detailBtn.title = 'COGS detail loaded: RM, PM, Direct DL/OH, In-Direct DL/OH, Cost Rate';
-          return;
-        }
-
-        const json = XLSX.utils.sheet_to_json(ws, {defval:''});
-        if (!json.length) return;
-        const headers = Object.keys(json[0]);
-        const skuHeader = headers.find((h) => /^(sku|sku code|item|item code|product code|material|material code)$/i.test(String(h).trim())) || headers.find((h) => /sku|item code|product code|material code/i.test(String(h)));
-        const totalCostHeader = headers.find((h) => /^(cost|unit cost|cost usd|standard cost|std cost|product cost|b25|cost rate)$/i.test(String(h).trim())) || headers.find((h) => /cost|b25/i.test(String(h)));
-        if (!skuHeader || !totalCostHeader) return;
-
-        const candidateHeaders = headers.filter((h) => {
-          if (h === skuHeader || h === totalCostHeader || !String(h).trim()) return false;
-          return json.some((r) => r[h] !== '' && Number.isFinite(Number(String(r[h]).replace(/,/g,''))));
-        });
-
-        if (candidateHeaders.length) {
-          const nextMap = {};
-          json.forEach((r) => {
-            const sku = norm(r[skuHeader]);
-            if (!sku) return;
-            nextMap[sku] = {};
-            candidateHeaders.forEach((h) => nextMap[sku][h] = r[h] === '' ? '' : num(r[h]));
-            nextMap[sku]['Cost Rate'] = num(r[totalCostHeader]);
-          });
-          detailHeaders = [...candidateHeaders, 'Cost Rate'];
-          detailMap = nextMap;
-          localStorage.setItem('dadBudgetCostBreakdown', JSON.stringify({headers: detailHeaders, map: detailMap}));
-          removeDetailColumns();
-          detailBtn.title = `${detailHeaders.length} cost detail columns available`;
-        }
-      } catch (e) {
-        console.warn('Cost detail parsing skipped:', e);
-      }
-    });
-  }
 });
