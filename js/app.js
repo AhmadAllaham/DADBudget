@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const style = document.createElement('style');
   style.textContent = `
+    .cost-strip{display:none!important}
     .budget-table .col-hover{font-weight:inherit!important;color:inherit!important;background:inherit!important;text-shadow:none!important;box-shadow:none!important}
     .budget-table thead .col-hover{color:#fff!important;background:#173f68!important;text-shadow:none!important;box-shadow:none!important}
     .budget-table tbody tr:not(.total-row):hover td{font-weight:900!important;color:#063f3d!important;background:#e6fffb!important;text-shadow:0 0 7px rgba(20,225,205,.72);box-shadow:inset 0 0 14px rgba(28,222,202,.22),0 0 9px rgba(28,222,202,.12)}
@@ -73,7 +74,6 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const fmt = (v) => Number(v).toLocaleString(undefined, { maximumFractionDigits: 4 });
 
-  // Same cost-rate detail used in the Budget 2026 COGS sheet.
   const cogsHeaders = ['RM', 'PM', 'Direct DL', 'Direct OH', 'In-Direct DL', 'In-Direct OH', 'Cost Rate'];
   let detailHeaders = [...cogsHeaders];
   let detailMap = {
