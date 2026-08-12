@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   recalcBonusTotal();
 
-  // Gross Profit = Total Sales - Total COGS.
+  // Gross Profit = Total USD sales - Total COGS.
   if (!columnRow.querySelector('.gp-head')) {
     const gpGroup = document.createElement('th');
     gpGroup.className = 'gp-group';
@@ -210,9 +210,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function recalcGrossProfit() {
-    let totalGp = 0;
+    const salesHeaderIndex = [...columnRow.children].findIndex((th) => th.textContent.trim().toLowerCase() === 'total usd');
+    let totalSalesAll = 0;
+    let totalCogsAll = 0;
+
     budgetTable.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
-      const totalSales = num(row.querySelector('.total-cell')?.textContent || row.children[35]?.textContent);
+      const totalSales = salesHeaderIndex >= 0 ? num(row.children[salesHeaderIndex]?.textContent) : 0;
       const totalCogs = num(row.querySelector('.cogs-total')?.textContent);
       const gp = totalSales - totalCogs;
       const gpCell = row.querySelector('.gp-cell');
@@ -220,8 +223,11 @@ document.addEventListener('DOMContentLoaded', () => {
         gpCell.textContent = fmt(gp);
         gpCell.classList.toggle('negative', gp < 0);
       }
-      totalGp += gp;
+      totalSalesAll += totalSales;
+      totalCogsAll += totalCogs;
     });
+
+    const totalGp = totalSalesAll - totalCogsAll;
     const totalCell = budgetTable.querySelector('.gp-total');
     if (totalCell) {
       totalCell.textContent = fmt(totalGp);
