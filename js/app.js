@@ -68,11 +68,11 @@ document.addEventListener('DOMContentLoaded', () => {
     .bonus-percent:focus{background:#f7eafa!important;box-shadow:inset 0 0 0 2px rgba(135,95,143,.25),0 0 9px rgba(163,99,177,.22)}
     .bonus-total{background:#eee0f1!important;color:#5f3768!important;font-weight:900!important}
     .gp-group{background:#176d63!important}
-    .gp-head{min-width:112px;background:#176d63!important;color:#fff!important}
-    .gp-cell{background:#edf9f6!important;color:#0b625a!important;font-weight:900!important}
-    .gp-cell.negative{background:#fff0f0!important;color:#b53c3c!important}
-    .gp-total{background:#d9f1ec!important;color:#0b625a!important;font-weight:900!important}
-    .gp-total.negative{background:#ffe4e4!important;color:#a92f2f!important}
+    .gp-head,.gp-pct-head{min-width:112px;background:#176d63!important;color:#fff!important}
+    .gp-cell,.gp-pct-cell{background:#edf9f6!important;color:#0b625a!important;font-weight:900!important}
+    .gp-cell.negative,.gp-pct-cell.negative{background:#fff0f0!important;color:#b53c3c!important}
+    .gp-total,.gp-pct-total{background:#d9f1ec!important;color:#0b625a!important;font-weight:900!important}
+    .gp-total.negative,.gp-pct-total.negative{background:#ffe4e4!important;color:#a92f2f!important}
     .cost-detail-toggle{border:1px solid #50d7ca;background:linear-gradient(90deg,#eafffc,#fff);color:#086d67;border-radius:8px;padding:9px 13px;font-size:12px;font-weight:900;box-shadow:0 0 8px rgba(38,255,235,.30),0 0 16px rgba(38,255,235,.16);transition:.18s ease}
     .cost-detail-toggle:hover,.cost-detail-toggle.active{background:#dffffa;color:#064f4b;box-shadow:0 0 9px rgba(38,255,235,.65),0 0 20px rgba(38,255,235,.34);text-shadow:0 0 7px rgba(38,255,235,.55)}
     .cost-menu-wrap{position:relative;display:inline-flex}
@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const fmt = (v) => Number(v).toLocaleString(undefined, { maximumFractionDigits: 4 });
 
-  // B26 order: IMS Amount -> Bonus % -> Bonus QTY -> Cost/COGS -> Gross Profit.
+  // B26 order: IMS Amount -> Bonus % -> Bonus QTY -> Cost/COGS -> Gross Profit -> GP%.
   const groupRow = budgetTable.querySelector('thead tr.group-row');
   const columnRow = budgetTable.querySelector('thead tr.column-row');
   const costGroup = budgetTable.querySelector('.cost-group');
@@ -183,56 +183,79 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   recalcBonusTotal();
 
-  // Gross Profit = Total USD sales - Total COGS.
   if (!columnRow.querySelector('.gp-head')) {
     const gpGroup = document.createElement('th');
     gpGroup.className = 'gp-group';
-    gpGroup.colSpan = 1;
+    gpGroup.colSpan = 2;
     gpGroup.textContent = 'PROFITABILITY';
     groupRow.appendChild(gpGroup);
 
     const gpHead = document.createElement('th');
     gpHead.className = 'gp-head';
     gpHead.textContent = 'Gross Profit';
-    columnRow.appendChild(gpHead);
+    const gpPctHead = document.createElement('th');
+    gpPctHead.className = 'gp-pct-head';
+    gpPctHead.textContent = 'GP%';
+    columnRow.append(gpHead, gpPctHead);
 
     budgetTable.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
       const gpTd = document.createElement('td');
       gpTd.className = 'gp-cell';
-      row.appendChild(gpTd);
+      const gpPctTd = document.createElement('td');
+      gpPctTd.className = 'gp-pct-cell';
+      row.append(gpTd, gpPctTd);
     });
 
     const totalRow = budgetTable.querySelector('tbody tr.total-row');
     if (totalRow) {
       const gpTotal = document.createElement('td');
       gpTotal.className = 'gp-total';
-      totalRow.appendChild(gpTotal);
+      const gpPctTotal = document.createElement('td');
+      gpPctTotal.className = 'gp-pct-total';
+      totalRow.append(gpTotal, gpPctTotal);
     }
   }
 
   function recalcGrossProfit() {
-    const salesHeaderIndex = [...columnRow.children].findIndex((th) => th.textContent.trim().toLowerCase() === 'total usd');
+    const headers = [...columnRow.children];
+    const totalSalesIndex = headers.findIndex((th) => th.textContent.trim().toLowerCase() === 'total usd');
+    const netSalesIndex = headers.findIndex((th) => th.textContent.trim().toLowerCase() === 'net sales');
     let totalSalesAll = 0;
     let totalCogsAll = 0;
+    let totalNetSalesAll = 0;
 
     budgetTable.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
-      const totalSales = salesHeaderIndex >= 0 ? num(row.children[salesHeaderIndex]?.textContent) : 0;
+      const totalSales = totalSalesIndex >= 0 ? num(row.children[totalSalesIndex]?.textContent) : 0;
+      const netSales = netSalesIndex >= 0 ? num(row.children[netSalesIndex]?.textContent) : totalSales;
       const totalCogs = num(row.querySelector('.cogs-total')?.textContent);
       const gp = totalSales - totalCogs;
+      const gpPct = netSales !== 0 ? (gp / netSales) * 100 : null;
       const gpCell = row.querySelector('.gp-cell');
+      const gpPctCell = row.querySelector('.gp-pct-cell');
       if (gpCell) {
         gpCell.textContent = fmt(gp);
         gpCell.classList.toggle('negative', gp < 0);
       }
+      if (gpPctCell) {
+        gpPctCell.textContent = gpPct == null ? '—' : gpPct.toFixed(2) + '%';
+        gpPctCell.classList.toggle('negative', gpPct != null && gpPct < 0);
+      }
       totalSalesAll += totalSales;
       totalCogsAll += totalCogs;
+      totalNetSalesAll += netSales;
     });
 
     const totalGp = totalSalesAll - totalCogsAll;
+    const totalGpPct = totalNetSalesAll !== 0 ? (totalGp / totalNetSalesAll) * 100 : null;
     const totalCell = budgetTable.querySelector('.gp-total');
+    const totalPctCell = budgetTable.querySelector('.gp-pct-total');
     if (totalCell) {
       totalCell.textContent = fmt(totalGp);
       totalCell.classList.toggle('negative', totalGp < 0);
+    }
+    if (totalPctCell) {
+      totalPctCell.textContent = totalGpPct == null ? '—' : totalGpPct.toFixed(2) + '%';
+      totalPctCell.classList.toggle('negative', totalGpPct != null && totalGpPct < 0);
     }
   }
 
