@@ -1,831 +1,125 @@
-document.addEventListener('DOMContentLoaded', () => {
-  const loginForm = document.getElementById('loginForm');
-  const logoutBtn = document.getElementById('logoutBtn');
-  const appShell = document.querySelector('.app-shell');
-  const sidebar = document.querySelector('.sidebar');
+// DAD Budget 2027 - shared frontend logic
+(function(){
+  const IMS_KEY='dadBudgetIMSSales';
+  const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const n=v=>{const x=Number(String(v??'').replace(/,/g,'').replace('%','').trim());return Number.isFinite(x)?x:0};
+  const money=v=>Number(v||0).toLocaleString(undefined,{maximumFractionDigits:2});
+  const qtyFmt=v=>Math.round(Number(v||0)).toLocaleString();
+  const norm=v=>String(v??'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
-  if (loginForm) {
-    loginForm.addEventListener('submit', (event) => {
-      event.preventDefault();
-      window.location.href = 'index.html';
-    });
-  }
-
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      window.location.href = 'login.html';
-    });
-  }
-
-  if (appShell && sidebar) {
-    const nav = sidebar.querySelector('.sidebar-nav');
-    if (nav && !nav.querySelector('a[href="data-admin.html"]')) {
-      const section = document.createElement('div');
-      section.className = 'nav-section';
-      section.textContent = 'ADMIN';
-      const link = document.createElement('a');
-      link.href = 'data-admin.html';
-      link.textContent = 'Data Admin';
-      nav.append(section, link);
+  function setupShell(){
+    const loginForm=document.getElementById('loginForm');
+    if(loginForm)loginForm.addEventListener('submit',e=>{e.preventDefault();location.href='index.html'});
+    const logoutBtn=document.getElementById('logoutBtn');
+    if(logoutBtn)logoutBtn.addEventListener('click',()=>location.href='login.html');
+    const appShell=document.querySelector('.app-shell'),sidebar=document.querySelector('.sidebar');
+    if(!appShell||!sidebar)return;
+    const nav=sidebar.querySelector('.sidebar-nav');
+    if(nav&&!nav.querySelector('a[href="data-admin.html"]')){
+      const section=document.createElement('div');section.className='nav-section';section.textContent='ADMIN';
+      const a=document.createElement('a');a.href='data-admin.html';a.textContent='Data Admin';nav.append(section,a);
     }
-
-    const toggleBtn = document.createElement('button');
-    toggleBtn.type = 'button';
-    toggleBtn.className = 'sidebar-toggle';
-    toggleBtn.setAttribute('aria-label', 'Toggle sidebar');
-    toggleBtn.setAttribute('title', 'Open / Close Sidebar');
-    toggleBtn.textContent = '‹';
-    sidebar.appendChild(toggleBtn);
-
-    const savedState = localStorage.getItem('dadBudgetSidebarCollapsed');
-    if (savedState === 'true') appShell.classList.add('sidebar-collapsed');
-
-    toggleBtn.addEventListener('click', () => {
-      appShell.classList.toggle('sidebar-collapsed');
-      localStorage.setItem('dadBudgetSidebarCollapsed', appShell.classList.contains('sidebar-collapsed') ? 'true' : 'false');
-    });
+    let btn=sidebar.querySelector('.sidebar-toggle');
+    if(!btn){btn=document.createElement('button');btn.type='button';btn.className='sidebar-toggle';btn.title='Open / Close Sidebar';btn.textContent='‹';sidebar.appendChild(btn)}
+    if(localStorage.getItem('dadBudgetSidebarCollapsed')==='true')appShell.classList.add('sidebar-collapsed');
+    btn.addEventListener('click',()=>{appShell.classList.toggle('sidebar-collapsed');localStorage.setItem('dadBudgetSidebarCollapsed',appShell.classList.contains('sidebar-collapsed')?'true':'false')});
   }
 
-  const budgetTable = document.getElementById('budgetTable');
-  if (!budgetTable) return;
-
-  const style = document.createElement('style');
-  style.textContent = `
-    .cost-strip{display:none!important}
-    .ims-actions #downloadCostTemplate,
-    .ims-actions #uploadCostBtn,
-    .ims-actions #costFileInput,
-    .ims-actions > .teal-btn{display:none!important}
-    .budget-table .col-hover{font-weight:inherit!important;color:inherit!important;background:inherit!important;text-shadow:none!important;box-shadow:none!important}
-    .budget-table thead .col-hover{color:#fff!important;background:#173f68!important;text-shadow:none!important;box-shadow:none!important}
-    .budget-table tbody tr:not(.total-row):hover td{font-weight:900!important;color:#063f3d!important;background:#e6fffb!important;text-shadow:0 0 7px rgba(20,225,205,.72);box-shadow:inset 0 0 14px rgba(28,222,202,.22),0 0 9px rgba(28,222,202,.12)}
-    .budget-table tbody tr:not(.total-row):hover td.sticky-1,.budget-table tbody tr:not(.total-row):hover td.sticky-2,.budget-table tbody tr:not(.total-row):hover td.sticky-3,.budget-table tbody tr:not(.total-row):hover td.sticky-4,.budget-table tbody tr:not(.total-row):hover td.sticky-5,.budget-table tbody tr:not(.total-row):hover td.sticky-6,.budget-table tbody tr:not(.total-row):hover td.sticky-7,.budget-table tbody tr:not(.total-row):hover td.sticky-8,.budget-table tbody tr:not(.total-row):hover td.sticky-9,.budget-table tbody tr:not(.total-row):hover td.sticky-10{background:#e6fffb!important}
-    .budget-table tbody tr:not(.total-row):hover td.unmatched-cost{color:#a72f2f!important;background:#ffecec!important;text-shadow:0 0 6px rgba(255,80,80,.18)!important}
-    .bonus-group{background:#875f8f!important}
-    .bonus-head{min-width:96px;background:#714f79!important;color:#fff!important}
-    .bonus-percent,.bonus-qty{background:#fbf5fc!important;color:#5f3768!important;font-weight:900!important}
-    .bonus-percent{cursor:text;outline:none}
-    .bonus-percent:focus{background:#f7eafa!important;box-shadow:inset 0 0 0 2px rgba(135,95,143,.25),0 0 9px rgba(163,99,177,.22)}
-    .bonus-total{background:#eee0f1!important;color:#5f3768!important;font-weight:900!important}
-    .gp-group{background:#176d63!important}
-    .gp-head,.gp-pct-head{min-width:112px;background:#176d63!important;color:#fff!important}
-    .gp-cell,.gp-pct-cell{background:#edf9f6!important;color:#0b625a!important;font-weight:900!important}
-    .gp-cell.negative,.gp-pct-cell.negative{background:#fff0f0!important;color:#b53c3c!important}
-    .gp-total,.gp-pct-total{background:#d9f1ec!important;color:#0b625a!important;font-weight:900!important}
-    .gp-total.negative,.gp-pct-total.negative{background:#ffe4e4!important;color:#a92f2f!important}
-    .cost-detail-toggle{border:1px solid #50d7ca;background:linear-gradient(90deg,#eafffc,#fff);color:#086d67;border-radius:8px;padding:9px 13px;font-size:12px;font-weight:900;box-shadow:0 0 8px rgba(38,255,235,.30),0 0 16px rgba(38,255,235,.16);transition:.18s ease}
-    .cost-detail-toggle:hover,.cost-detail-toggle.active{background:#dffffa;color:#064f4b;box-shadow:0 0 9px rgba(38,255,235,.65),0 0 20px rgba(38,255,235,.34);text-shadow:0 0 7px rgba(38,255,235,.55)}
-    .cost-menu-wrap{position:relative;display:inline-flex}
-    .cost-view-menu{position:absolute;top:calc(100% + 8px);left:0;z-index:80;min-width:210px;padding:7px;background:#fff;border:1px solid #b9dcd8;border-radius:11px;box-shadow:0 14px 34px rgba(17,73,71,.16),0 0 18px rgba(38,255,235,.10);display:none}
-    .cost-view-menu.open{display:block;animation:costMenuIn .14s ease-out}
-    @keyframes costMenuIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
-    .cost-view-option{width:100%;border:0;background:#fff;color:#254247;border-radius:8px;padding:10px 10px;display:flex;align-items:center;gap:9px;text-align:left;font-size:11px;font-weight:850;transition:.16s ease}
-    .cost-view-option:hover{background:#eafffb;color:#075d58;box-shadow:inset 0 0 12px rgba(38,255,235,.10)}
-    .cost-view-check{width:17px;height:17px;border-radius:5px;border:1px solid #8fcac4;background:#f7fcfb;display:grid;place-items:center;flex:0 0 17px;color:#fff;font-size:11px;font-weight:900}
-    .cost-view-option.selected .cost-view-check{background:#0f9a90;border-color:#0f9a90;box-shadow:0 0 8px rgba(35,221,204,.32)}
-    .cost-view-option.selected .cost-view-check:after{content:'✓'}
-    .budget-table .cost-detail-head{min-width:96px;background:#8b7427!important;color:#fff!important}
-    .budget-table .cost-detail-head.direct-head{background:#74611f!important}
-    .budget-table .cost-detail-head.indirect-head{background:#5f511d!important}
-    .budget-table .cost-detail-head.total-head{background:#4e4218!important}
-    .budget-table .cost-detail-cell{background:#fff8dc;color:#695817;font-weight:800}
-    .budget-table .cost-detail-cell.total-detail-cell{background:#fff1bd;color:#564712;font-weight:900}
-    .budget-table .cost-detail-total{background:#f5e9b8!important;color:#5d4d17!important;font-weight:900!important}
-  `;
-  document.head.appendChild(style);
-
-  budgetTable.addEventListener('mouseover', (event) => {
-    if (event.target.closest('tbody tr')) {
-      budgetTable.querySelectorAll('.col-hover').forEach((cell) => cell.classList.remove('col-hover'));
-      event.stopPropagation();
+  function findHeaderRow(matrix){
+    for(let i=0;i<Math.min(matrix.length,12);i++){
+      const h=matrix[i].map(v=>String(v??'').trim().toLowerCase().replace(/\s+/g,' '));
+      if(h.includes('region')&&h.includes('country')&&h.includes('agent')&&h.includes('sku')&&h.includes('total qty'))return i;
     }
-  }, true);
-
-  const imsActions = document.querySelector('.ims-actions');
-  const norm = (v) => String(v ?? '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-  const num = (v) => {
-    const n = Number(String(v ?? '').replace(/,/g, '').trim());
-    return Number.isFinite(n) ? n : 0;
-  };
-  const fmt = (v) => Number(v).toLocaleString(undefined, { maximumFractionDigits: 4 });
-
-  const groupRow = budgetTable.querySelector('thead tr.group-row');
-  const columnRow = budgetTable.querySelector('thead tr.column-row');
-  const costGroup = budgetTable.querySelector('.cost-group');
-  const totalUsdIndex = [...columnRow.children].findIndex((th) => th.textContent.trim().toLowerCase() === 'total usd');
-
-  if (totalUsdIndex >= 0 && !columnRow.querySelector('.bonus-head')) {
-    const bonusGroup = document.createElement('th');
-    bonusGroup.className = 'bonus-group';
-    bonusGroup.colSpan = 2;
-    bonusGroup.textContent = 'BONUS 2026';
-    groupRow.insertBefore(bonusGroup, costGroup);
-
-    const bonusPctHead = document.createElement('th');
-    bonusPctHead.className = 'bonus-head';
-    bonusPctHead.textContent = 'Bonus %';
-    const bonusQtyHead = document.createElement('th');
-    bonusQtyHead.className = 'bonus-head';
-    bonusQtyHead.textContent = 'Bonus QTY';
-    const totalUsdHead = columnRow.children[totalUsdIndex];
-    totalUsdHead.after(bonusPctHead, bonusQtyHead);
-
-    const sampleBonus = { SKU0001:10, SKU0002:5 };
-    budgetTable.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
-      const sku = norm(row.dataset.sku || row.children[7]?.textContent);
-      const totalQty = num(row.children[22]?.textContent);
-      const pct = sampleBonus[sku] ?? 0;
-      const pctTd = document.createElement('td');
-      pctTd.className = 'bonus-percent';
-      pctTd.contentEditable = 'true';
-      pctTd.dataset.raw = String(pct);
-      pctTd.textContent = pct.toFixed(2) + '%';
-      const qtyTd = document.createElement('td');
-      qtyTd.className = 'bonus-qty';
-      qtyTd.textContent = Math.round(totalQty * pct / 100).toLocaleString();
-      row.children[totalUsdIndex].after(pctTd, qtyTd);
-
-      const recalcBonus = () => {
-        const raw = String(pctTd.textContent || '').replace('%','').trim();
-        const value = Number(raw.replace(/,/g,''));
-        const pctValue = Number.isFinite(value) ? value : 0;
-        pctTd.dataset.raw = String(pctValue);
-        qtyTd.textContent = Math.round(totalQty * pctValue / 100).toLocaleString();
-        recalcBonusTotal();
-        recalcTotalCogsAndGrossProfit();
-      };
-      pctTd.addEventListener('focus', () => { pctTd.textContent = pctTd.dataset.raw || '0'; });
-      pctTd.addEventListener('input', recalcBonus);
-      pctTd.addEventListener('blur', () => {
-        recalcBonus();
-        pctTd.textContent = Number(pctTd.dataset.raw || 0).toFixed(2) + '%';
-      });
-    });
-
-    const totalRow = budgetTable.querySelector('tbody tr.total-row');
-    if (totalRow) {
-      const pctTotal = document.createElement('td');
-      pctTotal.className = 'bonus-total';
-      pctTotal.textContent = '—';
-      const qtyTotal = document.createElement('td');
-      qtyTotal.className = 'bonus-total bonus-qty-total';
-      totalRow.children[totalUsdIndex].after(pctTotal, qtyTotal);
+    return -1;
+  }
+  function headerIndex(headers,names){
+    const clean=headers.map(v=>String(v??'').trim().toLowerCase().replace(/\s+/g,' '));
+    for(const name of names){const i=clean.indexOf(name.toLowerCase());if(i>=0)return i}
+    return -1;
+  }
+  function normalizeBonusPct(v){const x=n(v);return Math.abs(x)<=1?x*100:x}
+  async function parseIMSFile(file){
+    if(typeof XLSX==='undefined')throw new Error('Excel reader is not loaded');
+    const data=await file.arrayBuffer();
+    const book=XLSX.read(data,{type:'array',cellDates:false});
+    const sheetName=book.SheetNames.find(x=>String(x).trim().toUpperCase()==='B26')||book.SheetNames[0];
+    const ws=book.Sheets[sheetName];
+    const matrix=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true});
+    const hi=findHeaderRow(matrix);if(hi<0)throw new Error('B26 sales headers were not found');
+    const h=matrix[hi];
+    const idx={region:headerIndex(h,['Region']),type:headerIndex(h,['Type']),country:headerIndex(h,['Country']),subMarket:headerIndex(h,['Sub Market']),agent:headerIndex(h,['Agent']),sector:headerIndex(h,['Sector']),brand:headerIndex(h,['Brand']),sku:headerIndex(h,['SKU']),category:headerIndex(h,['Product Category']),price:headerIndex(h,['Price USD']),totalQty:headerIndex(h,['Total QTY']),bonus:headerIndex(h,['B26 Bonus %','Bonus %'])};
+    const monthIdx={};MONTHS.forEach(m=>monthIdx[m]=headerIndex(h,[m]));
+    if([idx.region,idx.country,idx.agent,idx.sku,idx.price,idx.totalQty].some(x=>x<0)||MONTHS.some(m=>monthIdx[m]<0))throw new Error('Required IMS columns are missing');
+    const rows=[];let mismatches=0,totalQty=0,totalSales=0;
+    for(let r=hi+1;r<matrix.length;r++){
+      const x=matrix[r]||[],sku=String(x[idx.sku]??'').trim(),country=String(x[idx.country]??'').trim(),agent=String(x[idx.agent]??'').trim();
+      if(!sku&&!country&&!agent)continue;
+      const months=MONTHS.map(m=>n(x[monthIdx[m]]));
+      const calcQty=months.reduce((a,b)=>a+b,0),srcQty=n(x[idx.totalQty]);if(Math.abs(calcQty-srcQty)>0.0001)mismatches++;
+      const price=n(x[idx.price]),useQty=srcQty||calcQty,sales=months.map(q=>q*price);
+      const row={region:String(x[idx.region]??'').trim(),type:idx.type>=0?String(x[idx.type]??'').trim():'',country,subMarket:idx.subMarket>=0?String(x[idx.subMarket]??'').trim():'',agent,sector:idx.sector>=0?String(x[idx.sector]??'').trim():'',brand:idx.brand>=0?String(x[idx.brand]??'').trim():'',sku,category:idx.category>=0?String(x[idx.category]??'').trim():'',price,months,totalQty:useQty,sourceTotalQty:srcQty,bonusPct:idx.bonus>=0?normalizeBonusPct(x[idx.bonus]):0,sales,totalSales:useQty*price};
+      rows.push(row);totalQty+=useQty;totalSales+=row.totalSales;
     }
+    if(!rows.length)throw new Error('No IMS sales rows were found');
+    return {version:1,fileName:file.name,uploadedAt:new Date().toISOString(),sheetName,rows,validation:{rows:rows.length,totalQty,totalSales,totalQtyMismatches:mismatches}};
   }
 
-  function recalcBonusTotal() {
-    const totalCell = budgetTable.querySelector('.bonus-qty-total');
-    if (!totalCell) return;
-    let total = 0;
-    budgetTable.querySelectorAll('tbody tr:not(.total-row) .bonus-qty').forEach((cell) => total += num(cell.textContent));
-    totalCell.textContent = total.toLocaleString();
+  function setupAdminIMSUpload(){
+    const input=document.getElementById('imsInput');if(!input)return;
+    input.addEventListener('change',async e=>{
+      const file=e.target.files&&e.target.files[0];if(!file)return;
+      const status=document.getElementById('imsStatus'),fileEl=document.getElementById('imsFile');
+      try{
+        if(status){status.textContent='Reading...';status.classList.remove('ready')}
+        const payload=await parseIMSFile(file);localStorage.setItem(IMS_KEY,JSON.stringify(payload));localStorage.setItem('dadBudgetIMSFileName',file.name);localStorage.setItem('dadBudgetAdmin_ims',JSON.stringify({name:file.name,updated:payload.uploadedAt,rows:payload.validation.rows,mismatches:payload.validation.totalQtyMismatches}));
+        if(fileEl)fileEl.textContent=file.name;if(status){status.textContent=`Loaded • ${payload.validation.rows} rows`;status.classList.add('ready')}
+        alert(`IMS Sales loaded successfully\n\nRows: ${payload.validation.rows.toLocaleString()}\nTotal QTY: ${qtyFmt(payload.validation.totalQty)}\nTotal Sales USD: ${money(payload.validation.totalSales)}\nQTY check issues: ${payload.validation.totalQtyMismatches}`);
+      }catch(err){if(status){status.textContent='Upload error';status.classList.remove('ready')}alert('IMS upload error: '+err.message)}
+    },true);
+    try{const p=JSON.parse(localStorage.getItem(IMS_KEY)||'null');if(p){const status=document.getElementById('imsStatus'),fileEl=document.getElementById('imsFile');if(fileEl)fileEl.textContent=p.fileName||'Loaded file';if(status){status.textContent=`Loaded • ${(p.rows||[]).length} rows`;status.classList.add('ready')}}}catch(e){}
   }
-  recalcBonusTotal();
 
-  if (!columnRow.querySelector('.gp-head')) {
-    const gpGroup = document.createElement('th');
-    gpGroup.className = 'gp-group';
-    gpGroup.colSpan = 2;
-    gpGroup.textContent = 'PROFITABILITY';
-    groupRow.appendChild(gpGroup);
-
-    const gpHead = document.createElement('th');
-    gpHead.className = 'gp-head';
-    gpHead.textContent = 'Gross Profit';
-    const gpPctHead = document.createElement('th');
-    gpPctHead.className = 'gp-pct-head';
-    gpPctHead.textContent = 'GP%';
-    columnRow.append(gpHead, gpPctHead);
-
-    budgetTable.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
-      const gpTd = document.createElement('td');
-      gpTd.className = 'gp-cell';
-      const gpPctTd = document.createElement('td');
-      gpPctTd.className = 'gp-pct-cell';
-      row.append(gpTd, gpPctTd);
+  function buildBaseIMSRows(table){
+    let payload=null;try{payload=JSON.parse(localStorage.getItem(IMS_KEY)||'null')}catch(e){}
+    if(!payload||!Array.isArray(payload.rows)||!payload.rows.length)return false;
+    const tbody=table.tBodies[0];if(!tbody)return false;
+    const costMap=(()=>{try{return JSON.parse(localStorage.getItem('dadBudgetCostMaster')||'{}')||{}}catch(e){return {}}})();
+    const monthlyQty=Array(12).fill(0),monthlySales=Array(12).fill(0),monthlyCogs=Array(12).fill(0);let totalQty=0,totalSales=0,totalCogs=0;const frag=document.createDocumentFragment();
+    payload.rows.forEach(d=>{
+      const tr=document.createElement('tr');tr.dataset.sku=d.sku||'';tr.dataset.source='ims-upload';const base=[d.region,d.type,d.country,d.subMarket,d.agent,d.sector,d.brand,d.sku,d.category,d.price];
+      base.forEach((v,i)=>{const td=document.createElement('td');td.textContent=i===9?money(v):String(v??'');td.className=(i<9?'text ':'')+`sticky-${i+1}`+(i===9?' price-col':'');tr.appendChild(td)});
+      d.months.forEach((q,i)=>{const td=document.createElement('td');td.className='qty-cell';td.textContent=qtyFmt(q);tr.appendChild(td);monthlyQty[i]+=n(q)});
+      let td=document.createElement('td');td.className='total-cell';td.textContent=qtyFmt(d.totalQty);tr.appendChild(td);totalQty+=n(d.totalQty);
+      d.sales.forEach((s,i)=>{const x=document.createElement('td');x.className='sales-cell';x.textContent=money(s);tr.appendChild(x);monthlySales[i]+=n(s)});
+      td=document.createElement('td');td.className='total-cell';td.textContent=money(d.totalSales);tr.appendChild(td);totalSales+=n(d.totalSales);
+      const cost=n(costMap[norm(d.sku)]);td=document.createElement('td');td.className='cost-unit';td.textContent=cost?money(cost):'—';if(!cost)td.classList.add('unmatched-cost');tr.appendChild(td);
+      let rowCogs=0;d.months.forEach((q,i)=>{const x=document.createElement('td');x.className='cogs-cell';const val=cost?n(q)*cost:0;x.textContent=cost?money(val):'—';tr.appendChild(x);monthlyCogs[i]+=val;rowCogs+=val});td=document.createElement('td');td.className='cogs-total';td.textContent=cost?money(rowCogs):'—';tr.appendChild(td);totalCogs+=rowCogs;frag.appendChild(tr);
     });
-
-    const totalRow = budgetTable.querySelector('tbody tr.total-row');
-    if (totalRow) {
-      const gpTotal = document.createElement('td');
-      gpTotal.className = 'gp-total';
-      const gpPctTotal = document.createElement('td');
-      gpPctTotal.className = 'gp-pct-total';
-      totalRow.append(gpTotal, gpPctTotal);
-    }
+    const total=document.createElement('tr');total.className='total-row';let td=document.createElement('td');td.className='text sticky-1';td.textContent='TOTAL';total.appendChild(td);for(let i=1;i<10;i++){td=document.createElement('td');td.className=`sticky-${i+1}`;total.appendChild(td)}monthlyQty.forEach(v=>{td=document.createElement('td');td.textContent=qtyFmt(v);total.appendChild(td)});td=document.createElement('td');td.textContent=qtyFmt(totalQty);total.appendChild(td);monthlySales.forEach(v=>{td=document.createElement('td');td.textContent=money(v);total.appendChild(td)});td=document.createElement('td');td.textContent=money(totalSales);total.appendChild(td);td=document.createElement('td');td.className='cost-total-row';td.textContent='—';total.appendChild(td);monthlyCogs.forEach(v=>{td=document.createElement('td');td.className='cost-total-row';td.textContent=v?money(v):'—';total.appendChild(td)});td=document.createElement('td');td.className='cost-total-row';td.textContent=totalCogs?money(totalCogs):'—';total.appendChild(td);tbody.replaceChildren(frag,total);return true;
   }
 
-  function recalcGrossProfit() {
-    const headers = [...columnRow.children];
-    const totalSalesIndex = headers.findIndex((th) => th.textContent.trim().toLowerCase() === 'total usd');
-    const netSalesIndex = headers.findIndex((th) => th.textContent.trim().toLowerCase() === 'net sales');
-    let totalSalesAll = 0;
-    let totalCogsAll = 0;
-    let totalNetSalesAll = 0;
-
-    budgetTable.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
-      const totalSales = totalSalesIndex >= 0 ? num(row.children[totalSalesIndex]?.textContent) : 0;
-      const netSales = netSalesIndex >= 0 ? num(row.children[netSalesIndex]?.textContent) : totalSales;
-      const totalCogs = num(row.querySelector('.cogs-total')?.textContent);
-      const gp = totalSales - totalCogs;
-      const gpPct = netSales !== 0 ? (gp / netSales) * 100 : null;
-      const gpCell = row.querySelector('.gp-cell');
-      const gpPctCell = row.querySelector('.gp-pct-cell');
-      if (gpCell) {
-        gpCell.textContent = fmt(gp);
-        gpCell.classList.toggle('negative', gp < 0);
-      }
-      if (gpPctCell) {
-        gpPctCell.textContent = gpPct == null ? '—' : gpPct.toFixed(2) + '%';
-        gpPctCell.classList.toggle('negative', gpPct != null && gpPct < 0);
-      }
-      totalSalesAll += totalSales;
-      totalCogsAll += totalCogs;
-      totalNetSalesAll += netSales;
-    });
-
-    const totalGp = totalSalesAll - totalCogsAll;
-    const totalGpPct = totalNetSalesAll !== 0 ? (totalGp / totalNetSalesAll) * 100 : null;
-    const totalCell = budgetTable.querySelector('.gp-total');
-    const totalPctCell = budgetTable.querySelector('.gp-pct-total');
-    if (totalCell) {
-      totalCell.textContent = fmt(totalGp);
-      totalCell.classList.toggle('negative', totalGp < 0);
-    }
-    if (totalPctCell) {
-      totalPctCell.textContent = totalGpPct == null ? '—' : totalGpPct.toFixed(2) + '%';
-      totalPctCell.classList.toggle('negative', totalGpPct != null && totalGpPct < 0);
-    }
+  function setupFilters(table){
+    const card=document.querySelector('.filters-card');if(!card)return;const selects=[...card.querySelectorAll('select')],search=card.querySelector('input[type="search"]'),clear=card.querySelector('.clear-btn');if(selects.length<4)return;
+    [[0,'All Regions'],[2,'All Countries'],[4,'All Agents'],[5,'All Sectors']].forEach(([col,label],idx)=>{const values=[...new Set([...table.querySelectorAll('tbody tr:not(.total-row)')].map(r=>r.children[col]?.textContent.trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));selects[idx].innerHTML=`<option value="">${label}</option>`+values.map(v=>`<option>${esc(v)}</option>`).join('')});
+    const apply=()=>{const vals=selects.map(s=>s.value.toLowerCase()),q=(search?.value||'').trim().toLowerCase();[...table.querySelectorAll('tbody tr:not(.total-row)')].forEach(r=>{const ok=(!vals[0]||r.children[0]?.textContent.toLowerCase()===vals[0])&&(!vals[1]||r.children[2]?.textContent.toLowerCase()===vals[1])&&(!vals[2]||r.children[4]?.textContent.toLowerCase()===vals[2])&&(!vals[3]||r.children[5]?.textContent.toLowerCase()===vals[3])&&(!q||`${r.children[6]?.textContent} ${r.children[7]?.textContent}`.toLowerCase().includes(q));r.style.display=ok?'':'none'})};
+    selects.forEach(s=>s.addEventListener('change',apply));if(search)search.addEventListener('input',apply);if(clear)clear.addEventListener('click',()=>{selects.forEach(s=>s.value='');if(search)search.value='';apply()});
   }
 
-  function recalcTotalCogsAndGrossProfit() {
-    let totalCogsAll = 0;
-    budgetTable.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
-      const goodsQty = num(row.children[22]?.textContent);
-      const bonusQty = num(row.querySelector('.bonus-qty')?.textContent);
-      const costRate = num(row.querySelector('.cost-unit')?.textContent);
-      const totalCogs = (goodsQty + bonusQty) * costRate;
-      const totalCell = row.querySelector('.cogs-total');
-      if (totalCell && costRate > 0) totalCell.textContent = fmt(totalCogs);
-      totalCogsAll += costRate > 0 ? totalCogs : 0;
-    });
-
-    const totalRow = budgetTable.querySelector('tbody tr.total-row');
-    if (totalRow) {
-      const totalCogsCell = totalRow.querySelector('.cost-total-row:last-of-type');
-      if (totalCogsCell) totalCogsCell.textContent = fmt(totalCogsAll);
-    }
-    recalcGrossProfit();
+  function setupIMSPage(){
+    const table=document.getElementById('budgetTable');if(!table)return;buildBaseIMSRows(table);
+    const style=document.createElement('style');style.textContent=`.cost-strip{display:none!important}.ims-actions #downloadCostTemplate,.ims-actions #uploadCostBtn,.ims-actions #costFileInput,.ims-actions>.teal-btn{display:none!important}.budget-table .col-hover{font-weight:inherit!important;color:inherit!important;background:inherit!important;text-shadow:none!important;box-shadow:none!important}.budget-table tbody tr:not(.total-row):hover td{font-weight:900!important;color:#063f3d!important;background:#e6fffb!important;text-shadow:0 0 7px rgba(20,225,205,.72);box-shadow:inset 0 0 14px rgba(28,222,202,.22),0 0 9px rgba(28,222,202,.12)}.bonus-group{background:#875f8f!important}.bonus-head{background:#714f79!important;color:#fff!important}.bonus-percent,.bonus-qty{background:#fbf5fc!important;color:#5f3768!important;font-weight:900!important}.bonus-total{background:#eee0f1!important;font-weight:900!important}.reduction-group{background:#8b5a43!important;color:#fff!important}.reduction-head{min-width:104px;background:#744936!important;color:#fff!important}.reduction-sep-head,.reduction-sep,.fte-sep-head,.fte-sep,.direct-cost-sep-head,.direct-cost-sep{min-width:18px!important;width:18px!important;max-width:18px!important;padding:0!important;background:#eef2f2!important}.reduction-pct{background:#fff8f4!important;color:#784b36!important;font-weight:900!important}.reduction-usd{background:#fff5f0!important;color:#a33f36!important;font-weight:900!important}.net-sales-group,.net-sales-head{background:#1f6673!important;color:#fff!important}.net-sales-cell,.net-sales-total{background:#edf7f9!important;color:#155763!important;font-weight:900!important}.gp-group,.gp-head,.gp-pct-head{background:#176d63!important;color:#fff!important}.gp-cell,.gp-pct-cell,.gp-total,.gp-pct-total{background:#edf9f6!important;color:#0b625a!important;font-weight:900!important}.negative{color:#b53c3c!important;background:#fff0f0!important}.fte-group{background:#385f78!important;color:#fff!important}.fte-head{min-width:108px;background:#31566e!important;color:#fff!important}.fte-pct,.fte-usd{background:#f3f8fb!important;color:#31566e!important;font-weight:900!important}.fte-total-cell,.fte-total-row{background:#dfeef4!important;color:#244d65!important;font-weight:900!important}.direct-cost-group{background:#5c587c!important;color:#fff!important}.direct-cost-head{min-width:112px;background:#514d70!important;color:#fff!important}.samples-qty-cell,.ap-cell{background:#f7f6fb!important;color:#514d70!important;font-weight:900!important}.samples-usd-cell{background:#f3f1f8!important;font-weight:900!important}.profit-direct-cell,.net-profit-pct-cell,.profit-direct-total,.net-profit-pct-total{background:#e9f4ef!important;color:#176255!important;font-weight:900!important}.cost-detail-toggle{border:1px solid #50d7ca;background:linear-gradient(90deg,#eafffc,#fff);color:#086d67;border-radius:8px;padding:9px 13px;font-size:12px;font-weight:900;box-shadow:0 0 12px rgba(38,255,235,.25)}.cost-menu-wrap{position:relative;display:inline-flex}.cost-view-menu{position:absolute;top:calc(100% + 8px);left:0;z-index:80;min-width:210px;padding:7px;background:#fff;border:1px solid #b9dcd8;border-radius:11px;box-shadow:0 14px 34px rgba(17,73,71,.16);display:none}.cost-view-menu.open{display:block}.cost-view-option{width:100%;border:0;background:#fff;color:#254247;border-radius:8px;padding:10px;display:flex;gap:9px;font-size:11px;font-weight:850}.cost-view-check{width:17px;height:17px;border-radius:5px;border:1px solid #8fcac4}.cost-view-option.selected .cost-view-check{background:#0f9a90}.cost-view-option.selected .cost-view-check:after{content:'✓';color:#fff;display:grid;place-items:center}`;document.head.appendChild(style);
+    const groupRow=table.querySelector('thead .group-row'),headerRow=table.querySelector('thead .column-row'),costGroup=table.querySelector('.cost-group');if(!groupRow||!headerRow)return;const rows=()=>[...table.querySelectorAll('tbody tr:not(.total-row)')],totalRow=()=>table.querySelector('tbody tr.total-row'),totalUsdIndex=()=>[...headerRow.children].findIndex(th=>th.textContent.trim().toLowerCase()==='total usd');
+    if(!headerRow.querySelector('.bonus-head')){const g=document.createElement('th');g.className='bonus-group';g.colSpan=2;g.textContent='BONUS 2026';groupRow.insertBefore(g,costGroup);const h1=document.createElement('th');h1.className='bonus-head';h1.textContent='Bonus %';const h2=document.createElement('th');h2.className='bonus-head';h2.textContent='Bonus QTY';const ix=totalUsdIndex();headerRow.children[ix].after(h1,h2);let src=null;try{src=JSON.parse(localStorage.getItem(IMS_KEY)||'null')}catch(e){};rows().forEach((r,i)=>{const pct=src?.rows?.[i]?.bonusPct??0,tq=n(r.children[22]?.textContent),a=document.createElement('td'),b=document.createElement('td');a.className='bonus-percent';a.contentEditable='true';a.dataset.raw=String(pct);a.textContent=pct.toFixed(2)+'%';b.className='bonus-qty';b.textContent=qtyFmt(tq*pct/100);r.children[ix].after(a,b);a.addEventListener('focus',()=>a.textContent=a.dataset.raw||'0');a.addEventListener('input',()=>{a.dataset.raw=String(n(a.textContent));recalcAll()});a.addEventListener('blur',()=>{a.dataset.raw=String(n(a.textContent));a.textContent=n(a.dataset.raw).toFixed(2)+'%';recalcAll()})});const t=totalRow();if(t){const a=document.createElement('td'),b=document.createElement('td');a.className='bonus-total';a.textContent='—';b.className='bonus-total bonus-qty-total';t.children[ix].after(a,b)}}
+    if(!headerRow.querySelector('.reduction-head')){const g=document.createElement('th');g.className='reduction-group';g.colSpan=8;g.textContent='REDUCTIONS';groupRow.insertBefore(g,costGroup);let ha=[...headerRow.children].find(x=>x.textContent.trim().toLowerCase()==='bonus qty');[['Commission %','commission-pct'],['Commission USD','commission-usd'],['','reduction-sep'],['Returns %','returns-pct'],['Returns USD','returns-usd'],['','reduction-sep'],['Discount %','discount-pct'],['Discount USD','discount-usd']].forEach(([lab,cl])=>{const th=document.createElement('th');th.className='reduction-head '+(cl.includes('sep')?'reduction-sep-head ':'')+cl;th.textContent=lab;ha.after(th);ha=th});rows().forEach(r=>{let a=r.querySelector('.bonus-qty');['commission','returns','discount'].forEach((k,i)=>{const p=document.createElement('td'),u=document.createElement('td');p.className=`reduction-pct ${k}-pct`;p.contentEditable='true';p.dataset.raw='0';p.textContent='0.00%';u.className=`reduction-usd ${k}-usd`;u.textContent='0';a.after(p,u);a=u;if(i<2){const s=document.createElement('td');s.className='reduction-sep';a.after(s);a=s}p.addEventListener('focus',()=>p.textContent=p.dataset.raw||'0');p.addEventListener('input',()=>{p.dataset.raw=String(n(p.textContent));recalcAll()});p.addEventListener('blur',()=>{p.dataset.raw=String(n(p.textContent));p.textContent=n(p.dataset.raw).toFixed(2)+'%';recalcAll()})})});const t=totalRow();if(t){let a=t.querySelector('.bonus-qty-total');[['—','reduction-total'],['0','reduction-total commission-usd-total'],['','reduction-sep'],['—','reduction-total'],['0','reduction-total returns-usd-total'],['','reduction-sep'],['—','reduction-total'],['0','reduction-total discount-usd-total']].forEach(([tx,cl])=>{const d=document.createElement('td');d.className=cl;d.textContent=tx;a.after(d);a=d})}}
+    if(!headerRow.querySelector('.net-sales-head')){const g=document.createElement('th');g.className='net-sales-group';g.colSpan=1;g.textContent='NET SALES';groupRow.insertBefore(g,costGroup);const dh=[...headerRow.children].find(x=>x.textContent.trim().toLowerCase()==='discount usd'),h=document.createElement('th');h.className='net-sales-head';h.textContent='Net Sales';dh.after(h);rows().forEach(r=>{const d=document.createElement('td');d.className='net-sales-cell';r.querySelector('.discount-usd').after(d)});const t=totalRow();if(t){const d=document.createElement('td');d.className='net-sales-total';t.querySelector('.discount-usd-total').after(d)}}
+    if(!headerRow.querySelector('.gp-head')){const g=document.createElement('th');g.className='gp-group';g.colSpan=2;g.textContent='PROFITABILITY';groupRow.appendChild(g);const h1=document.createElement('th'),h2=document.createElement('th');h1.className='gp-head';h1.textContent='Gross Profit';h2.className='gp-pct-head';h2.textContent='GP%';headerRow.append(h1,h2);rows().forEach(r=>{const a=document.createElement('td'),b=document.createElement('td');a.className='gp-cell';b.className='gp-pct-cell';r.append(a,b)});const t=totalRow();if(t){const a=document.createElement('td'),b=document.createElement('td');a.className='gp-total';b.className='gp-pct-total';t.append(a,b)}}
+    if(!headerRow.querySelector('.fte-head')){const gg=document.createElement('th');gg.className='fte-group';gg.colSpan=7;gg.textContent='FTE / PRODUCT';groupRow.appendChild(gg);let ha=headerRow.querySelector('.gp-pct-head');[['FTE %<br>MR','fte-mr-pct'],['FTE USD<br>MR','fte-mr-usd'],['','fte-sep'],['FTE %<br>MGR, SUPR','fte-mgr-pct'],['FTE USD<br>MGR, SUPR','fte-mgr-usd'],['','fte-sep'],['Total FTE','fte-total-head']].forEach(([lab,cl])=>{const th=document.createElement('th');th.className='fte-head '+(cl.includes('sep')?'fte-sep-head ':'')+cl;th.innerHTML=lab;ha.after(th);ha=th});rows().forEach(r=>{let a=r.querySelector('.gp-pct-cell');[['fte-pct fte-mr-pct-cell','0.00%'],['fte-usd fte-mr-usd-cell','0'],['fte-sep',''],['fte-pct fte-mgr-pct-cell','0.00%'],['fte-usd fte-mgr-usd-cell','0'],['fte-sep',''],['fte-total-cell','0']].forEach(([cl,tx],i)=>{const d=document.createElement('td');d.className=cl;d.textContent=tx;if([0,1,3,4].includes(i)){d.contentEditable='true';d.dataset.raw='0';d.addEventListener('focus',()=>d.textContent=d.dataset.raw||'0');d.addEventListener('input',()=>{d.dataset.raw=String(n(d.textContent));recalcAll()});d.addEventListener('blur',()=>{d.dataset.raw=String(n(d.textContent));d.textContent=(i===0||i===3)?n(d.dataset.raw).toFixed(2)+'%':money(d.dataset.raw);recalcAll()})}a.after(d);a=d})});const t=totalRow();if(t){let a=t.querySelector('.gp-pct-total');[['—','fte-total-row'],['0','fte-total-row fte-mr-usd-total'],['','fte-sep'],['—','fte-total-row'],['0','fte-total-row fte-mgr-usd-total'],['','fte-sep'],['0','fte-total-row fte-grand-total']].forEach(([tx,cl])=>{const d=document.createElement('td');d.className=cl;d.textContent=tx;a.after(d);a=d})}}
+    if(!headerRow.querySelector('.direct-cost-head')){const gg=document.createElement('th');gg.className='direct-cost-group';gg.colSpan=7;gg.textContent='DIRECT COSTS / PROFIT';groupRow.appendChild(gg);let ha=headerRow.querySelector('.fte-total-head');[['B26<br>Samples QTY','samples-qty-head'],['B26<br>Samples USD','samples-usd-head'],['','direct-cost-sep-head'],['A&P<br>USD $','ap-head'],['','direct-cost-sep-head'],['Profit after direct costs','profit-direct-head'],['Net Profit %','net-profit-pct-head']].forEach(([lab,cl])=>{const th=document.createElement('th');th.className='direct-cost-head '+cl;th.innerHTML=lab;ha.after(th);ha=th});rows().forEach(r=>{let a=r.querySelector('.fte-total-cell');[['samples-qty-cell','0'],['samples-usd-cell','0'],['direct-cost-sep',''],['ap-cell','0'],['direct-cost-sep',''],['profit-direct-cell','0'],['net-profit-pct-cell','0.00%']].forEach(([cl,tx],i)=>{const d=document.createElement('td');d.className=cl;d.textContent=tx;if(i===0||i===3){d.contentEditable='true';d.dataset.raw='0';d.addEventListener('focus',()=>d.textContent=d.dataset.raw||'0');d.addEventListener('input',()=>{d.dataset.raw=String(n(d.textContent));recalcAll()});d.addEventListener('blur',()=>{d.dataset.raw=String(n(d.textContent));d.textContent=i===0?qtyFmt(d.dataset.raw):money(d.dataset.raw);recalcAll()})}a.after(d);a=d})});const t=totalRow();if(t){let a=t.querySelector('.fte-grand-total');[['0','direct-cost-total samples-qty-total'],['0','direct-cost-total samples-usd-total'],['','direct-cost-sep'],['0','direct-cost-total ap-total'],['','direct-cost-sep'],['0','profit-direct-total'],['0.00%','net-profit-pct-total']].forEach(([tx,cl])=>{const d=document.createElement('td');d.className=cl;d.textContent=tx;a.after(d);a=d})}}
+    const actions=document.querySelector('.ims-actions');if(actions&&!document.getElementById('costDetailToggle')){const wrap=document.createElement('div'),b=document.createElement('button'),menu=document.createElement('div');wrap.className='cost-menu-wrap';b.type='button';b.id='costDetailToggle';b.className='cost-detail-toggle';b.textContent='Show Cost';menu.className='cost-view-menu';menu.innerHTML='<button class="cost-view-option selected" data-v="monthly"><span class="cost-view-check"></span>Show Cost per Month</button><button class="cost-view-option selected" data-v="base"><span class="cost-view-check"></span>Show Unit Cost</button>';wrap.append(b,menu);actions.insertBefore(wrap,actions.firstChild);const st={monthly:true,base:true};const apply=()=>{const hi=[...headerRow.children].findIndex(x=>x.textContent.trim().toLowerCase()==='unit cost'),t=totalRow();if(hi<0||!t)return;headerRow.children[hi].style.display=st.base?'':'none';rows().forEach(r=>r.children[hi].style.display=st.base?'':'none');t.children[hi].style.display=st.base?'':'none';for(let j=1;j<=13;j++){headerRow.children[hi+j].style.display=st.monthly?'':'none';rows().forEach(r=>r.children[hi+j].style.display=st.monthly?'':'none');t.children[hi+j].style.display=st.monthly?'':'none'}if(costGroup){const span=(st.base?1:0)+(st.monthly?13:0);costGroup.style.display=span?'':'none';if(span)costGroup.colSpan=span}};b.addEventListener('click',e=>{e.stopPropagation();menu.classList.toggle('open')});menu.addEventListener('click',e=>{const o=e.target.closest('[data-v]');if(!o)return;st[o.dataset.v]=!st[o.dataset.v];o.classList.toggle('selected',st[o.dataset.v]);apply()});document.addEventListener('click',e=>{if(!wrap.contains(e.target))menu.classList.remove('open')});apply()}
+    function recalcAll(){let bonusTotal=0,commT=0,retT=0,discT=0,netT=0,gpT=0,fteMrT=0,fteMgrT=0,sQtyT=0,sUsdT=0,apT=0,profitT=0;rows().forEach(r=>{const tq=n(r.children[22]?.textContent),bp=n(r.querySelector('.bonus-percent')?.dataset.raw??0),bq=tq*bp/100;const bqc=r.querySelector('.bonus-qty');if(bqc)bqc.textContent=qtyFmt(bq);bonusTotal+=bq;const sales=n(r.children[totalUsdIndex()]?.textContent);['commission','returns','discount'].forEach(k=>{const p=n(r.querySelector(`.${k}-pct`)?.dataset.raw??0),u=r.querySelector(`.${k}-usd`),v=-(sales*p/100);if(u)u.textContent=money(v)});const comm=n(r.querySelector('.commission-usd')?.textContent),ret=n(r.querySelector('.returns-usd')?.textContent),disc=n(r.querySelector('.discount-usd')?.textContent);commT+=comm;retT+=ret;discT+=disc;const net=sales+comm+ret+disc;const nc=r.querySelector('.net-sales-cell');if(nc)nc.textContent=money(net);netT+=net;const cost=n(r.querySelector('.cost-unit')?.textContent);let cogs=(tq+bq)*cost;if(cost&&r.querySelector('.cogs-total'))r.querySelector('.cogs-total').textContent=money(cogs);if(!cost)cogs=0;const gp=sales-cogs;const gc=r.querySelector('.gp-cell');if(gc){gc.textContent=money(gp);gc.classList.toggle('negative',gp<0)}const gpp=r.querySelector('.gp-pct-cell'),gppv=net?gp/net*100:null;if(gpp){gpp.textContent=gppv==null?'—':gppv.toFixed(2)+'%';gpp.classList.toggle('negative',gppv!=null&&gppv<0)}gpT+=gp;const mr=n(r.querySelector('.fte-mr-usd-cell')?.dataset.raw??0),mgr=n(r.querySelector('.fte-mgr-usd-cell')?.dataset.raw??0),fte=mr+mgr;fteMrT+=mr;fteMgrT+=mgr;if(r.querySelector('.fte-total-cell'))r.querySelector('.fte-total-cell').textContent=money(fte);const sq=n(r.querySelector('.samples-qty-cell')?.dataset.raw??0),su=sq*cost,ap=n(r.querySelector('.ap-cell')?.dataset.raw??0),profit=gp-fte-su-ap;sQtyT+=sq;sUsdT+=su;apT+=ap;profitT+=profit;if(r.querySelector('.samples-usd-cell'))r.querySelector('.samples-usd-cell').textContent=money(su);const pc=r.querySelector('.profit-direct-cell');if(pc){pc.textContent=money(profit);pc.classList.toggle('negative',profit<0)}const npc=r.querySelector('.net-profit-pct-cell'),np=net?profit/net*100:null;if(npc){npc.textContent=np==null?'—':np.toFixed(2)+'%';npc.classList.toggle('negative',np!=null&&np<0)}});const t=totalRow();if(!t)return;const set=(sel,val)=>{const c=t.querySelector(sel);if(c)c.textContent=val};set('.bonus-qty-total',qtyFmt(bonusTotal));set('.commission-usd-total',money(commT));set('.returns-usd-total',money(retT));set('.discount-usd-total',money(discT));set('.net-sales-total',money(netT));set('.gp-total',money(gpT));set('.gp-pct-total',netT?(gpT/netT*100).toFixed(2)+'%':'—');set('.fte-mr-usd-total',money(fteMrT));set('.fte-mgr-usd-total',money(fteMgrT));set('.fte-grand-total',money(fteMrT+fteMgrT));set('.samples-qty-total',qtyFmt(sQtyT));set('.samples-usd-total',money(sUsdT));set('.ap-total',money(apT));set('.profit-direct-total',money(profitT));set('.net-profit-pct-total',netT?(profitT/netT*100).toFixed(2)+'%':'—')}
+    recalcAll();setupFilters(table);
   }
 
-  recalcTotalCogsAndGrossProfit();
-
-  budgetTable.querySelectorAll('.cogs-total').forEach((cell) => {
-    new MutationObserver(recalcGrossProfit).observe(cell, { childList:true, characterData:true, subtree:true });
-  });
-
-  const cogsHeaders = ['RM', 'PM', 'Direct DL', 'Direct OH', 'In-Direct DL', 'In-Direct OH', 'Cost Rate'];
-  let detailHeaders = [...cogsHeaders];
-  let detailMap = {
-    SKU0001: {'RM': 3.10, 'PM': 0.20, 'Direct DL': 0.35, 'Direct OH': 0.55, 'In-Direct DL': 0.20, 'In-Direct OH': 0.40, 'Cost Rate': 4.80},
-    SKU0002: {'RM': 4.55, 'PM': 0.30, 'Direct DL': 0.45, 'Direct OH': 0.75, 'In-Direct DL': 0.30, 'In-Direct OH': 0.75, 'Cost Rate': 7.10}
-  };
-  let detailVisible = false;
-  const viewState = { rate:false, monthly:true, base:true };
-
-  const baseCostIndex = [...columnRow.children].findIndex((th) => th.textContent.trim().toLowerCase() === 'unit cost');
-
-  if (baseCostIndex >= 0) {
-    columnRow.children[baseCostIndex]?.classList.add('cost-base-col');
-    for (let i = baseCostIndex + 1; i <= baseCostIndex + 13; i++) columnRow.children[i]?.classList.add('cost-month-col');
-    budgetTable.querySelectorAll('tbody tr').forEach((row) => {
-      row.children[baseCostIndex]?.classList.add('cost-base-col');
-      for (let i = baseCostIndex + 1; i <= baseCostIndex + 13; i++) row.children[i]?.classList.add('cost-month-col');
-    });
-  }
-
-  let detailBtn = document.getElementById('costDetailToggle');
-  if (!detailBtn) {
-    detailBtn = document.createElement('button');
-    detailBtn.id = 'costDetailToggle';
-    detailBtn.type = 'button';
-    detailBtn.className = 'cost-detail-toggle';
-    detailBtn.textContent = 'Show Cost';
-  }
-
-  const menuWrap = document.createElement('div');
-  menuWrap.className = 'cost-menu-wrap';
-  const menu = document.createElement('div');
-  menu.className = 'cost-view-menu';
-  menu.innerHTML = `
-    <button type="button" class="cost-view-option" data-view="rate"><span class="cost-view-check"></span><span>Show Cost Rate</span></button>
-    <button type="button" class="cost-view-option selected" data-view="monthly"><span class="cost-view-check"></span><span>Show Cost per Month</span></button>
-    <button type="button" class="cost-view-option selected" data-view="base"><span class="cost-view-check"></span><span>Show Unit Cost</span></button>`;
-
-  if (imsActions) {
-    menuWrap.append(detailBtn, menu);
-    imsActions.insertBefore(menuWrap, imsActions.firstChild);
-  }
-
-  function getUnitCostIndex() {
-    return [...budgetTable.querySelectorAll('thead tr.column-row th')].findIndex((th) => th.textContent.trim().toLowerCase() === 'unit cost');
-  }
-  function syncGroupSpan() {
-    const span = (viewState.base ? 1 : 0) + (viewState.monthly ? 13 : 0) + (detailVisible ? detailHeaders.length : 0);
-    if (!costGroup) return;
-    costGroup.style.display = span ? '' : 'none';
-    if (span) costGroup.colSpan = span;
-  }
-  function applyCostVisibility() {
-    budgetTable.querySelectorAll('.cost-base-col').forEach((el) => el.style.display = viewState.base ? '' : 'none');
-    budgetTable.querySelectorAll('.cost-month-col').forEach((el) => el.style.display = viewState.monthly ? '' : 'none');
-    syncGroupSpan();
-  }
-  function removeDetailColumns() {
-    budgetTable.querySelectorAll('.cost-detail-head,.cost-detail-cell,.cost-detail-total').forEach((el) => el.remove());
-    detailVisible = false;
-    syncGroupSpan();
-  }
-  function addDetailColumns() {
-    if (!detailHeaders.length) return;
-    removeDetailColumns();
-    const unitIndex = getUnitCostIndex();
-    if (unitIndex < 0) return;
-    let insertAfter = columnRow.children[unitIndex];
-    detailHeaders.forEach((header) => {
-      const th = document.createElement('th');
-      th.className = 'cost-detail-head';
-      if (header.startsWith('Direct ')) th.classList.add('direct-head');
-      if (header.startsWith('In-Direct ')) th.classList.add('indirect-head');
-      if (/Cost Rate|Total/i.test(header)) th.classList.add('total-head');
-      th.textContent = header;
-      insertAfter.after(th); insertAfter = th;
-    });
-    budgetTable.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
-      const sku = norm(row.dataset.sku || row.children[7]?.textContent);
-      const detail = detailMap[sku] || {};
-      let anchor = row.children[unitIndex];
-      detailHeaders.forEach((header) => {
-        const td = document.createElement('td');
-        td.className = 'cost-detail-cell';
-        td.textContent = detail[header] == null ? '—' : fmt(detail[header]);
-        anchor.after(td); anchor = td;
-      });
-    });
-    detailVisible = true;
-    syncGroupSpan();
-  }
-  function syncMenu() {
-    menu.querySelectorAll('.cost-view-option').forEach((option) => option.classList.toggle('selected', !!viewState[option.dataset.view]));
-  }
-  detailBtn.addEventListener('click', (event) => {
-    event.stopPropagation(); menu.classList.toggle('open'); detailBtn.classList.toggle('active', menu.classList.contains('open'));
-  });
-  menu.addEventListener('click', (event) => {
-    const option = event.target.closest('.cost-view-option'); if (!option) return;
-    event.stopPropagation(); const key = option.dataset.view; viewState[key] = !viewState[key];
-    if (key === 'rate') viewState.rate ? addDetailColumns() : removeDetailColumns(); else applyCostVisibility();
-    syncMenu();
-  });
-  document.addEventListener('click', (event) => {
-    if (!menuWrap.contains(event.target)) { menu.classList.remove('open'); detailBtn.classList.remove('active'); }
-  });
-  applyCostVisibility();
-  syncMenu();
-});
-
-document.addEventListener('DOMContentLoaded', () => {
-  const table = document.getElementById('budgetTable');
-  if (!table) return;
-  const groupRow = table.querySelector('thead tr.group-row');
-  const columnRow = table.querySelector('thead tr.column-row');
-  const costGroup = table.querySelector('.cost-group');
-  if (!groupRow || !columnRow || !costGroup || columnRow.querySelector('.reduction-head')) return;
-
-  const style = document.createElement('style');
-  style.textContent = `
-    .reduction-group{background:#8b5a43!important;color:#fff!important}
-    .reduction-head{min-width:104px;background:#744936!important;color:#fff!important}
-    .reduction-sep-head,.reduction-sep{min-width:22px!important;width:22px!important;max-width:22px!important;padding-left:3px!important;padding-right:3px!important;text-align:center!important;background:#f1e6df!important;color:#9a7665!important}
-    .reduction-pct{background:#fff8f4!important;color:#784b36!important;font-weight:900!important;cursor:text;outline:none}
-    .reduction-usd{background:#fff5f0!important;color:#a33f36!important;font-weight:900!important}
-    .reduction-total{background:#f3e2d9!important;color:#744936!important;font-weight:900!important}
-    .reduction-total-usd{color:#9f3c34!important}
-  `;
-  document.head.appendChild(style);
-
-  const reductionGroup = document.createElement('th');
-  reductionGroup.className = 'reduction-group';
-  reductionGroup.colSpan = 8;
-  reductionGroup.textContent = 'REDUCTIONS';
-  groupRow.insertBefore(reductionGroup, costGroup);
-
-  const defs = [['Commission %','commission-pct'],['Commission USD','commission-usd'],['','reduction-sep'],['Returns %','returns-pct'],['Returns USD','returns-usd'],['','reduction-sep'],['Discount %','discount-pct'],['Discount USD','discount-usd']];
-  const bonusQtyHead = [...columnRow.children].find((th) => th.textContent.trim().toLowerCase() === 'bonus qty');
-  if (!bonusQtyHead) return;
-  let headerAnchor = bonusQtyHead;
-  defs.forEach(([label, cls]) => {
-    const th = document.createElement('th'); th.className = `reduction-head ${cls.includes('sep') ? 'reduction-sep-head' : ''}`; th.textContent = label; headerAnchor.after(th); headerAnchor = th;
-  });
-
-  const toNum = (v) => { const n = Number(String(v ?? '').replace(/,/g,'').replace('%','').trim()); return Number.isFinite(n) ? n : 0; };
-  const money = (v) => Number(v).toLocaleString(undefined,{maximumFractionDigits:2});
-  const totalSalesIndex = [...columnRow.children].findIndex((th) => th.textContent.trim().toLowerCase() === 'total usd');
-
-  function recalcRow(row) {
-    const sales = totalSalesIndex >= 0 ? toNum(row.children[totalSalesIndex]?.textContent) : 0;
-    ['commission','returns','discount'].forEach((key) => {
-      const pctCell = row.querySelector(`.${key}-pct`); const usdCell = row.querySelector(`.${key}-usd`); if (!pctCell || !usdCell) return;
-      const pct = toNum(pctCell.dataset.raw ?? pctCell.textContent); usdCell.textContent = money(-(sales * pct / 100));
-    });
-    recalcTotals();
-  }
-
-  table.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
-    const bonusQtyCell = row.querySelector('.bonus-qty'); if (!bonusQtyCell) return;
-    let anchor = bonusQtyCell;
-    ['commission','returns','discount'].forEach((key, idx) => {
-      const pct = document.createElement('td'); pct.className = `reduction-pct ${key}-pct`; pct.contentEditable = 'true'; pct.dataset.raw = '0'; pct.textContent = '0.00%';
-      const usd = document.createElement('td'); usd.className = `reduction-usd ${key}-usd`; usd.textContent = '0'; anchor.after(pct, usd); anchor = usd;
-      if (idx < 2) { const sep = document.createElement('td'); sep.className = 'reduction-sep'; anchor.after(sep); anchor = sep; }
-      pct.addEventListener('focus', () => { pct.textContent = pct.dataset.raw || '0'; });
-      pct.addEventListener('input', () => { pct.dataset.raw = String(toNum(pct.textContent)); recalcRow(row); });
-      pct.addEventListener('blur', () => { const value = toNum(pct.textContent); pct.dataset.raw = String(value); pct.textContent = value.toFixed(2) + '%'; recalcRow(row); });
-    });
-    recalcRow(row);
-  });
-
-  const totalRow = table.querySelector('tbody tr.total-row');
-  if (totalRow) {
-    const bonusQtyTotal = totalRow.querySelector('.bonus-qty-total');
-    if (bonusQtyTotal) {
-      let anchor = bonusQtyTotal;
-      [['—','reduction-total'],['0','reduction-total reduction-total-usd commission-usd-total'],['','reduction-sep'],['—','reduction-total'],['0','reduction-total reduction-total-usd returns-usd-total'],['','reduction-sep'],['—','reduction-total'],['0','reduction-total reduction-total-usd discount-usd-total']].forEach(([text, cls]) => {
-        const td = document.createElement('td'); td.className = cls; td.textContent = text; anchor.after(td); anchor = td;
-      });
-    }
-  }
-  function recalcTotals() {
-    ['commission','returns','discount'].forEach((key) => {
-      let total = 0; table.querySelectorAll(`tbody tr:not(.total-row) .${key}-usd`).forEach((cell) => { total += toNum(cell.textContent); });
-      const totalCell = table.querySelector(`.${key}-usd-total`); if (totalCell) totalCell.textContent = money(total);
-    });
-  }
-  recalcTotals();
-});
-
-// Net Sales block: Total USD plus reductions, positioned before Cost/COGS.
-document.addEventListener('DOMContentLoaded', () => {
-  const table = document.getElementById('budgetTable');
-  if (!table) return;
-  const groupRow = table.querySelector('thead tr.group-row');
-  const columnRow = table.querySelector('thead tr.column-row');
-  const costGroup = table.querySelector('.cost-group');
-  if (!groupRow || !columnRow || !costGroup || columnRow.querySelector('.net-sales-head')) return;
-
-  const style = document.createElement('style');
-  style.textContent = `
-    .net-sales-group{background:#1f6673!important;color:#fff!important}
-    .net-sales-head{min-width:118px;background:#1f6673!important;color:#fff!important}
-    .net-sales-cell{background:#edf7f9!important;color:#155763!important;font-weight:900!important}
-    .net-sales-total{background:#dceef1!important;color:#155763!important;font-weight:900!important}
-  `;
-  document.head.appendChild(style);
-
-  const netGroup = document.createElement('th');
-  netGroup.className = 'net-sales-group';
-  netGroup.colSpan = 1;
-  netGroup.textContent = 'NET SALES';
-  groupRow.insertBefore(netGroup, costGroup);
-
-  const discountHead = [...columnRow.children].find((th) => th.textContent.trim().toLowerCase() === 'discount usd');
-  if (!discountHead) return;
-  const netHead = document.createElement('th');
-  netHead.className = 'net-sales-head';
-  netHead.textContent = 'Net Sales';
-  discountHead.after(netHead);
-
-  table.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
-    const discountCell = row.querySelector('.discount-usd');
-    if (!discountCell) return;
-    const td = document.createElement('td');
-    td.className = 'net-sales-cell';
-    discountCell.after(td);
-  });
-
-  const totalRow = table.querySelector('tbody tr.total-row');
-  if (totalRow) {
-    const discountTotal = totalRow.querySelector('.discount-usd-total');
-    if (discountTotal) {
-      const td = document.createElement('td');
-      td.className = 'net-sales-total';
-      discountTotal.after(td);
-    }
-  }
-
-  const toNum = (v) => { const n = Number(String(v ?? '').replace(/,/g,'').trim()); return Number.isFinite(n) ? n : 0; };
-  const fmtMoney = (v) => Number(v).toLocaleString(undefined,{maximumFractionDigits:2});
-
-  function recalcNetSales() {
-    let totalNet = 0;
-    const headers = [...columnRow.children];
-    const totalSalesIndex = headers.findIndex((th) => th.textContent.trim().toLowerCase() === 'total usd');
-    table.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
-      const sales = totalSalesIndex >= 0 ? toNum(row.children[totalSalesIndex]?.textContent) : 0;
-      const commission = toNum(row.querySelector('.commission-usd')?.textContent);
-      const returns = toNum(row.querySelector('.returns-usd')?.textContent);
-      const discount = toNum(row.querySelector('.discount-usd')?.textContent);
-      const net = sales + commission + returns + discount;
-      const cell = row.querySelector('.net-sales-cell');
-      if (cell) cell.textContent = fmtMoney(net);
-      totalNet += net;
-
-      const gp = toNum(row.querySelector('.gp-cell')?.textContent);
-      const gpPctCell = row.querySelector('.gp-pct-cell');
-      if (gpPctCell) gpPctCell.textContent = net !== 0 ? ((gp / net) * 100).toFixed(2) + '%' : '—';
-    });
-    const totalCell = table.querySelector('.net-sales-total');
-    if (totalCell) totalCell.textContent = fmtMoney(totalNet);
-    const totalGp = toNum(table.querySelector('.gp-total')?.textContent);
-    const totalGpPctCell = table.querySelector('.gp-pct-total');
-    if (totalGpPctCell) totalGpPctCell.textContent = totalNet !== 0 ? ((totalGp / totalNet) * 100).toFixed(2) + '%' : '—';
-  }
-
-  table.querySelectorAll('.commission-usd,.returns-usd,.discount-usd').forEach((cell) => {
-    new MutationObserver(recalcNetSales).observe(cell,{childList:true,characterData:true,subtree:true});
-  });
-  recalcNetSales();
-});
-
-// FTE employee allocation block: employee cost attached to each product.
-document.addEventListener('DOMContentLoaded', () => {
-  const table = document.getElementById('budgetTable');
-  if (!table) return;
-  const groupRow = table.querySelector('thead tr.group-row');
-  const columnRow = table.querySelector('thead tr.column-row');
-  if (!groupRow || !columnRow || columnRow.querySelector('.fte-head')) return;
-
-  const style = document.createElement('style');
-  style.textContent = `
-    .fte-group{background:#385f78!important;color:#fff!important}
-    .fte-head{min-width:108px;background:#31566e!important;color:#fff!important;line-height:1.15}
-    .fte-sep-head,.fte-sep{min-width:22px!important;width:22px!important;max-width:22px!important;padding-left:3px!important;padding-right:3px!important;text-align:center!important;background:#e8eff3!important;color:#6f8796!important}
-    .fte-pct{background:#f3f8fb!important;color:#31566e!important;font-weight:900!important;cursor:text;outline:none}
-    .fte-usd{background:#eef5f8!important;color:#274f68!important;font-weight:900!important;cursor:text;outline:none}
-    .fte-pct:focus,.fte-usd:focus{background:#e8f3f8!important;box-shadow:inset 0 0 0 2px rgba(49,86,110,.18)}
-    .fte-total-cell{background:#dfeef4!important;color:#244d65!important;font-weight:900!important}
-    .fte-total-row{background:#d5e8f0!important;color:#244d65!important;font-weight:900!important}
-  `;
-  document.head.appendChild(style);
-
-  const gpGroup = groupRow.querySelector('.gp-group');
-  const fteGroup = document.createElement('th');
-  fteGroup.className = 'fte-group';
-  fteGroup.colSpan = 7;
-  fteGroup.textContent = 'FTE / PRODUCT';
-  if (gpGroup) gpGroup.after(fteGroup); else groupRow.appendChild(fteGroup);
-
-  const gpPctHead = columnRow.querySelector('.gp-pct-head');
-  if (!gpPctHead) return;
-  const headDefs = [
-    ['FTE %\nMR','fte-mr-pct'],
-    ['FTE USD\nMR','fte-mr-usd'],
-    ['','fte-sep'],
-    ['FTE %\nMGR, SUPR','fte-mgr-pct'],
-    ['FTE USD\nMGR, SUPR','fte-mgr-usd'],
-    ['','fte-sep'],
-    ['Total FTE','fte-total-head']
-  ];
-  let headAnchor = gpPctHead;
-  headDefs.forEach(([label, cls]) => {
-    const th = document.createElement('th');
-    th.className = `fte-head ${cls.includes('sep') ? 'fte-sep-head' : ''} ${cls}`;
-    th.innerHTML = label.replace('\n','<br>');
-    headAnchor.after(th);
-    headAnchor = th;
-  });
-
-  const toNum = (v) => {
-    const n = Number(String(v ?? '').replace(/,/g,'').replace('%','').trim());
-    return Number.isFinite(n) ? n : 0;
-  };
-  const money = (v) => Number(v).toLocaleString(undefined,{maximumFractionDigits:2});
-
-  function recalcRow(row) {
-    const mrUsd = toNum(row.querySelector('.fte-mr-usd-cell')?.dataset.raw ?? row.querySelector('.fte-mr-usd-cell')?.textContent);
-    const mgrUsd = toNum(row.querySelector('.fte-mgr-usd-cell')?.dataset.raw ?? row.querySelector('.fte-mgr-usd-cell')?.textContent);
-    const total = mrUsd + mgrUsd;
-    const totalCell = row.querySelector('.fte-total-cell');
-    if (totalCell) totalCell.textContent = money(total);
-    recalcTotals();
-  }
-
-  table.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
-    const gpPct = row.querySelector('.gp-pct-cell');
-    if (!gpPct) return;
-    const cells = [];
-    const mrPct = document.createElement('td');
-    mrPct.className = 'fte-pct fte-mr-pct-cell'; mrPct.contentEditable = 'true'; mrPct.dataset.raw = '0'; mrPct.textContent = '0.00%'; cells.push(mrPct);
-    const mrUsd = document.createElement('td');
-    mrUsd.className = 'fte-usd fte-mr-usd-cell'; mrUsd.contentEditable = 'true'; mrUsd.dataset.raw = '0'; mrUsd.textContent = '0'; cells.push(mrUsd);
-    const sep1 = document.createElement('td'); sep1.className = 'fte-sep'; cells.push(sep1);
-    const mgrPct = document.createElement('td');
-    mgrPct.className = 'fte-pct fte-mgr-pct-cell'; mgrPct.contentEditable = 'true'; mgrPct.dataset.raw = '0'; mgrPct.textContent = '0.00%'; cells.push(mgrPct);
-    const mgrUsd = document.createElement('td');
-    mgrUsd.className = 'fte-usd fte-mgr-usd-cell'; mgrUsd.contentEditable = 'true'; mgrUsd.dataset.raw = '0'; mgrUsd.textContent = '0'; cells.push(mgrUsd);
-    const sep2 = document.createElement('td'); sep2.className = 'fte-sep'; cells.push(sep2);
-    const total = document.createElement('td'); total.className = 'fte-total-cell'; total.textContent = '0'; cells.push(total);
-    gpPct.after(...cells);
-
-    [mrPct,mgrPct].forEach((cell) => {
-      cell.addEventListener('focus', () => { cell.textContent = cell.dataset.raw || '0'; });
-      cell.addEventListener('input', () => { cell.dataset.raw = String(toNum(cell.textContent)); });
-      cell.addEventListener('blur', () => { const v = toNum(cell.textContent); cell.dataset.raw = String(v); cell.textContent = v.toFixed(2) + '%'; });
-    });
-    [mrUsd,mgrUsd].forEach((cell) => {
-      cell.addEventListener('focus', () => { cell.textContent = cell.dataset.raw || '0'; });
-      cell.addEventListener('input', () => { cell.dataset.raw = String(toNum(cell.textContent)); recalcRow(row); });
-      cell.addEventListener('blur', () => { const v = toNum(cell.textContent); cell.dataset.raw = String(v); cell.textContent = money(v); recalcRow(row); });
-    });
-    recalcRow(row);
-  });
-
-  const totalRow = table.querySelector('tbody tr.total-row');
-  if (totalRow) {
-    const gpPctTotal = totalRow.querySelector('.gp-pct-total');
-    if (gpPctTotal) {
-      const defs = [
-        ['—','fte-total-row'],['0','fte-total-row fte-mr-usd-total'],['','fte-sep'],
-        ['—','fte-total-row'],['0','fte-total-row fte-mgr-usd-total'],['','fte-sep'],
-        ['0','fte-total-row fte-grand-total']
-      ];
-      let anchor = gpPctTotal;
-      defs.forEach(([text, cls]) => {
-        const td = document.createElement('td'); td.className = cls; td.textContent = text; anchor.after(td); anchor = td;
-      });
-    }
-  }
-
-  function recalcTotals() {
-    let mr = 0, mgr = 0;
-    table.querySelectorAll('tbody tr:not(.total-row) .fte-mr-usd-cell').forEach((cell) => { mr += toNum(cell.dataset.raw ?? cell.textContent); });
-    table.querySelectorAll('tbody tr:not(.total-row) .fte-mgr-usd-cell').forEach((cell) => { mgr += toNum(cell.dataset.raw ?? cell.textContent); });
-    const mrTotal = table.querySelector('.fte-mr-usd-total');
-    const mgrTotal = table.querySelector('.fte-mgr-usd-total');
-    const grandTotal = table.querySelector('.fte-grand-total');
-    if (mrTotal) mrTotal.textContent = money(mr);
-    if (mgrTotal) mgrTotal.textContent = money(mgr);
-    if (grandTotal) grandTotal.textContent = money(mr + mgr);
-  }
-  recalcTotals();
-});
-
-// Samples, A&P and profit after direct costs block, aligned with the B26 sheet.
-document.addEventListener('DOMContentLoaded', () => {
-  const table = document.getElementById('budgetTable');
-  if (!table) return;
-  const groupRow = table.querySelector('thead tr.group-row');
-  const columnRow = table.querySelector('thead tr.column-row');
-  if (!groupRow || !columnRow || columnRow.querySelector('.direct-cost-head')) return;
-
-  const fteGroup = groupRow.querySelector('.fte-group');
-  const style = document.createElement('style');
-  style.textContent = `
-    .direct-cost-group{background:#5c587c!important;color:#fff!important}
-    .direct-cost-head{min-width:112px;background:#514d70!important;color:#fff!important;line-height:1.15}
-    .direct-cost-sep-head,.direct-cost-sep{min-width:22px!important;width:22px!important;max-width:22px!important;padding-left:3px!important;padding-right:3px!important;text-align:center!important;background:#ecebf2!important;color:#817e96!important}
-    .samples-qty-cell,.ap-cell{background:#f7f6fb!important;color:#514d70!important;font-weight:900!important;cursor:text;outline:none}
-    .samples-usd-cell{background:#f3f1f8!important;color:#514d70!important;font-weight:900!important}
-    .profit-direct-cell,.net-profit-pct-cell{background:#e9f4ef!important;color:#176255!important;font-weight:900!important}
-    .profit-direct-cell.negative,.net-profit-pct-cell.negative{background:#fff0f0!important;color:#b53c3c!important}
-    .direct-cost-total{background:#e6e4ef!important;color:#514d70!important;font-weight:900!important}
-    .profit-direct-total,.net-profit-pct-total{background:#dceee7!important;color:#176255!important;font-weight:900!important}
-  `;
-  document.head.appendChild(style);
-
-  const group = document.createElement('th');
-  group.className = 'direct-cost-group';
-  group.colSpan = 7;
-  group.textContent = 'DIRECT COSTS / PROFIT';
-  if (fteGroup) fteGroup.after(group); else groupRow.appendChild(group);
-
-  const totalFteHead = columnRow.querySelector('.fte-total-head');
-  if (!totalFteHead) return;
-  const defs = [
-    ['B26<br>Samples QTY','samples-qty-head'],
-    ['B26<br>Samples USD','samples-usd-head'],
-    ['','direct-cost-sep-head'],
-    ['A&P<br>USD $','ap-head'],
-    ['','direct-cost-sep-head'],
-    ['Profit after direct costs','profit-direct-head'],
-    ['Net Profit %','net-profit-pct-head']
-  ];
-  let headAnchor = totalFteHead;
-  defs.forEach(([label, cls]) => {
-    const th = document.createElement('th');
-    th.className = `direct-cost-head ${cls}`;
-    th.innerHTML = label;
-    headAnchor.after(th);
-    headAnchor = th;
-  });
-
-  const toNum = (v) => {
-    const n = Number(String(v ?? '').replace(/,/g,'').replace('%','').trim());
-    return Number.isFinite(n) ? n : 0;
-  };
-  const money = (v) => Number(v).toLocaleString(undefined,{maximumFractionDigits:2});
-
-  function recalcRow(row) {
-    const sampleQtyCell = row.querySelector('.samples-qty-cell');
-    const sampleUsdCell = row.querySelector('.samples-usd-cell');
-    const apCell = row.querySelector('.ap-cell');
-    const costRate = toNum(row.querySelector('.cost-unit')?.textContent);
-    const samplesQty = toNum(sampleQtyCell?.dataset.raw ?? sampleQtyCell?.textContent);
-    const samplesUsd = samplesQty * costRate;
-    if (sampleUsdCell) sampleUsdCell.textContent = money(samplesUsd);
-
-    const gp = toNum(row.querySelector('.gp-cell')?.textContent);
-    const totalFte = toNum(row.querySelector('.fte-total-cell')?.textContent);
-    const ap = toNum(apCell?.dataset.raw ?? apCell?.textContent);
-    const profit = gp - totalFte - samplesUsd - ap;
-    const netSales = toNum(row.querySelector('.net-sales-cell')?.textContent);
-    const npPct = netSales !== 0 ? (profit / netSales) * 100 : null;
-    const profitCell = row.querySelector('.profit-direct-cell');
-    const pctCell = row.querySelector('.net-profit-pct-cell');
-    if (profitCell) {
-      profitCell.textContent = money(profit);
-      profitCell.classList.toggle('negative', profit < 0);
-    }
-    if (pctCell) {
-      pctCell.textContent = npPct == null ? '—' : npPct.toFixed(2) + '%';
-      pctCell.classList.toggle('negative', npPct != null && npPct < 0);
-    }
-    recalcTotals();
-  }
-
-  table.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
-    const totalFte = row.querySelector('.fte-total-cell');
-    if (!totalFte) return;
-    const sampleQty = document.createElement('td');
-    sampleQty.className = 'samples-qty-cell'; sampleQty.contentEditable = 'true'; sampleQty.dataset.raw = '0'; sampleQty.textContent = '0';
-    const sampleUsd = document.createElement('td');
-    sampleUsd.className = 'samples-usd-cell'; sampleUsd.textContent = '0';
-    const sep1 = document.createElement('td'); sep1.className = 'direct-cost-sep';
-    const ap = document.createElement('td');
-    ap.className = 'ap-cell'; ap.contentEditable = 'true'; ap.dataset.raw = '0'; ap.textContent = '0';
-    const sep2 = document.createElement('td'); sep2.className = 'direct-cost-sep';
-    const profit = document.createElement('td'); profit.className = 'profit-direct-cell'; profit.textContent = '0';
-    const pct = document.createElement('td'); pct.className = 'net-profit-pct-cell'; pct.textContent = '0.00%';
-    totalFte.after(sampleQty, sampleUsd, sep1, ap, sep2, profit, pct);
-
-    sampleQty.addEventListener('focus', () => { sampleQty.textContent = sampleQty.dataset.raw || '0'; });
-    sampleQty.addEventListener('input', () => { sampleQty.dataset.raw = String(toNum(sampleQty.textContent)); recalcRow(row); });
-    sampleQty.addEventListener('blur', () => { const v = toNum(sampleQty.textContent); sampleQty.dataset.raw = String(v); sampleQty.textContent = v.toLocaleString(); recalcRow(row); });
-    ap.addEventListener('focus', () => { ap.textContent = ap.dataset.raw || '0'; });
-    ap.addEventListener('input', () => { ap.dataset.raw = String(toNum(ap.textContent)); recalcRow(row); });
-    ap.addEventListener('blur', () => { const v = toNum(ap.textContent); ap.dataset.raw = String(v); ap.textContent = money(v); recalcRow(row); });
-
-    [row.querySelector('.gp-cell'), row.querySelector('.fte-total-cell'), row.querySelector('.net-sales-cell'), row.querySelector('.cost-unit')].forEach((cell) => {
-      if (cell) new MutationObserver(() => recalcRow(row)).observe(cell,{childList:true,characterData:true,subtree:true});
-    });
-    recalcRow(row);
-  });
-
-  const totalRow = table.querySelector('tbody tr.total-row');
-  if (totalRow) {
-    const fteGrand = totalRow.querySelector('.fte-grand-total');
-    if (fteGrand) {
-      const totalDefs = [
-        ['0','direct-cost-total samples-qty-total'],['0','direct-cost-total samples-usd-total'],['','direct-cost-sep'],
-        ['0','direct-cost-total ap-total'],['','direct-cost-sep'],['0','profit-direct-total'],['0.00%','net-profit-pct-total']
-      ];
-      let anchor = fteGrand;
-      totalDefs.forEach(([text, cls]) => {
-        const td = document.createElement('td'); td.className = cls; td.textContent = text; anchor.after(td); anchor = td;
-      });
-    }
-  }
-
-  function recalcTotals() {
-    let qty = 0, sampleUsd = 0, ap = 0, profit = 0, netSales = 0;
-    table.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
-      qty += toNum(row.querySelector('.samples-qty-cell')?.dataset.raw ?? row.querySelector('.samples-qty-cell')?.textContent);
-      sampleUsd += toNum(row.querySelector('.samples-usd-cell')?.textContent);
-      ap += toNum(row.querySelector('.ap-cell')?.dataset.raw ?? row.querySelector('.ap-cell')?.textContent);
-      profit += toNum(row.querySelector('.profit-direct-cell')?.textContent);
-      netSales += toNum(row.querySelector('.net-sales-cell')?.textContent);
-    });
-    const npPct = netSales !== 0 ? (profit / netSales) * 100 : null;
-    const qtyTotal = table.querySelector('.samples-qty-total');
-    const sampleUsdTotal = table.querySelector('.samples-usd-total');
-    const apTotal = table.querySelector('.ap-total');
-    const profitTotal = table.querySelector('.profit-direct-total');
-    const pctTotal = table.querySelector('.net-profit-pct-total');
-    if (qtyTotal) qtyTotal.textContent = qty.toLocaleString();
-    if (sampleUsdTotal) sampleUsdTotal.textContent = money(sampleUsd);
-    if (apTotal) apTotal.textContent = money(ap);
-    if (profitTotal) profitTotal.textContent = money(profit);
-    if (pctTotal) pctTotal.textContent = npPct == null ? '—' : npPct.toFixed(2) + '%';
-  }
-  recalcTotals();
-});
+  document.addEventListener('DOMContentLoaded',()=>{setupShell();setupAdminIMSUpload();setupIMSPage()});
+})();
