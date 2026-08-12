@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IMS Sales - DAD Budget 2027</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .ims-page{padding-top:34px}
+    .sidebar-nav .nav-section{margin:15px 8px 5px;color:rgba(255,255,255,.46);font-size:8px;font-weight:900;letter-spacing:.15em}
+    .ims-topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}
+    .ims-title h1{margin:0;font-size:24px}.ims-title p{margin:5px 0 0;color:var(--muted);font-size:11px}
+    .ims-actions{display:flex;gap:8px;flex-wrap:wrap}.ghost-btn{border:1px solid #b9dcd8;background:#fff;color:#0b6661;border-radius:8px;padding:9px 12px;font-size:11px;font-weight:800}
+    .filters-card{padding:12px;display:grid;grid-template-columns:1.05fr 1fr 1fr 1fr 1fr auto;gap:9px;align-items:end;margin-bottom:12px}
+    .filter-field label{display:block;font-size:9px;font-weight:900;color:#60777c;text-transform:uppercase;letter-spacing:.06em;margin:0 0 5px}
+    .filter-field select,.filter-field input{width:100%;height:36px;border:1px solid #cfe2df;border-radius:8px;background:#fbfdfd;color:#243d43;padding:0 10px;font-size:11px;outline:none}
+    .filter-field select:focus,.filter-field input:focus{border-color:#48bdb2;box-shadow:0 0 0 3px rgba(72,189,178,.09)}
+    .clear-btn{height:36px;border:0;border-radius:8px;padding:0 13px;background:#263c44;color:#fff;font-size:10px;font-weight:900}
+    .ims-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}.ims-kpi{padding:13px 15px}.ims-kpi span{font-size:9px;color:#71868b;font-weight:900;text-transform:uppercase}.ims-kpi strong{display:block;font-size:22px;margin-top:7px;color:#123f3c}.ims-kpi small{display:block;margin-top:4px;color:#0f968b;font-size:9px}
+    .data-panel{overflow:hidden}.data-panel-head{padding:14px 15px;border-bottom:1px solid #deecea;display:flex;justify-content:space-between;align-items:center;gap:16px}.data-panel-head h2{margin:0;font-size:15px}.data-panel-head p{margin:4px 0 0;color:#7d8e92;font-size:9px}.view-switch{display:flex;background:#eef6f5;border-radius:8px;padding:3px}.view-switch button{border:0;background:transparent;border-radius:6px;padding:7px 11px;font-size:9px;font-weight:900;color:#6e8185}.view-switch button.active{background:#fff;color:#0a7770;box-shadow:0 2px 7px rgba(42,82,80,.08)}
+    .table-wrap{overflow:auto;max-height:560px}.ims-table{width:100%;min-width:1650px;border-collapse:separate;border-spacing:0;font-size:10px}.ims-table th{position:sticky;top:0;z-index:3;background:#173f68;color:#fff;padding:9px 8px;text-align:center;border-right:1px solid rgba(255,255,255,.12);white-space:nowrap}.ims-table th:first-child,.ims-table td:first-child{position:sticky;left:0;z-index:4}.ims-table th:first-child{background:#173f68}.ims-table td:first-child{background:#fff;font-weight:800}.ims-table td{padding:8px;border-right:1px solid #e5efee;border-bottom:1px solid #e5efee;text-align:right;white-space:nowrap}.ims-table td.text{text-align:left}.ims-table tbody tr:hover td{background:#f1faf8}.ims-table tbody tr:hover td:first-child{background:#f1faf8}.product-name{font-weight:800;color:#18383f}.subtext{display:block;color:#8a999c;font-size:8px;margin-top:2px}.money{font-variant-numeric:tabular-nums}.total-row td{position:sticky;bottom:0;background:#eaf6f4!important;font-weight:900;color:#123f3c;border-top:1px solid #9ccfca}.status-pill{display:inline-flex;align-items:center;gap:5px;background:#e9f8f2;color:#14805d;border:1px solid #b7e2d2;border-radius:999px;padding:4px 8px;font-size:8px;font-weight:900}.status-pill:before{content:"";width:6px;height:6px;border-radius:50%;background:#16aa73}
+    .empty-note{padding:10px 15px;background:#f7fbfa;border-top:1px solid #e3efed;color:#75898d;font-size:9px;display:flex;justify-content:space-between;gap:12px;align-items:center}.empty-note b{color:#0c786f}
+    @media(max-width:1100px){.filters-card{grid-template-columns:repeat(3,1fr)}.ims-kpis{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:700px){.ims-page{padding:16px 10px}.ims-topbar{align-items:flex-start;flex-direction:column}.filters-card{grid-template-columns:1fr}.ims-kpis{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-badge">B27</div>
+        <div><strong>BUDGET 2027</strong><span>PLANNING CENTER</span></div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">PLANNING</div>
+        <a href="index.html">Dashboard</a>
+        <a class="active" href="ims-sales.html">IMS Sales</a>
+        <a href="#">OPEX Planning</a>
+        <a href="#">CAPEX Planning</a>
+        <a href="#">Projects</a>
+        <a href="#">P&amp;L</a>
+        <div class="nav-section">WORKFLOW</div>
+        <a href="#">Roadmap</a>
+        <a href="#">Approval Center</a>
+        <a href="#">Assumptions</a>
+      </nav>
+    </aside>
+
+    <main class="main-content ims-page">
+      <div class="ims-topbar">
+        <div class="ims-title">
+          <span class="eyebrow">COMMERCIAL BUDGET</span>
+          <h1>IMS Sales</h1>
+          <p>Plan budget quantities and selling prices by market, agent and product. Sales values are calculated automatically.</p>
+        </div>
+        <div class="ims-actions">
+          <button class="ghost-btn" type="button">Download Template</button>
+          <button class="teal-btn" type="button">Upload IMS Sales</button>
+          <button class="dark-btn" id="logoutBtn" type="button">Log out</button>
+        </div>
+      </div>
+
+      <section class="card filters-card">
+        <div class="filter-field"><label>Market</label><select><option>All Markets</option><option>KSA</option><option>Jordan</option><option>Iraq</option><option>UAE</option></select></div>
+        <div class="filter-field"><label>Agent</label><select><option>All Agents</option><option>Agent 01</option><option>Agent 02</option></select></div>
+        <div class="filter-field"><label>Channel</label><select><option>All Channels</option><option>Private</option><option>Tender</option></select></div>
+        <div class="filter-field"><label>Brand / Product</label><input type="search" placeholder="Search product..." /></div>
+        <div class="filter-field"><label>Budget Year</label><select><option>2026 Pilot</option><option>2027</option></select></div>
+        <button class="clear-btn" type="button">Clear Filters</button>
+      </section>
+
+      <section class="ims-kpis">
+        <article class="card ims-kpi"><span>Total IMS Sales</span><strong>—</strong><small>Calculated after data upload</small></article>
+        <article class="card ims-kpi"><span>Total Quantity</span><strong>—</strong><small>12-month budget quantity</small></article>
+        <article class="card ims-kpi"><span>Avg. Selling Price</span><strong>—</strong><small>Weighted average price</small></article>
+        <article class="card ims-kpi"><span>Data Status</span><strong style="font-size:16px;margin-top:10px"><span class="status-pill">Ready for Pilot</span></strong><small>Budget 2026 test environment</small></article>
+      </section>
+
+      <section class="card data-panel">
+        <div class="data-panel-head">
+          <div><h2>IMS Sales Budget</h2><p>Quantity and price by month. Monthly Sales = Quantity × Selling Price.</p></div>
+          <div class="view-switch"><button class="active" type="button">Monthly View</button><button type="button">Annual View</button></div>
+        </div>
+        <div class="table-wrap">
+          <table class="ims-table">
+            <thead>
+              <tr>
+                <th>Product</th><th>Market</th><th>Agent</th><th>Channel</th>
+                <th>Jan Qty</th><th>Jan Price</th><th>Jan Sales</th>
+                <th>Feb Qty</th><th>Feb Price</th><th>Feb Sales</th>
+                <th>Mar Qty</th><th>Mar Price</th><th>Mar Sales</th>
+                <th>Apr Qty</th><th>Apr Price</th><th>Apr Sales</th>
+                <th>May Qty</th><th>May Price</th><th>May Sales</th>
+                <th>Jun Qty</th><th>Jun Price</th><th>Jun Sales</th>
+                <th>FY Qty</th><th>FY Sales</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td class="text"><span class="product-name">Product A</span><span class="subtext">SKU 0001</span></td><td class="text">KSA</td><td class="text">Agent 01</td><td class="text">Private</td><td>1,250</td><td>12.50</td><td class="money">15,625</td><td>1,300</td><td>12.50</td><td class="money">16,250</td><td>1,350</td><td>12.50</td><td class="money">16,875</td><td>1,400</td><td>12.50</td><td class="money">17,500</td><td>1,450</td><td>12.50</td><td class="money">18,125</td><td>1,500</td><td>12.50</td><td class="money">18,750</td><td>17,100</td><td class="money">213,750</td></tr>
+              <tr><td class="text"><span class="product-name">Product B</span><span class="subtext">SKU 0002</span></td><td class="text">KSA</td><td class="text">Agent 02</td><td class="text">Private</td><td>900</td><td>18.00</td><td class="money">16,200</td><td>950</td><td>18.00</td><td class="money">17,100</td><td>1,000</td><td>18.00</td><td class="money">18,000</td><td>1,000</td><td>18.00</td><td class="money">18,000</td><td>1,050</td><td>18.00</td><td class="money">18,900</td><td>1,100</td><td>18.00</td><td class="money">19,800</td><td>12,000</td><td class="money">216,000</td></tr>
+              <tr class="total-row"><td class="text">TOTAL</td><td></td><td></td><td></td><td>2,150</td><td></td><td>31,825</td><td>2,250</td><td></td><td>33,350</td><td>2,350</td><td></td><td>34,875</td><td>2,400</td><td></td><td>35,500</td><td>2,500</td><td></td><td>37,025</td><td>2,600</td><td></td><td>38,550</td><td>29,100</td><td>429,750</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="empty-note"><span><b>Pilot:</b> sample rows are shown only to approve the page layout. Real Budget 2026 data will replace them after we connect the upload logic.</span><span>Auto-calculation: Qty × Price</span></div>
+      </section>
+    </main>
+  </div>
+  <script src="js/app.js"></script>
+</body>
+</html>
