@@ -5,110 +5,78 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Login - DAD Budget 2027</title>
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .official-brand-wrap{position:relative;width:min(560px,100%);margin:10px 0 0;animation:brandReveal .95s cubic-bezier(.2,.8,.2,1) both}
+    .official-brand-halo{position:absolute;inset:-32px;border-radius:40px;background:radial-gradient(circle at 50% 50%,rgba(53,224,207,.18),rgba(53,224,207,.04) 42%,transparent 70%);filter:blur(4px);animation:haloPulse 4.8s ease-in-out infinite}
+    .official-brand-card{position:relative;overflow:hidden;padding:18px 24px;border:1px solid rgba(122,239,226,.2);border-radius:22px;background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(235,250,248,.91));box-shadow:0 18px 50px rgba(0,0,0,.18),0 0 35px rgba(40,211,196,.10);animation:logoFloat 5s ease-in-out infinite}
+    .official-brand-card:after{content:"";position:absolute;top:-40%;left:-50%;width:24%;height:180%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.75),transparent);transform:rotate(16deg);animation:sheen 6s ease-in-out infinite 1.2s;pointer-events:none}
+    .official-brand-logo{display:block;width:100%;height:auto;max-height:190px;object-fit:contain;filter:drop-shadow(0 8px 12px rgba(0,59,74,.10))}
+    .brand-budget-line{display:flex;align-items:center;gap:12px;margin-top:18px;animation:brandTextReveal .75s ease-out both .35s}
+    .brand-budget-line .mini-line{width:48px;height:2px;background:linear-gradient(90deg,#2bdbc9,transparent)}
+    .brand-budget-line strong{font-size:16px;letter-spacing:.16em;color:#62e0d4}
+    .brand-budget-line span{font-size:11px;letter-spacing:.14em;color:rgba(255,255,255,.55)}
+    .login-brand-copy{margin-top:36px!important;animation:brandTextReveal .85s ease-out both .5s}
+    .login-feature-grid{animation:brandTextReveal .9s ease-out both .72s}
+    .login-brand-footer{animation:brandTextReveal .9s ease-out both .9s}
+    @keyframes brandReveal{0%{opacity:0;transform:translateY(18px) scale(.965);filter:blur(7px)}100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
+    @keyframes brandTextReveal{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}
+    @keyframes logoFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+    @keyframes haloPulse{0%,100%{opacity:.45;transform:scale(.96)}50%{opacity:1;transform:scale(1.035)}}
+    @keyframes sheen{0%,20%{left:-50%;opacity:0}32%{opacity:.8}48%{left:125%;opacity:0}100%{left:125%;opacity:0}}
+    @media(prefers-reduced-motion:reduce){.official-brand-wrap,.official-brand-card,.official-brand-halo,.brand-budget-line,.login-brand-copy,.login-feature-grid,.login-brand-footer{animation:none!important}}
+  </style>
 </head>
 <body class="login-body">
   <main class="login-layout">
     <section class="login-brand-panel" aria-label="Budget 2027 introduction">
-      <div class="login-brand-top">
-        <div class="login-logo-mark">B</div>
-        <div class="login-logo-text">BUDGET <span>2027</span></div>
+      <div class="official-brand-wrap">
+        <div class="official-brand-halo" aria-hidden="true"></div>
+        <div class="official-brand-card">
+          <img class="official-brand-logo" alt="Dar Aldawa" src="data:image/webp;base64,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" />
+        </div>
+      </div>
+
+      <div class="brand-budget-line">
+        <span class="mini-line"></span><strong>BUDGET 2027</strong><span>PLANNING &amp; MANAGEMENT</span>
       </div>
 
       <div class="login-brand-copy">
         <div class="login-kicker">FINANCIAL PLANNING PLATFORM</div>
         <h1>Plan. Align.<br />Achieve.</h1>
-        <p>
-          Collaborate across departments and markets to build a smarter,
-          controlled and fully visible budget for 2027.
-        </p>
-      </div>
-
-      <div class="login-visual" aria-hidden="true">
-        <div class="orb orb-1"></div>
-        <div class="orb orb-2"></div>
-        <div class="finance-grid"></div>
-        <div class="city-line">
-          <span style="height:34%"></span><span style="height:54%"></span><span style="height:43%"></span>
-          <span style="height:68%"></span><span style="height:50%"></span><span style="height:78%"></span>
-          <span style="height:57%"></span><span style="height:92%"></span><span style="height:70%"></span>
-          <span style="height:82%"></span><span style="height:62%"></span><span style="height:100%"></span>
-        </div>
+        <p>Collaborate across departments and markets to build a smarter, controlled and fully visible budget for 2027.</p>
       </div>
 
       <div class="login-feature-grid">
-        <div class="login-feature">
-          <div class="feature-icon">CP</div>
-          <div><b>Collaborative Planning</b><span>Departments and markets work in one controlled process.</span></div>
-        </div>
-        <div class="login-feature">
-          <div class="feature-icon">FV</div>
-          <div><b>Full Visibility</b><span>Actual, Budget, Estimated and Budget 2027 in one view.</span></div>
-        </div>
-        <div class="login-feature">
-          <div class="feature-icon">SR</div>
-          <div><b>Secure &amp; Reliable</b><span>Access control, audit trail and approvals will be connected later.</span></div>
-        </div>
-        <div class="login-feature">
-          <div class="feature-icon">SD</div>
-          <div><b>Smarter Decisions</b><span>Live comparisons, scenarios and management insight.</span></div>
-        </div>
+        <div class="login-feature"><div class="feature-icon">CP</div><div><b>Collaborative Planning</b><span>Departments and markets work in one controlled process.</span></div></div>
+        <div class="login-feature"><div class="feature-icon">FV</div><div><b>Full Visibility</b><span>Actual, Budget, Estimated and Budget 2027 in one view.</span></div></div>
+        <div class="login-feature"><div class="feature-icon">SR</div><div><b>Secure &amp; Reliable</b><span>Access control, audit trail and approvals will be connected later.</span></div></div>
+        <div class="login-feature"><div class="feature-icon">SD</div><div><b>Smarter Decisions</b><span>Live comparisons, scenarios and management insight.</span></div></div>
       </div>
 
-      <div class="login-brand-footer">
-        <span class="secure-dot"></span>
-        <span>Secure Access</span>
-        <i></i>
-        <span>Built for Finance Planning</span>
-      </div>
+      <div class="login-brand-footer"><span class="secure-dot"></span><span>Secure Access</span><i></i><span>Built for Finance Planning</span></div>
     </section>
 
     <section class="login-form-panel">
       <div class="login-form-wrap">
         <div class="login-lang">◎&nbsp;&nbsp;English⌄</div>
-
         <div class="login-card">
           <span class="eyebrow">WELCOME BACK</span>
           <h2>Sign in to your account</h2>
           <p>Enter your credentials to access Budget 2027.</p>
-
           <form id="loginForm">
             <label for="email">Email address</label>
-            <div class="login-input-wrap">
-              <span class="input-icon">@</span>
-              <input id="email" type="email" placeholder="Enter your email" required />
-            </div>
-
+            <div class="login-input-wrap"><span class="input-icon">@</span><input id="email" type="email" placeholder="Enter your email" required /></div>
             <label for="password">Password</label>
-            <div class="login-input-wrap">
-              <span class="input-icon">•</span>
-              <input id="password" type="password" placeholder="Enter your password" required />
-            </div>
-
-            <div class="login-options">
-              <label class="remember"><input type="checkbox" /> Remember me</label>
-              <a href="#" onclick="return false;">Forgot password?</a>
-            </div>
-
-            <button class="login-submit" type="submit">
-              <span>Sign In</span>
-              <span class="submit-arrow">→</span>
-            </button>
+            <div class="login-input-wrap"><span class="input-icon">•</span><input id="password" type="password" placeholder="Enter your password" required /></div>
+            <div class="login-options"><label class="remember"><input type="checkbox" /> Remember me</label><a href="#" onclick="return false;">Forgot password?</a></div>
+            <button class="login-submit" type="submit"><span>Sign In</span><span class="submit-arrow">→</span></button>
           </form>
-
-          <div class="security-note">
-            <div class="security-icon">✓</div>
-            <div>
-              <b>Authorized users only</b>
-              <span>Access and user permissions will be activated when Firebase is connected.</span>
-            </div>
-          </div>
+          <div class="security-note"><div class="security-icon">✓</div><div><b>Authorized users only</b><span>Access and user permissions will be activated when Firebase is connected.</span></div></div>
         </div>
-
         <footer class="login-footer">© 2026 Budget 2027 &nbsp;•&nbsp; Planning &amp; Management Application</footer>
       </div>
     </section>
   </main>
-
   <script src="js/app.js"></script>
 </body>
 </html>
