@@ -63,6 +63,15 @@ document.addEventListener('DOMContentLoaded', () => {
     .budget-table tbody tr:not(.total-row):hover td.unmatched-cost{color:#a72f2f!important;background:#ffecec!important;text-shadow:0 0 6px rgba(255,80,80,.18)!important}
     .cost-detail-toggle{border:1px solid #50d7ca;background:linear-gradient(90deg,#eafffc,#fff);color:#086d67;border-radius:8px;padding:9px 13px;font-size:12px;font-weight:900;box-shadow:0 0 8px rgba(38,255,235,.30),0 0 16px rgba(38,255,235,.16);transition:.18s ease}
     .cost-detail-toggle:hover,.cost-detail-toggle.active{background:#dffffa;color:#064f4b;box-shadow:0 0 9px rgba(38,255,235,.65),0 0 20px rgba(38,255,235,.34);text-shadow:0 0 7px rgba(38,255,235,.55)}
+    .cost-menu-wrap{position:relative;display:inline-flex}
+    .cost-view-menu{position:absolute;top:calc(100% + 8px);left:0;z-index:80;min-width:210px;padding:7px;background:#fff;border:1px solid #b9dcd8;border-radius:11px;box-shadow:0 14px 34px rgba(17,73,71,.16),0 0 18px rgba(38,255,235,.10);display:none}
+    .cost-view-menu.open{display:block;animation:costMenuIn .14s ease-out}
+    @keyframes costMenuIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+    .cost-view-option{width:100%;border:0;background:#fff;color:#254247;border-radius:8px;padding:10px 10px;display:flex;align-items:center;gap:9px;text-align:left;font-size:11px;font-weight:850;transition:.16s ease}
+    .cost-view-option:hover{background:#eafffb;color:#075d58;box-shadow:inset 0 0 12px rgba(38,255,235,.10)}
+    .cost-view-check{width:17px;height:17px;border-radius:5px;border:1px solid #8fcac4;background:#f7fcfb;display:grid;place-items:center;flex:0 0 17px;color:#fff;font-size:11px;font-weight:900}
+    .cost-view-option.selected .cost-view-check{background:#0f9a90;border-color:#0f9a90;box-shadow:0 0 8px rgba(35,221,204,.32)}
+    .cost-view-option.selected .cost-view-check:after{content:'✓'}
     .budget-table .cost-detail-head{min-width:96px;background:#8b7427!important;color:#fff!important}
     .budget-table .cost-detail-head.direct-head{background:#74611f!important}
     .budget-table .cost-detail-head.indirect-head{background:#5f511d!important}
@@ -95,6 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
     SKU0002: {'RM': 4.55, 'PM': 0.30, 'Direct DL': 0.45, 'Direct OH': 0.75, 'In-Direct DL': 0.30, 'In-Direct OH': 0.75, 'Cost Rate': 7.10}
   };
   let detailVisible = false;
+  const viewState = { rate:false, monthly:true, base:true };
 
   try {
     const saved = JSON.parse(localStorage.getItem('dadBudgetCostBreakdown') || 'null');
@@ -110,29 +120,68 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   } catch (e) {}
 
+  const columnRow = budgetTable.querySelector('thead tr.column-row');
+  const costGroup = budgetTable.querySelector('.cost-group');
+  const baseCostIndex = [...columnRow.children].findIndex((th) => th.textContent.trim().toLowerCase() === 'unit cost');
+
+  if (baseCostIndex >= 0) {
+    columnRow.children[baseCostIndex]?.classList.add('cost-base-col');
+    for (let i = baseCostIndex + 1; i <= baseCostIndex + 13; i++) columnRow.children[i]?.classList.add('cost-month-col');
+    budgetTable.querySelectorAll('tbody tr').forEach((row) => {
+      row.children[baseCostIndex]?.classList.add('cost-base-col');
+      for (let i = baseCostIndex + 1; i <= baseCostIndex + 13; i++) row.children[i]?.classList.add('cost-month-col');
+    });
+  }
+
   let detailBtn = document.getElementById('costDetailToggle');
   if (!detailBtn) {
     detailBtn = document.createElement('button');
     detailBtn.id = 'costDetailToggle';
     detailBtn.type = 'button';
     detailBtn.className = 'cost-detail-toggle';
-    detailBtn.textContent = 'Show Cost Detail';
-    detailBtn.title = 'Show the same cost-rate breakdown used in the COGS sheet';
-    if (imsActions) imsActions.insertBefore(detailBtn, imsActions.firstChild);
+    detailBtn.textContent = 'Show Cost';
+    detailBtn.title = 'Choose which cost information to show';
+  }
+
+  const menuWrap = document.createElement('div');
+  menuWrap.className = 'cost-menu-wrap';
+  const menu = document.createElement('div');
+  menu.className = 'cost-view-menu';
+  menu.innerHTML = `
+    <button type="button" class="cost-view-option" data-view="rate"><span class="cost-view-check"></span><span>Show Cost Rate</span></button>
+    <button type="button" class="cost-view-option selected" data-view="monthly"><span class="cost-view-check"></span><span>Show Cost per Month</span></button>
+    <button type="button" class="cost-view-option selected" data-view="base"><span class="cost-view-check"></span><span>Show Unit Cost</span></button>
+  `;
+
+  if (imsActions) {
+    menuWrap.append(detailBtn, menu);
+    imsActions.insertBefore(menuWrap, imsActions.firstChild);
   }
 
   function getUnitCostIndex() {
-    const headers = [...budgetTable.querySelectorAll('thead tr.column-row th')];
-    return headers.findIndex((th) => th.textContent.trim().toLowerCase() === 'unit cost');
+    return [...budgetTable.querySelectorAll('thead tr.column-row th')].findIndex((th) => th.textContent.trim().toLowerCase() === 'unit cost');
+  }
+
+  function syncGroupSpan() {
+    const visibleBase = viewState.base ? 1 : 0;
+    const visibleMonthly = viewState.monthly ? 13 : 0;
+    const visibleRate = detailVisible ? detailHeaders.length : 0;
+    const span = visibleBase + visibleMonthly + visibleRate;
+    if (!costGroup) return;
+    costGroup.style.display = span ? '' : 'none';
+    if (span) costGroup.colSpan = span;
+  }
+
+  function applyCostVisibility() {
+    budgetTable.querySelectorAll('.cost-base-col').forEach((el) => el.style.display = viewState.base ? '' : 'none');
+    budgetTable.querySelectorAll('.cost-month-col').forEach((el) => el.style.display = viewState.monthly ? '' : 'none');
+    syncGroupSpan();
   }
 
   function removeDetailColumns() {
     budgetTable.querySelectorAll('.cost-detail-head,.cost-detail-cell,.cost-detail-total').forEach((el) => el.remove());
-    const costGroup = budgetTable.querySelector('.cost-group');
-    if (costGroup) costGroup.colSpan = 14;
     detailVisible = false;
-    detailBtn.classList.remove('active');
-    detailBtn.textContent = 'Show Cost Detail';
+    syncGroupSpan();
   }
 
   function addDetailColumns() {
@@ -141,8 +190,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const unitIndex = getUnitCostIndex();
     if (unitIndex < 0) return;
 
-    const columnRow = budgetTable.querySelector('thead tr.column-row');
-    let insertAfter = columnRow.children[unitIndex];
+    const headerRow = budgetTable.querySelector('thead tr.column-row');
+    let insertAfter = headerRow.children[unitIndex];
     detailHeaders.forEach((header) => {
       const th = document.createElement('th');
       th.className = 'cost-detail-head';
@@ -183,12 +232,45 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    const costGroup = budgetTable.querySelector('.cost-group');
-    if (costGroup) costGroup.colSpan = 14 + detailHeaders.length;
     detailVisible = true;
-    detailBtn.classList.add('active');
-    detailBtn.textContent = 'Hide Cost Detail';
+    syncGroupSpan();
   }
 
-  detailBtn.addEventListener('click', () => detailVisible ? removeDetailColumns() : addDetailColumns());
+  function syncMenu() {
+    menu.querySelectorAll('.cost-view-option').forEach((option) => {
+      const key = option.dataset.view;
+      option.classList.toggle('selected', !!viewState[key]);
+    });
+  }
+
+  detailBtn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    menu.classList.toggle('open');
+    detailBtn.classList.toggle('active', menu.classList.contains('open'));
+  });
+
+  menu.addEventListener('click', (event) => {
+    const option = event.target.closest('.cost-view-option');
+    if (!option) return;
+    event.stopPropagation();
+    const key = option.dataset.view;
+    viewState[key] = !viewState[key];
+    if (key === 'rate') {
+      if (viewState.rate) addDetailColumns();
+      else removeDetailColumns();
+    } else {
+      applyCostVisibility();
+    }
+    syncMenu();
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!menuWrap.contains(event.target)) {
+      menu.classList.remove('open');
+      detailBtn.classList.remove('active');
+    }
+  });
+
+  applyCostVisibility();
+  syncMenu();
 });
