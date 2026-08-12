@@ -1,128 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IMS Sales - DAD Budget 2027</title>
-  <link rel="stylesheet" href="css/style.css" />
-  <style>
-    .ims-page{padding-top:30px}
-    .sidebar-nav .nav-section{margin:15px 8px 5px;color:rgba(255,255,255,.46);font-size:8px;font-weight:900;letter-spacing:.15em}
-    .ims-topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}
-    .ims-title h1{margin:0;font-size:24px}.ims-title p{margin:5px 0 0;color:var(--muted);font-size:11px}
-    .ims-actions{display:flex;gap:8px;flex-wrap:wrap}.ghost-btn{border:1px solid #b9dcd8;background:#fff;color:#0b6661;border-radius:8px;padding:9px 12px;font-size:11px;font-weight:800}
-    .filters-card{padding:12px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr auto;gap:9px;align-items:end;margin-bottom:12px}
-    .filter-field label{display:block;font-size:9px;font-weight:900;color:#60777c;text-transform:uppercase;letter-spacing:.06em;margin:0 0 5px}
-    .filter-field select,.filter-field input{width:100%;height:36px;border:1px solid #cfe2df;border-radius:8px;background:#fbfdfd;color:#243d43;padding:0 10px;font-size:11px;outline:none}
-    .clear-btn{height:36px;border:0;border-radius:8px;padding:0 13px;background:#263c44;color:#fff;font-size:10px;font-weight:900}
-    .sheet-shell{overflow:hidden}
-    .sheet-head{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:13px 15px;border-bottom:1px solid #deecea}
-    .sheet-head h2{margin:0;font-size:15px}.sheet-head p{margin:4px 0 0;color:#7d8e92;font-size:9px}
-    .sheet-badges{display:flex;gap:7px;flex-wrap:wrap}.sheet-badge{padding:6px 9px;border-radius:999px;background:#eef8f6;border:1px solid #c7e5e1;color:#0d746d;font-size:8px;font-weight:900}
-    .table-wrap{overflow:auto;max-height:650px;background:#fff}
-    .budget-table{border-collapse:separate;border-spacing:0;min-width:3600px;width:max-content;font-size:9px;color:#20383e}
-    .budget-table th,.budget-table td{border-right:1px solid #e4eeee;border-bottom:1px solid #e4eeee;white-space:nowrap}
-    .budget-table thead th{position:sticky;z-index:5;text-align:center;font-weight:900}
-    .budget-table thead tr.group-row th{top:0;height:31px;padding:6px 8px;color:#fff;letter-spacing:.03em}
-    .budget-table thead tr.column-row th{top:31px;height:34px;padding:7px 8px;background:#173f68;color:#fff}
-    .budget-table .master-group{background:#234a55!important}
-    .budget-table .qty-group{background:#0d7f77!important}
-    .budget-table .sales-group{background:#173f68!important}
-    .budget-table .total-group{background:#263c44!important}
-    .budget-table td{height:32px;padding:6px 8px;text-align:right;background:#fff;font-variant-numeric:tabular-nums}
-    .budget-table td.text{text-align:left}.budget-table tbody tr:hover td{background:#f1faf8}
-    .budget-table .price-col{background:#f4fbfa;font-weight:800;color:#0c706a}
-    .budget-table .qty-cell{background:#fbfefd}
-    .budget-table .sales-cell{background:#fbfcff}
-    .budget-table .total-cell{font-weight:900;background:#eef7f6;color:#123f3c}
-    .budget-table .total-row td{position:sticky;bottom:0;z-index:3;background:#dff1ee!important;font-weight:900;border-top:1px solid #8bc7c1}
-    .sticky-1{position:sticky!important;left:0;z-index:6!important;min-width:82px}.sticky-2{position:sticky!important;left:82px;z-index:6!important;min-width:72px}.sticky-3{position:sticky!important;left:154px;z-index:6!important;min-width:90px}.sticky-4{position:sticky!important;left:244px;z-index:6!important;min-width:105px}.sticky-5{position:sticky!important;left:349px;z-index:6!important;min-width:105px}.sticky-6{position:sticky!important;left:454px;z-index:6!important;min-width:85px}.sticky-7{position:sticky!important;left:539px;z-index:6!important;min-width:105px}.sticky-8{position:sticky!important;left:644px;z-index:6!important;min-width:105px}.sticky-9{position:sticky!important;left:749px;z-index:6!important;min-width:120px}.sticky-10{position:sticky!important;left:869px;z-index:6!important;min-width:82px}
-    thead .sticky-1,thead .sticky-2,thead .sticky-3,thead .sticky-4,thead .sticky-5,thead .sticky-6,thead .sticky-7,thead .sticky-8,thead .sticky-9,thead .sticky-10{background:#173f68!important}
-    tbody .sticky-1,tbody .sticky-2,tbody .sticky-3,tbody .sticky-4,tbody .sticky-5,tbody .sticky-6,tbody .sticky-7,tbody .sticky-8,tbody .sticky-9,tbody .sticky-10{background:#fff!important}
-    tbody tr:hover .sticky-1,tbody tr:hover .sticky-2,tbody tr:hover .sticky-3,tbody tr:hover .sticky-4,tbody tr:hover .sticky-5,tbody tr:hover .sticky-6,tbody tr:hover .sticky-7,tbody tr:hover .sticky-8,tbody tr:hover .sticky-9,tbody tr:hover .sticky-10{background:#f1faf8!important}
-    .month-col{min-width:64px}.fy-col{min-width:82px}
-    .sheet-note{display:flex;justify-content:space-between;gap:12px;padding:10px 15px;background:#f7fbfa;border-top:1px solid #e3efed;color:#75898d;font-size:9px}.sheet-note b{color:#0c786f}
-    @media(max-width:1100px){.filters-card{grid-template-columns:repeat(3,1fr)}}
-    @media(max-width:700px){.ims-page{padding:16px 10px}.ims-topbar{align-items:flex-start;flex-direction:column}.filters-card{grid-template-columns:1fr}}
-  </style>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>IMS Sales - DAD Budget 2027</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.ims-page{padding-top:30px}.sidebar-nav .nav-section{margin:15px 8px 5px;color:rgba(255,255,255,.46);font-size:8px;font-weight:900;letter-spacing:.15em}.ims-topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}.ims-title h1{margin:0;font-size:26px}.ims-title p{margin:5px 0 0;color:var(--muted);font-size:12px}.ims-actions{display:flex;gap:8px;flex-wrap:wrap}.ghost-btn{border:1px solid #b9dcd8;background:#fff;color:#0b6661;border-radius:8px;padding:9px 12px;font-size:12px;font-weight:800}.filters-card{padding:12px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr auto;gap:9px;align-items:end;margin-bottom:12px}.filter-field label{display:block;font-size:10px;font-weight:900;color:#60777c;text-transform:uppercase;letter-spacing:.06em;margin:0 0 5px}.filter-field select,.filter-field input{width:100%;height:38px;border:1px solid #cfe2df;border-radius:8px;background:#fbfdfd;color:#243d43;padding:0 10px;font-size:12px;outline:none}.clear-btn{height:38px;border:0;border-radius:8px;padding:0 13px;background:#263c44;color:#fff;font-size:11px;font-weight:900}.sheet-shell{overflow:hidden}.sheet-head{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 16px;border-bottom:1px solid #deecea}.sheet-head h2{margin:0;font-size:17px}.sheet-head p{margin:4px 0 0;color:#7d8e92;font-size:10px}.sheet-badges{display:flex;gap:7px;flex-wrap:wrap}.sheet-badge{padding:6px 9px;border-radius:999px;background:#eef8f6;border:1px solid #c7e5e1;color:#0d746d;font-size:9px;font-weight:900}.table-wrap{overflow:auto;max-height:650px;background:#fff}.budget-table{border-collapse:separate;border-spacing:0;min-width:3900px;width:max-content;font-size:11px;color:#20383e}.budget-table th,.budget-table td{border-right:1px solid #e4eeee;border-bottom:1px solid #e4eeee;white-space:nowrap;transition:background .16s ease,color .16s ease,font-weight .16s ease,text-shadow .16s ease,box-shadow .16s ease}.budget-table thead th{position:sticky;z-index:5;text-align:center;font-weight:900;font-size:11px}.budget-table thead tr.group-row th{top:0;height:34px;padding:7px 9px;color:#fff;letter-spacing:.03em;font-size:12px}.budget-table thead tr.column-row th{top:34px;height:38px;padding:8px 9px;background:#173f68;color:#fff}.budget-table .master-group{background:#234a55!important}.budget-table .qty-group{background:#0d7f77!important}.budget-table .sales-group{background:#173f68!important}.budget-table td{height:36px;padding:7px 9px;text-align:right;background:#fff;font-variant-numeric:tabular-nums}.budget-table td.text{text-align:left}.budget-table tbody tr:hover td{background:#f1faf8}.budget-table .price-col{background:#f4fbfa;font-weight:800;color:#0c706a}.budget-table .qty-cell{background:#fbfefd}.budget-table .sales-cell{background:#fbfcff}.budget-table .total-cell{font-weight:900;background:#eef7f6;color:#123f3c}.budget-table .total-row td{position:sticky;bottom:0;z-index:3;background:#dff1ee!important;font-weight:900;border-top:1px solid #8bc7c1}.budget-table .col-hover{font-weight:900!important;color:#063f3d!important;background:#e6fffb!important;text-shadow:0 0 7px rgba(20,225,205,.7);box-shadow:inset 0 0 14px rgba(28,222,202,.22),0 0 9px rgba(28,222,202,.14)}.budget-table thead .col-hover{color:#fff!important;background:#0b9187!important;text-shadow:0 0 8px #49fff0,0 0 16px rgba(73,255,240,.75);box-shadow:inset 0 0 18px rgba(73,255,240,.22),0 0 12px rgba(73,255,240,.32)}.sticky-1{position:sticky!important;left:0;z-index:6!important;min-width:88px}.sticky-2{position:sticky!important;left:88px;z-index:6!important;min-width:78px}.sticky-3{position:sticky!important;left:166px;z-index:6!important;min-width:96px}.sticky-4{position:sticky!important;left:262px;z-index:6!important;min-width:112px}.sticky-5{position:sticky!important;left:374px;z-index:6!important;min-width:112px}.sticky-6{position:sticky!important;left:486px;z-index:6!important;min-width:90px}.sticky-7{position:sticky!important;left:576px;z-index:6!important;min-width:112px}.sticky-8{position:sticky!important;left:688px;z-index:6!important;min-width:112px}.sticky-9{position:sticky!important;left:800px;z-index:6!important;min-width:128px}.sticky-10{position:sticky!important;left:928px;z-index:6!important;min-width:88px}thead .sticky-1,thead .sticky-2,thead .sticky-3,thead .sticky-4,thead .sticky-5,thead .sticky-6,thead .sticky-7,thead .sticky-8,thead .sticky-9,thead .sticky-10{background:#173f68!important}tbody .sticky-1,tbody .sticky-2,tbody .sticky-3,tbody .sticky-4,tbody .sticky-5,tbody .sticky-6,tbody .sticky-7,tbody .sticky-8,tbody .sticky-9,tbody .sticky-10{background:#fff!important}tbody tr:hover .sticky-1,tbody tr:hover .sticky-2,tbody tr:hover .sticky-3,tbody tr:hover .sticky-4,tbody tr:hover .sticky-5,tbody tr:hover .sticky-6,tbody tr:hover .sticky-7,tbody tr:hover .sticky-8,tbody tr:hover .sticky-9,tbody tr:hover .sticky-10{background:#f1faf8!important}.month-col{min-width:70px}.fy-col{min-width:90px}.sheet-note{display:flex;justify-content:space-between;gap:12px;padding:10px 15px;background:#f7fbfa;border-top:1px solid #e3efed;color:#75898d;font-size:10px}.sheet-note b{color:#0c786f}@media(max-width:1100px){.filters-card{grid-template-columns:repeat(3,1fr)}}@media(max-width:700px){.ims-page{padding:16px 10px}.ims-topbar{align-items:flex-start;flex-direction:column}.filters-card{grid-template-columns:1fr}}
+</style>
 </head>
-<body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="sidebar-brand"><div class="brand-badge">B27</div><div><strong>BUDGET 2027</strong><span>PLANNING CENTER</span></div></div>
-      <nav class="sidebar-nav">
-        <div class="nav-section">PLANNING</div>
-        <a href="index.html">Dashboard</a>
-        <a class="active" href="ims-sales.html">IMS Sales</a>
-        <a href="#">OPEX Planning</a>
-        <a href="#">CAPEX Planning</a>
-        <a href="#">Projects</a>
-        <a href="#">P&amp;L</a>
-        <div class="nav-section">WORKFLOW</div>
-        <a href="#">Roadmap</a>
-        <a href="#">Approval Center</a>
-        <a href="#">Assumptions</a>
-      </nav>
-    </aside>
-
-    <main class="main-content ims-page">
-      <div class="ims-topbar">
-        <div class="ims-title"><span class="eyebrow">COMMERCIAL BUDGET</span><h1>IMS Sales</h1><p>Budget 2026 pilot layout rebuilt in the same sheet logic used for market, product, quantity and IMS value planning.</p></div>
-        <div class="ims-actions"><button class="ghost-btn" type="button">Download Template</button><button class="teal-btn" type="button">Upload IMS Sales</button><button class="dark-btn" id="logoutBtn" type="button">Log out</button></div>
-      </div>
-
-      <section class="card filters-card">
-        <div class="filter-field"><label>Region</label><select><option>All Regions</option><option>GCC</option><option>Levant</option></select></div>
-        <div class="filter-field"><label>Country</label><select><option>All Countries</option><option>KSA</option><option>Jordan</option><option>Iraq</option><option>UAE</option></select></div>
-        <div class="filter-field"><label>Agent</label><select><option>All Agents</option><option>Agent 01</option><option>Agent 02</option></select></div>
-        <div class="filter-field"><label>Sector</label><select><option>All Sectors</option><option>Private</option><option>Tender</option></select></div>
-        <div class="filter-field"><label>Brand / SKU</label><input type="search" placeholder="Search brand or SKU..." /></div>
-        <button class="clear-btn" type="button">Clear Filters</button>
-      </section>
-
-      <section class="card sheet-shell">
-        <div class="sheet-head">
-          <div><h2>IMS Budget 2026 — Pilot</h2><p>Structure follows the Budget 2026 workbook: master data → monthly quantities → IMS budget amounts.</p></div>
-          <div class="sheet-badges"><span class="sheet-badge">12 Months</span><span class="sheet-badge">Price USD</span><span class="sheet-badge">Qty + IMS Amount</span></div>
-        </div>
-
-        <div class="table-wrap">
-          <table class="budget-table">
-            <thead>
-              <tr class="group-row">
-                <th class="master-group" colspan="10">PRODUCT &amp; MARKET MASTER DATA</th>
-                <th class="qty-group" colspan="13">BUDGET QUANTITIES 2026</th>
-                <th class="sales-group" colspan="13">IMS BUDGET 2026 — AMOUNTS (USD)</th>
-              </tr>
-              <tr class="column-row">
-                <th class="sticky-1">Region</th><th class="sticky-2">Type</th><th class="sticky-3">Country</th><th class="sticky-4">Sub Market</th><th class="sticky-5">Agent</th><th class="sticky-6">Sector</th><th class="sticky-7">Brand</th><th class="sticky-8">SKU</th><th class="sticky-9">Product Category</th><th class="sticky-10">Price USD</th>
-                <th class="month-col">Jan</th><th class="month-col">Feb</th><th class="month-col">Mar</th><th class="month-col">Apr</th><th class="month-col">May</th><th class="month-col">Jun</th><th class="month-col">Jul</th><th class="month-col">Aug</th><th class="month-col">Sep</th><th class="month-col">Oct</th><th class="month-col">Nov</th><th class="month-col">Dec</th><th class="fy-col">Total Qty</th>
-                <th class="month-col">Jan</th><th class="month-col">Feb</th><th class="month-col">Mar</th><th class="month-col">Apr</th><th class="month-col">May</th><th class="month-col">Jun</th><th class="month-col">Jul</th><th class="month-col">Aug</th><th class="month-col">Sep</th><th class="month-col">Oct</th><th class="month-col">Nov</th><th class="month-col">Dec</th><th class="fy-col">Total USD</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="text sticky-1">GCC</td><td class="text sticky-2">IMS</td><td class="text sticky-3">KSA</td><td class="text sticky-4">Central</td><td class="text sticky-5">Agent 01</td><td class="text sticky-6">Private</td><td class="text sticky-7">Brand A</td><td class="text sticky-8">SKU 0001</td><td class="text sticky-9">Rx</td><td class="price-col sticky-10">12.50</td>
-                <td class="qty-cell">1,250</td><td class="qty-cell">1,300</td><td class="qty-cell">1,350</td><td class="qty-cell">1,400</td><td class="qty-cell">1,450</td><td class="qty-cell">1,500</td><td class="qty-cell">1,520</td><td class="qty-cell">1,540</td><td class="qty-cell">1,560</td><td class="qty-cell">1,580</td><td class="qty-cell">1,600</td><td class="qty-cell">1,650</td><td class="total-cell">17,700</td>
-                <td class="sales-cell">15,625</td><td class="sales-cell">16,250</td><td class="sales-cell">16,875</td><td class="sales-cell">17,500</td><td class="sales-cell">18,125</td><td class="sales-cell">18,750</td><td class="sales-cell">19,000</td><td class="sales-cell">19,250</td><td class="sales-cell">19,500</td><td class="sales-cell">19,750</td><td class="sales-cell">20,000</td><td class="sales-cell">20,625</td><td class="total-cell">221,250</td>
-              </tr>
-              <tr>
-                <td class="text sticky-1">GCC</td><td class="text sticky-2">IMS</td><td class="text sticky-3">KSA</td><td class="text sticky-4">Western</td><td class="text sticky-5">Agent 02</td><td class="text sticky-6">Private</td><td class="text sticky-7">Brand B</td><td class="text sticky-8">SKU 0002</td><td class="text sticky-9">OTC</td><td class="price-col sticky-10">18.00</td>
-                <td class="qty-cell">900</td><td class="qty-cell">950</td><td class="qty-cell">1,000</td><td class="qty-cell">1,000</td><td class="qty-cell">1,050</td><td class="qty-cell">1,100</td><td class="qty-cell">1,100</td><td class="qty-cell">1,150</td><td class="qty-cell">1,150</td><td class="qty-cell">1,200</td><td class="qty-cell">1,200</td><td class="qty-cell">1,250</td><td class="total-cell">13,050</td>
-                <td class="sales-cell">16,200</td><td class="sales-cell">17,100</td><td class="sales-cell">18,000</td><td class="sales-cell">18,000</td><td class="sales-cell">18,900</td><td class="sales-cell">19,800</td><td class="sales-cell">19,800</td><td class="sales-cell">20,700</td><td class="sales-cell">20,700</td><td class="sales-cell">21,600</td><td class="sales-cell">21,600</td><td class="sales-cell">22,500</td><td class="total-cell">234,900</td>
-              </tr>
-              <tr class="total-row">
-                <td class="text sticky-1">TOTAL</td><td class="sticky-2"></td><td class="sticky-3"></td><td class="sticky-4"></td><td class="sticky-5"></td><td class="sticky-6"></td><td class="sticky-7"></td><td class="sticky-8"></td><td class="sticky-9"></td><td class="sticky-10"></td>
-                <td>2,150</td><td>2,250</td><td>2,350</td><td>2,400</td><td>2,500</td><td>2,600</td><td>2,620</td><td>2,690</td><td>2,710</td><td>2,780</td><td>2,800</td><td>2,900</td><td>30,750</td>
-                <td>31,825</td><td>33,350</td><td>34,875</td><td>35,500</td><td>37,025</td><td>38,550</td><td>38,800</td><td>39,950</td><td>40,200</td><td>41,350</td><td>41,600</td><td>43,125</td><td>456,150</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="sheet-note"><span><b>Pilot layout:</b> sample rows are shown only to approve the structure before connecting Budget 2026 data.</span><span>IMS Amount = Quantity × Price USD</span></div>
-      </section>
-    </main>
-  </div>
-  <script src="js/app.js"></script>
-</body>
-</html>
+<body><div class="app-shell"><aside class="sidebar"><div class="sidebar-brand"><div class="brand-badge">B27</div><div><strong>BUDGET 2027</strong><span>PLANNING CENTER</span></div></div><nav class="sidebar-nav"><div class="nav-section">PLANNING</div><a href="index.html">Dashboard</a><a class="active" href="ims-sales.html">IMS Sales</a><a href="#">OPEX Planning</a><a href="#">CAPEX Planning</a><a href="#">Projects</a><a href="#">P&amp;L</a><div class="nav-section">WORKFLOW</div><a href="#">Roadmap</a><a href="#">Approval Center</a><a href="#">Assumptions</a></nav></aside><main class="main-content ims-page"><div class="ims-topbar"><div class="ims-title"><span class="eyebrow">COMMERCIAL BUDGET</span><h1>IMS Sales</h1><p>Budget 2026 pilot layout rebuilt in the same sheet logic used for market, product, quantity and IMS value planning.</p></div><div class="ims-actions"><button class="ghost-btn">Download Template</button><button class="teal-btn">Upload IMS Sales</button><button class="dark-btn" id="logoutBtn">Log out</button></div></div><section class="card filters-card"><div class="filter-field"><label>Region</label><select><option>All Regions</option><option>GCC</option><option>Levant</option></select></div><div class="filter-field"><label>Country</label><select><option>All Countries</option><option>KSA</option><option>Jordan</option><option>Iraq</option><option>UAE</option></select></div><div class="filter-field"><label>Agent</label><select><option>All Agents</option><option>Agent 01</option><option>Agent 02</option></select></div><div class="filter-field"><label>Sector</label><select><option>All Sectors</option><option>Private</option><option>Tender</option></select></div><div class="filter-field"><label>Brand / SKU</label><input type="search" placeholder="Search brand or SKU..."></div><button class="clear-btn">Clear Filters</button></section><section class="card sheet-shell"><div class="sheet-head"><div><h2>IMS Budget 2026 — Pilot</h2><p>Structure follows the Budget 2026 workbook: master data → monthly quantities → IMS budget amounts.</p></div><div class="sheet-badges"><span class="sheet-badge">12 Months</span><span class="sheet-badge">Price USD</span><span class="sheet-badge">Qty + IMS Amount</span></div></div><div class="table-wrap"><table class="budget-table" id="budgetTable"><thead><tr class="group-row"><th class="master-group" colspan="10">PRODUCT &amp; MARKET MASTER DATA</th><th class="qty-group" colspan="13">BUDGET QUANTITIES 2026</th><th class="sales-group" colspan="13">IMS BUDGET 2026 — AMOUNTS (USD)</th></tr><tr class="column-row"><th class="sticky-1">Region</th><th class="sticky-2">Type</th><th class="sticky-3">Country</th><th class="sticky-4">Sub Market</th><th class="sticky-5">Agent</th><th class="sticky-6">Sector</th><th class="sticky-7">Brand</th><th class="sticky-8">SKU</th><th class="sticky-9">Product Category</th><th class="sticky-10">Price USD</th><th class="month-col">Jan</th><th class="month-col">Feb</th><th class="month-col">Mar</th><th class="month-col">Apr</th><th class="month-col">May</th><th class="month-col">Jun</th><th class="month-col">Jul</th><th class="month-col">Aug</th><th class="month-col">Sep</th><th class="month-col">Oct</th><th class="month-col">Nov</th><th class="month-col">Dec</th><th class="fy-col">Total Qty</th><th class="month-col">Jan</th><th class="month-col">Feb</th><th class="month-col">Mar</th><th class="month-col">Apr</th><th class="month-col">May</th><th class="month-col">Jun</th><th class="month-col">Jul</th><th class="month-col">Aug</th><th class="month-col">Sep</th><th class="month-col">Oct</th><th class="month-col">Nov</th><th class="month-col">Dec</th><th class="fy-col">Total USD</th></tr></thead><tbody><tr><td class="text sticky-1">GCC</td><td class="text sticky-2">IMS</td><td class="text sticky-3">KSA</td><td class="text sticky-4">Central</td><td class="text sticky-5">Agent 01</td><td class="text sticky-6">Private</td><td class="text sticky-7">Brand A</td><td class="text sticky-8">SKU 0001</td><td class="text sticky-9">Rx</td><td class="price-col sticky-10">12.50</td><td class="qty-cell">1,250</td><td class="qty-cell">1,300</td><td class="qty-cell">1,350</td><td class="qty-cell">1,400</td><td class="qty-cell">1,450</td><td class="qty-cell">1,500</td><td class="qty-cell">1,520</td><td class="qty-cell">1,540</td><td class="qty-cell">1,560</td><td class="qty-cell">1,580</td><td class="qty-cell">1,600</td><td class="qty-cell">1,650</td><td class="total-cell">17,700</td><td class="sales-cell">15,625</td><td class="sales-cell">16,250</td><td class="sales-cell">16,875</td><td class="sales-cell">17,500</td><td class="sales-cell">18,125</td><td class="sales-cell">18,750</td><td class="sales-cell">19,000</td><td class="sales-cell">19,250</td><td class="sales-cell">19,500</td><td class="sales-cell">19,750</td><td class="sales-cell">20,000</td><td class="sales-cell">20,625</td><td class="total-cell">221,250</td></tr><tr><td class="text sticky-1">GCC</td><td class="text sticky-2">IMS</td><td class="text sticky-3">KSA</td><td class="text sticky-4">Western</td><td class="text sticky-5">Agent 02</td><td class="text sticky-6">Private</td><td class="text sticky-7">Brand B</td><td class="text sticky-8">SKU 0002</td><td class="text sticky-9">OTC</td><td class="price-col sticky-10">18.00</td><td class="qty-cell">900</td><td class="qty-cell">950</td><td class="qty-cell">1,000</td><td class="qty-cell">1,000</td><td class="qty-cell">1,050</td><td class="qty-cell">1,100</td><td class="qty-cell">1,100</td><td class="qty-cell">1,150</td><td class="qty-cell">1,150</td><td class="qty-cell">1,200</td><td class="qty-cell">1,200</td><td class="qty-cell">1,250</td><td class="total-cell">13,050</td><td class="sales-cell">16,200</td><td class="sales-cell">17,100</td><td class="sales-cell">18,000</td><td class="sales-cell">18,000</td><td class="sales-cell">18,900</td><td class="sales-cell">19,800</td><td class="sales-cell">19,800</td><td class="sales-cell">20,700</td><td class="sales-cell">20,700</td><td class="sales-cell">21,600</td><td class="sales-cell">21,600</td><td class="sales-cell">22,500</td><td class="total-cell">234,900</td></tr><tr class="total-row"><td class="text sticky-1">TOTAL</td><td class="sticky-2"></td><td class="sticky-3"></td><td class="sticky-4"></td><td class="sticky-5"></td><td class="sticky-6"></td><td class="sticky-7"></td><td class="sticky-8"></td><td class="sticky-9"></td><td class="sticky-10"></td><td>2,150</td><td>2,250</td><td>2,350</td><td>2,400</td><td>2,500</td><td>2,600</td><td>2,620</td><td>2,690</td><td>2,710</td><td>2,780</td><td>2,800</td><td>2,900</td><td>30,750</td><td>31,825</td><td>33,350</td><td>34,875</td><td>35,500</td><td>37,025</td><td>38,550</td><td>38,800</td><td>39,950</td><td>40,200</td><td>41,350</td><td>41,600</td><td>43,125</td><td>456,150</td></tr></tbody></table></div><div class="sheet-note"><span><b>Pilot layout:</b> sample rows are shown only to approve the structure before connecting Budget 2026 data.</span><span>IMS Amount = Quantity × Price USD</span></div></section></main></div><script src="js/app.js"></script><script>
+(function(){const table=document.getElementById('budgetTable');if(!table)return;const cells=[...table.querySelectorAll('th,td')];function clear(){cells.forEach(c=>c.classList.remove('col-hover'))}table.addEventListener('mouseover',e=>{const cell=e.target.closest('th,td');if(!cell||!table.contains(cell))return;clear();let idx=cell.cellIndex;if(cell.parentElement.classList.contains('group-row'))return;table.querySelectorAll('tr').forEach(row=>{const target=row.children[idx];if(target)target.classList.add('col-hover')})});table.addEventListener('mouseleave',clear)})();
+</script></body></html>
