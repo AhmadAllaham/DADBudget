@@ -47,8 +47,12 @@ document.addEventListener('DOMContentLoaded', () => {
     .budget-table tbody tr:not(.total-row):hover td.unmatched-cost{color:#a72f2f!important;background:#ffecec!important;text-shadow:0 0 6px rgba(255,80,80,.18)!important}
     .cost-detail-toggle{border:1px solid #50d7ca;background:linear-gradient(90deg,#eafffc,#fff);color:#086d67;border-radius:8px;padding:9px 13px;font-size:12px;font-weight:900;box-shadow:0 0 8px rgba(38,255,235,.30),0 0 16px rgba(38,255,235,.16);transition:.18s ease}
     .cost-detail-toggle:hover,.cost-detail-toggle.active{background:#dffffa;color:#064f4b;box-shadow:0 0 9px rgba(38,255,235,.65),0 0 20px rgba(38,255,235,.34);text-shadow:0 0 7px rgba(38,255,235,.55)}
-    .budget-table .cost-detail-head{min-width:105px;background:#8b7427!important;color:#fff!important}
+    .budget-table .cost-detail-head{min-width:96px;background:#8b7427!important;color:#fff!important}
+    .budget-table .cost-detail-head.direct-head{background:#74611f!important}
+    .budget-table .cost-detail-head.indirect-head{background:#5f511d!important}
+    .budget-table .cost-detail-head.total-head{background:#4e4218!important}
     .budget-table .cost-detail-cell{background:#fff8dc;color:#695817;font-weight:800}
+    .budget-table .cost-detail-cell.total-detail-cell{background:#fff1bd;color:#564712;font-weight:900}
     .budget-table .cost-detail-total{background:#f5e9b8!important;color:#5d4d17!important;font-weight:900!important}
   `;
   document.head.appendChild(style);
@@ -69,19 +73,26 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const fmt = (v) => Number(v).toLocaleString(undefined, { maximumFractionDigits: 4 });
 
-  // Sample breakdown is deliberately visible in the pilot so the feature can be reviewed before a real cost sheet is uploaded.
-  let detailHeaders = ['Material Cost', 'Conversion Cost', 'Overhead'];
+  // Same cost-rate detail used in the Budget 2026 COGS sheet:
+  // RM, PM, Direct (DL/OH), In-Direct (DL/OH), and B25 total cost.
+  const cogsHeaders = ['RM', 'PM', 'Direct DL', 'Direct OH', 'In-Direct DL', 'In-Direct OH', 'B25 Total'];
+  let detailHeaders = [...cogsHeaders];
   let detailMap = {
-    SKU0001: {'Material Cost': 3.10, 'Conversion Cost': 1.05, 'Overhead': 0.65},
-    SKU0002: {'Material Cost': 4.55, 'Conversion Cost': 1.55, 'Overhead': 1.00}
+    SKU0001: {'RM': 3.10, 'PM': 0.20, 'Direct DL': 0.35, 'Direct OH': 0.55, 'In-Direct DL': 0.20, 'In-Direct OH': 0.40, 'B25 Total': 4.80},
+    SKU0002: {'RM': 4.55, 'PM': 0.30, 'Direct DL': 0.45, 'Direct OH': 0.75, 'In-Direct DL': 0.30, 'In-Direct OH': 0.75, 'B25 Total': 7.10}
   };
   let detailVisible = false;
 
   try {
     const saved = JSON.parse(localStorage.getItem('dadBudgetCostBreakdown') || 'null');
     if (saved && Array.isArray(saved.headers) && saved.headers.length && saved.map) {
-      detailHeaders = saved.headers;
-      detailMap = saved.map;
+      const oldPilot = saved.headers.join('|') === 'Material Cost|Conversion Cost|Overhead';
+      if (!oldPilot) {
+        detailHeaders = saved.headers;
+        detailMap = saved.map;
+      } else {
+        localStorage.removeItem('dadBudgetCostBreakdown');
+      }
     }
   } catch (e) {}
 
@@ -92,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
     detailBtn.type = 'button';
     detailBtn.className = 'cost-detail-toggle';
     detailBtn.textContent = 'Show Cost Detail';
-    detailBtn.title = 'Add / remove cost-rate breakdown columns inside the IMS table';
+    detailBtn.title = 'Show the same cost-rate breakdown used in the COGS sheet';
     if (imsActions) {
       const uploadCostBtn = document.getElementById('uploadCostBtn');
       imsActions.insertBefore(detailBtn, uploadCostBtn || imsActions.firstChild);
@@ -124,6 +135,9 @@ document.addEventListener('DOMContentLoaded', () => {
     detailHeaders.forEach((header) => {
       const th = document.createElement('th');
       th.className = 'cost-detail-head';
+      if (header.startsWith('Direct ')) th.classList.add('direct-head');
+      if (header.startsWith('In-Direct ')) th.classList.add('indirect-head');
+      if (/B25|Total/i.test(header)) th.classList.add('total-head');
       th.textContent = header;
       insertAfter.after(th);
       insertAfter = th;
@@ -136,6 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
       detailHeaders.forEach((header) => {
         const td = document.createElement('td');
         td.className = 'cost-detail-cell';
+        if (/B25|Total/i.test(header)) td.classList.add('total-detail-cell');
         const value = detail[header];
         td.textContent = value === '' || value == null ? '—' : fmt(value);
         anchor.after(td);
@@ -173,12 +188,59 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const data = await file.arrayBuffer();
         const wb = XLSX.read(data, {type:'array'});
-        const ws = wb.Sheets[wb.SheetNames[0]];
+        const cogsSheetName = wb.SheetNames.find((name) => String(name).trim().toUpperCase() === 'COGS');
+        const ws = wb.Sheets[cogsSheetName || wb.SheetNames[0]];
+        const matrix = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+        if (!matrix.length) return;
+
+        // Detect the COGS header row used in the Budget 2026 workbook.
+        const headerRowIndex = matrix.findIndex((row) => {
+          const cells = row.map((v) => String(v).trim().toUpperCase());
+          return cells.includes('COUNTRY') && cells.includes('ITEM SPM') && cells.includes('RM') && cells.includes('PM');
+        });
+
+        if (headerRowIndex >= 0) {
+          const hdr = matrix[headerRowIndex].map((v) => String(v).trim());
+          const countryIdx = hdr.findIndex((h) => /^country$/i.test(h));
+          const itemIdx = hdr.findIndex((h) => /^item spm$/i.test(h));
+          const rmIdx = hdr.findIndex((h) => /^rm$/i.test(h));
+          const pmIdx = hdr.findIndex((h) => /^pm$/i.test(h));
+          const dlIndexes = hdr.map((h, i) => /^dl$/i.test(h) ? i : -1).filter((i) => i >= 0);
+          const ohIndexes = hdr.map((h, i) => /^oh$/i.test(h) ? i : -1).filter((i) => i >= 0);
+          const b25Idx = hdr.findIndex((h) => /^b25$/i.test(h));
+
+          const nextMap = {};
+          for (let r = headerRowIndex + 1; r < matrix.length; r++) {
+            const row = matrix[r];
+            const item = row[itemIdx];
+            if (!item) continue;
+            const key = norm(item);
+            const breakdown = {
+              'RM': num(row[rmIdx]),
+              'PM': num(row[pmIdx]),
+              'Direct DL': num(row[dlIndexes[0]]),
+              'Direct OH': num(row[ohIndexes[0]]),
+              'In-Direct DL': num(row[dlIndexes[1]]),
+              'In-Direct OH': num(row[ohIndexes[1]]),
+              'B25 Total': num(row[b25Idx])
+            };
+            nextMap[key] = breakdown;
+            if (countryIdx >= 0 && row[countryIdx]) nextMap[norm(row[countryIdx] + '|' + item)] = breakdown;
+          }
+          detailHeaders = [...cogsHeaders];
+          detailMap = nextMap;
+          localStorage.setItem('dadBudgetCostBreakdown', JSON.stringify({headers: detailHeaders, map: detailMap}));
+          removeDetailColumns();
+          detailBtn.title = 'COGS detail loaded: RM, PM, Direct DL/OH, In-Direct DL/OH, B25';
+          return;
+        }
+
+        // Fallback for a simple SKU-based cost file with extra numeric breakdown columns.
         const json = XLSX.utils.sheet_to_json(ws, {defval:''});
         if (!json.length) return;
         const headers = Object.keys(json[0]);
         const skuHeader = headers.find((h) => /^(sku|sku code|item|item code|product code|material|material code)$/i.test(String(h).trim())) || headers.find((h) => /sku|item code|product code|material code/i.test(String(h)));
-        const totalCostHeader = headers.find((h) => /^(cost|unit cost|cost usd|standard cost|std cost|product cost)$/i.test(String(h).trim())) || headers.find((h) => /cost/i.test(String(h)));
+        const totalCostHeader = headers.find((h) => /^(cost|unit cost|cost usd|standard cost|std cost|product cost|b25)$/i.test(String(h).trim())) || headers.find((h) => /cost|b25/i.test(String(h)));
         if (!skuHeader || !totalCostHeader) return;
 
         const candidateHeaders = headers.filter((h) => {
@@ -193,8 +255,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!sku) return;
             nextMap[sku] = {};
             candidateHeaders.forEach((h) => nextMap[sku][h] = r[h] === '' ? '' : num(r[h]));
+            nextMap[sku]['B25 Total'] = num(r[totalCostHeader]);
           });
-          detailHeaders = candidateHeaders;
+          detailHeaders = [...candidateHeaders, 'B25 Total'];
           detailMap = nextMap;
           localStorage.setItem('dadBudgetCostBreakdown', JSON.stringify({headers: detailHeaders, map: detailMap}));
           removeDetailColumns();
