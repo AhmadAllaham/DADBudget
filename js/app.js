@@ -147,12 +147,13 @@ document.addEventListener('DOMContentLoaded', () => {
       row.children[totalUsdIndex].after(pctTd, qtyTd);
 
       const recalcBonus = () => {
-        let raw = String(pctTd.textContent || '').replace('%','').trim();
+        const raw = String(pctTd.textContent || '').replace('%','').trim();
         const value = Number(raw.replace(/,/g,''));
         const pctValue = Number.isFinite(value) ? value : 0;
         pctTd.dataset.raw = String(pctValue);
         qtyTd.textContent = Math.round(totalQty * pctValue / 100).toLocaleString();
         recalcBonusTotal();
+        recalcTotalCogsAndGrossProfit();
       };
       pctTd.addEventListener('focus', () => { pctTd.textContent = pctTd.dataset.raw || '0'; });
       pctTd.addEventListener('input', recalcBonus);
@@ -234,7 +235,28 @@ document.addEventListener('DOMContentLoaded', () => {
       totalCell.classList.toggle('negative', totalGp < 0);
     }
   }
-  recalcGrossProfit();
+
+  function recalcTotalCogsAndGrossProfit() {
+    let totalCogsAll = 0;
+    budgetTable.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
+      const goodsQty = num(row.children[22]?.textContent);
+      const bonusQty = num(row.querySelector('.bonus-qty')?.textContent);
+      const costRate = num(row.querySelector('.cost-unit')?.textContent);
+      const totalCogs = (goodsQty + bonusQty) * costRate;
+      const totalCell = row.querySelector('.cogs-total');
+      if (totalCell && costRate > 0) totalCell.textContent = fmt(totalCogs);
+      totalCogsAll += costRate > 0 ? totalCogs : 0;
+    });
+
+    const totalRow = budgetTable.querySelector('tbody tr.total-row');
+    if (totalRow) {
+      const totalCogsCell = totalRow.querySelector('.cost-total-row:last-of-type');
+      if (totalCogsCell) totalCogsCell.textContent = fmt(totalCogsAll);
+    }
+    recalcGrossProfit();
+  }
+
+  recalcTotalCogsAndGrossProfit();
 
   budgetTable.querySelectorAll('.cogs-total').forEach((cell) => {
     new MutationObserver(recalcGrossProfit).observe(cell, { childList:true, characterData:true, subtree:true });
