@@ -1,3 +1,49 @@
+// IMS Sales chunk storage layer. Keeps the existing synchronous app API while storing large IMS datasets in 250-row blocks.
+(function(){
+  const KEY='dadBudgetIMSSales', META_KEY=KEY+'Meta', PREFIX=KEY+'Chunk_', CHUNK_SIZE=250;
+  const nativeGet=Storage.prototype.getItem, nativeSet=Storage.prototype.setItem, nativeRemove=Storage.prototype.removeItem;
+  function clearChunks(store){
+    try{
+      const meta=JSON.parse(nativeGet.call(store,META_KEY)||'null');
+      const count=Number(meta?.chunkCount||0);
+      for(let i=0;i<count;i++)nativeRemove.call(store,PREFIX+i);
+    }catch(e){}
+    nativeRemove.call(store,META_KEY);
+  }
+  Storage.prototype.setItem=function(key,value){
+    if(key!==KEY)return nativeSet.call(this,key,value);
+    try{
+      const payload=JSON.parse(String(value));
+      if(!payload||!Array.isArray(payload.rows))return nativeSet.call(this,key,value);
+      clearChunks(this);
+      const rows=payload.rows, chunkCount=Math.ceil(rows.length/CHUNK_SIZE);
+      for(let i=0;i<chunkCount;i++)nativeSet.call(this,PREFIX+i,JSON.stringify(rows.slice(i*CHUNK_SIZE,(i+1)*CHUNK_SIZE)));
+      const meta={...payload,rows:undefined,chunked:true,chunkSize:CHUNK_SIZE,chunkCount,rowCount:rows.length};
+      delete meta.rows;
+      nativeSet.call(this,META_KEY,JSON.stringify(meta));
+      nativeSet.call(this,KEY,JSON.stringify({chunked:true,chunkSize:CHUNK_SIZE,chunkCount,rowCount:rows.length}));
+    }catch(e){nativeSet.call(this,key,value)}
+  };
+  Storage.prototype.getItem=function(key){
+    if(key!==KEY)return nativeGet.call(this,key);
+    const raw=nativeGet.call(this,KEY);if(!raw)return raw;
+    try{
+      const marker=JSON.parse(raw);
+      if(!marker?.chunked)return raw;
+      const meta=JSON.parse(nativeGet.call(this,META_KEY)||'{}'),rows=[];
+      for(let i=0;i<Number(marker.chunkCount||meta.chunkCount||0);i++){
+        const part=JSON.parse(nativeGet.call(this,PREFIX+i)||'[]');
+        if(Array.isArray(part))rows.push(...part);
+      }
+      return JSON.stringify({...meta,rows});
+    }catch(e){return raw}
+  };
+  Storage.prototype.removeItem=function(key){
+    if(key===KEY){clearChunks(this);return nativeRemove.call(this,KEY)}
+    return nativeRemove.call(this,key);
+  };
+})();
+
 // DAD Budget 2027 - shared frontend logic
 (function(){
   const IMS_KEY='dadBudgetIMSSales';
@@ -6,7 +52,7 @@
   const money=v=>Number(v||0).toLocaleString(undefined,{maximumFractionDigits:2});
   const qtyFmt=v=>Math.round(Number(v||0)).toLocaleString();
   const norm=v=>String(v??'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
-  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[m]));
 
   function setupShell(){
     const loginForm=document.getElementById('loginForm');
@@ -72,12 +118,12 @@
       const status=document.getElementById('imsStatus'),fileEl=document.getElementById('imsFile');
       try{
         if(status){status.textContent='Reading...';status.classList.remove('ready')}
-        const payload=await parseIMSFile(file);localStorage.setItem(IMS_KEY,JSON.stringify(payload));localStorage.setItem('dadBudgetIMSFileName',file.name);localStorage.setItem('dadBudgetAdmin_ims',JSON.stringify({name:file.name,updated:payload.uploadedAt,rows:payload.validation.rows,mismatches:payload.validation.totalQtyMismatches}));
-        if(fileEl)fileEl.textContent=file.name;if(status){status.textContent=`Loaded • ${payload.validation.rows} rows`;status.classList.add('ready')}
-        alert(`IMS Sales loaded successfully\n\nRows: ${payload.validation.rows.toLocaleString()}\nTotal QTY: ${qtyFmt(payload.validation.totalQty)}\nTotal Sales USD: ${money(payload.validation.totalSales)}\nQTY check issues: ${payload.validation.totalQtyMismatches}`);
+        const payload=await parseIMSFile(file);localStorage.setItem(IMS_KEY,JSON.stringify(payload));localStorage.setItem('dadBudgetIMSFileName',file.name);localStorage.setItem('dadBudgetAdmin_ims',JSON.stringify({name:file.name,updated:payload.uploadedAt,rows:payload.validation.rows,mismatches:payload.validation.totalQtyMismatches,chunks:Math.ceil(payload.validation.rows/250)}));
+        if(fileEl)fileEl.textContent=file.name;if(status){status.textContent=`Loaded • ${payload.validation.rows} rows • ${Math.ceil(payload.validation.rows/250)} chunks`;status.classList.add('ready')}
+        alert(`IMS Sales loaded successfully\n\nRows: ${payload.validation.rows.toLocaleString()}\nChunks: ${Math.ceil(payload.validation.rows/250)} × max 250 rows\nTotal QTY: ${qtyFmt(payload.validation.totalQty)}\nTotal Sales USD: ${money(payload.validation.totalSales)}\nQTY check issues: ${payload.validation.totalQtyMismatches}`);
       }catch(err){if(status){status.textContent='Upload error';status.classList.remove('ready')}alert('IMS upload error: '+err.message)}
     },true);
-    try{const p=JSON.parse(localStorage.getItem(IMS_KEY)||'null');if(p){const status=document.getElementById('imsStatus'),fileEl=document.getElementById('imsFile');if(fileEl)fileEl.textContent=p.fileName||'Loaded file';if(status){status.textContent=`Loaded • ${(p.rows||[]).length} rows`;status.classList.add('ready')}}}catch(e){}
+    try{const p=JSON.parse(localStorage.getItem(IMS_KEY)||'null');if(p){const status=document.getElementById('imsStatus'),fileEl=document.getElementById('imsFile');if(fileEl)fileEl.textContent=p.fileName||'Loaded file';if(status){status.textContent=`Loaded • ${(p.rows||[]).length} rows • ${Math.ceil((p.rows||[]).length/250)} chunks`;status.classList.add('ready')}}}catch(e){}
   }
 
   function buildBaseIMSRows(table){
