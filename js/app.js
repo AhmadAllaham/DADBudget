@@ -109,7 +109,6 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const fmt = (v) => Number(v).toLocaleString(undefined, { maximumFractionDigits: 4 });
 
-  // B26 order: IMS Amount -> Bonus % -> Bonus QTY -> Cost/COGS -> Gross Profit -> GP%.
   const groupRow = budgetTable.querySelector('thead tr.group-row');
   const columnRow = budgetTable.querySelector('thead tr.column-row');
   const costGroup = budgetTable.querySelector('.cost-group');
@@ -294,20 +293,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let detailVisible = false;
   const viewState = { rate:false, monthly:true, base:true };
 
-  try {
-    const saved = JSON.parse(localStorage.getItem('dadBudgetCostBreakdown') || 'null');
-    if (saved && Array.isArray(saved.headers) && saved.headers.length && saved.map) {
-      const oldPilot = saved.headers.join('|') === 'Material Cost|Conversion Cost|Overhead';
-      const oldB25 = saved.headers.includes('B25 Total');
-      if (!oldPilot && !oldB25) {
-        detailHeaders = saved.headers;
-        detailMap = saved.map;
-      } else {
-        localStorage.removeItem('dadBudgetCostBreakdown');
-      }
-    }
-  } catch (e) {}
-
   const baseCostIndex = [...columnRow.children].findIndex((th) => th.textContent.trim().toLowerCase() === 'unit cost');
 
   if (baseCostIndex >= 0) {
@@ -326,7 +311,6 @@ document.addEventListener('DOMContentLoaded', () => {
     detailBtn.type = 'button';
     detailBtn.className = 'cost-detail-toggle';
     detailBtn.textContent = 'Show Cost';
-    detailBtn.title = 'Choose which cost information to show';
   }
 
   const menuWrap = document.createElement('div');
@@ -336,8 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
   menu.innerHTML = `
     <button type="button" class="cost-view-option" data-view="rate"><span class="cost-view-check"></span><span>Show Cost Rate</span></button>
     <button type="button" class="cost-view-option selected" data-view="monthly"><span class="cost-view-check"></span><span>Show Cost per Month</span></button>
-    <button type="button" class="cost-view-option selected" data-view="base"><span class="cost-view-check"></span><span>Show Unit Cost</span></button>
-  `;
+    <button type="button" class="cost-view-option selected" data-view="base"><span class="cost-view-check"></span><span>Show Unit Cost</span></button>`;
 
   if (imsActions) {
     menuWrap.append(detailBtn, menu);
@@ -347,37 +330,28 @@ document.addEventListener('DOMContentLoaded', () => {
   function getUnitCostIndex() {
     return [...budgetTable.querySelectorAll('thead tr.column-row th')].findIndex((th) => th.textContent.trim().toLowerCase() === 'unit cost');
   }
-
   function syncGroupSpan() {
-    const visibleBase = viewState.base ? 1 : 0;
-    const visibleMonthly = viewState.monthly ? 13 : 0;
-    const visibleRate = detailVisible ? detailHeaders.length : 0;
-    const span = visibleBase + visibleMonthly + visibleRate;
+    const span = (viewState.base ? 1 : 0) + (viewState.monthly ? 13 : 0) + (detailVisible ? detailHeaders.length : 0);
     if (!costGroup) return;
     costGroup.style.display = span ? '' : 'none';
     if (span) costGroup.colSpan = span;
   }
-
   function applyCostVisibility() {
     budgetTable.querySelectorAll('.cost-base-col').forEach((el) => el.style.display = viewState.base ? '' : 'none');
     budgetTable.querySelectorAll('.cost-month-col').forEach((el) => el.style.display = viewState.monthly ? '' : 'none');
     syncGroupSpan();
   }
-
   function removeDetailColumns() {
     budgetTable.querySelectorAll('.cost-detail-head,.cost-detail-cell,.cost-detail-total').forEach((el) => el.remove());
     detailVisible = false;
     syncGroupSpan();
   }
-
   function addDetailColumns() {
     if (!detailHeaders.length) return;
     removeDetailColumns();
     const unitIndex = getUnitCostIndex();
     if (unitIndex < 0) return;
-
-    const headerRow = budgetTable.querySelector('thead tr.column-row');
-    let insertAfter = headerRow.children[unitIndex];
+    let insertAfter = columnRow.children[unitIndex];
     detailHeaders.forEach((header) => {
       const th = document.createElement('th');
       th.className = 'cost-detail-head';
@@ -385,10 +359,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (header.startsWith('In-Direct ')) th.classList.add('indirect-head');
       if (/Cost Rate|Total/i.test(header)) th.classList.add('total-head');
       th.textContent = header;
-      insertAfter.after(th);
-      insertAfter = th;
+      insertAfter.after(th); insertAfter = th;
     });
-
     budgetTable.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
       const sku = norm(row.dataset.sku || row.children[7]?.textContent);
       const detail = detailMap[sku] || {};
@@ -396,72 +368,32 @@ document.addEventListener('DOMContentLoaded', () => {
       detailHeaders.forEach((header) => {
         const td = document.createElement('td');
         td.className = 'cost-detail-cell';
-        if (/Cost Rate|Total/i.test(header)) td.classList.add('total-detail-cell');
-        const value = detail[header];
-        td.textContent = value === '' || value == null ? '—' : fmt(value);
-        anchor.after(td);
-        anchor = td;
+        td.textContent = detail[header] == null ? '—' : fmt(detail[header]);
+        anchor.after(td); anchor = td;
       });
     });
-
-    const totalRow = budgetTable.querySelector('tbody tr.total-row');
-    if (totalRow) {
-      let anchor = totalRow.children[unitIndex];
-      detailHeaders.forEach((header) => {
-        let sum = 0;
-        Object.values(detailMap).forEach((detail) => { sum += num(detail?.[header]); });
-        const td = document.createElement('td');
-        td.className = 'cost-detail-total';
-        td.textContent = fmt(sum);
-        anchor.after(td);
-        anchor = td;
-      });
-    }
-
     detailVisible = true;
     syncGroupSpan();
   }
-
   function syncMenu() {
-    menu.querySelectorAll('.cost-view-option').forEach((option) => {
-      const key = option.dataset.view;
-      option.classList.toggle('selected', !!viewState[key]);
-    });
+    menu.querySelectorAll('.cost-view-option').forEach((option) => option.classList.toggle('selected', !!viewState[option.dataset.view]));
   }
-
   detailBtn.addEventListener('click', (event) => {
-    event.stopPropagation();
-    menu.classList.toggle('open');
-    detailBtn.classList.toggle('active', menu.classList.contains('open'));
+    event.stopPropagation(); menu.classList.toggle('open'); detailBtn.classList.toggle('active', menu.classList.contains('open'));
   });
-
   menu.addEventListener('click', (event) => {
-    const option = event.target.closest('.cost-view-option');
-    if (!option) return;
-    event.stopPropagation();
-    const key = option.dataset.view;
-    viewState[key] = !viewState[key];
-    if (key === 'rate') {
-      if (viewState.rate) addDetailColumns();
-      else removeDetailColumns();
-    } else {
-      applyCostVisibility();
-    }
+    const option = event.target.closest('.cost-view-option'); if (!option) return;
+    event.stopPropagation(); const key = option.dataset.view; viewState[key] = !viewState[key];
+    if (key === 'rate') viewState.rate ? addDetailColumns() : removeDetailColumns(); else applyCostVisibility();
     syncMenu();
   });
-
   document.addEventListener('click', (event) => {
-    if (!menuWrap.contains(event.target)) {
-      menu.classList.remove('open');
-      detailBtn.classList.remove('active');
-    }
+    if (!menuWrap.contains(event.target)) { menu.classList.remove('open'); detailBtn.classList.remove('active'); }
   });
-
   applyCostVisibility();
   syncMenu();
 });
 
-// IMS B26 reductions block: inserted after Bonus QTY and before Cost/COGS.
 document.addEventListener('DOMContentLoaded', () => {
   const table = document.getElementById('budgetTable');
   if (!table) return;
@@ -476,7 +408,6 @@ document.addEventListener('DOMContentLoaded', () => {
     .reduction-head{min-width:104px;background:#744936!important;color:#fff!important}
     .reduction-sep-head,.reduction-sep{min-width:22px!important;width:22px!important;max-width:22px!important;padding-left:3px!important;padding-right:3px!important;text-align:center!important;background:#f1e6df!important;color:#9a7665!important}
     .reduction-pct{background:#fff8f4!important;color:#784b36!important;font-weight:900!important;cursor:text;outline:none}
-    .reduction-pct:focus{background:#fff0e8!important;box-shadow:inset 0 0 0 2px rgba(139,90,67,.22)}
     .reduction-usd{background:#fff5f0!important;color:#a33f36!important;font-weight:900!important}
     .reduction-total{background:#f3e2d9!important;color:#744936!important;font-weight:900!important}
     .reduction-total-usd{color:#9f3c34!important}
@@ -489,82 +420,37 @@ document.addEventListener('DOMContentLoaded', () => {
   reductionGroup.textContent = 'REDUCTIONS';
   groupRow.insertBefore(reductionGroup, costGroup);
 
-  const defs = [
-    ['Commission %','commission-pct'],
-    ['Commission USD','commission-usd'],
-    ['.','reduction-sep'],
-    ['Returns %','returns-pct'],
-    ['Returns USD','returns-usd'],
-    ['.','reduction-sep'],
-    ['Discount %','discount-pct'],
-    ['Discount USD','discount-usd']
-  ];
-
+  const defs = [['Commission %','commission-pct'],['Commission USD','commission-usd'],['.','reduction-sep'],['Returns %','returns-pct'],['Returns USD','returns-usd'],['.','reduction-sep'],['Discount %','discount-pct'],['Discount USD','discount-usd']];
   const bonusQtyHead = [...columnRow.children].find((th) => th.textContent.trim().toLowerCase() === 'bonus qty');
   if (!bonusQtyHead) return;
   let headerAnchor = bonusQtyHead;
   defs.forEach(([label, cls]) => {
-    const th = document.createElement('th');
-    th.className = `reduction-head ${cls.includes('sep') ? 'reduction-sep-head' : ''}`;
-    th.textContent = label;
-    headerAnchor.after(th);
-    headerAnchor = th;
+    const th = document.createElement('th'); th.className = `reduction-head ${cls.includes('sep') ? 'reduction-sep-head' : ''}`; th.textContent = label; headerAnchor.after(th); headerAnchor = th;
   });
 
-  const toNum = (v) => {
-    const n = Number(String(v ?? '').replace(/,/g,'').replace('%','').trim());
-    return Number.isFinite(n) ? n : 0;
-  };
+  const toNum = (v) => { const n = Number(String(v ?? '').replace(/,/g,'').replace('%','').trim()); return Number.isFinite(n) ? n : 0; };
   const money = (v) => Number(v).toLocaleString(undefined,{maximumFractionDigits:2});
   const totalSalesIndex = [...columnRow.children].findIndex((th) => th.textContent.trim().toLowerCase() === 'total usd');
 
   function recalcRow(row) {
     const sales = totalSalesIndex >= 0 ? toNum(row.children[totalSalesIndex]?.textContent) : 0;
     ['commission','returns','discount'].forEach((key) => {
-      const pctCell = row.querySelector(`.${key}-pct`);
-      const usdCell = row.querySelector(`.${key}-usd`);
-      if (!pctCell || !usdCell) return;
-      const pct = toNum(pctCell.dataset.raw ?? pctCell.textContent);
-      usdCell.textContent = money(-(sales * pct / 100));
+      const pctCell = row.querySelector(`.${key}-pct`); const usdCell = row.querySelector(`.${key}-usd`); if (!pctCell || !usdCell) return;
+      const pct = toNum(pctCell.dataset.raw ?? pctCell.textContent); usdCell.textContent = money(-(sales * pct / 100));
     });
     recalcTotals();
   }
 
   table.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
-    const bonusQtyCell = row.querySelector('.bonus-qty');
-    if (!bonusQtyCell) return;
+    const bonusQtyCell = row.querySelector('.bonus-qty'); if (!bonusQtyCell) return;
     let anchor = bonusQtyCell;
     ['commission','returns','discount'].forEach((key, idx) => {
-      const pct = document.createElement('td');
-      pct.className = `reduction-pct ${key}-pct`;
-      pct.contentEditable = 'true';
-      pct.dataset.raw = '0';
-      pct.textContent = '0.00%';
-      const usd = document.createElement('td');
-      usd.className = `reduction-usd ${key}-usd`;
-      usd.textContent = '0';
-      anchor.after(pct, usd);
-      anchor = usd;
-      if (idx < 2) {
-        const sep = document.createElement('td');
-        sep.className = 'reduction-sep';
-        sep.textContent = '';
-        anchor.after(sep);
-        anchor = sep;
-      }
-
+      const pct = document.createElement('td'); pct.className = `reduction-pct ${key}-pct`; pct.contentEditable = 'true'; pct.dataset.raw = '0'; pct.textContent = '0.00%';
+      const usd = document.createElement('td'); usd.className = `reduction-usd ${key}-usd`; usd.textContent = '0'; anchor.after(pct, usd); anchor = usd;
+      if (idx < 2) { const sep = document.createElement('td'); sep.className = 'reduction-sep'; anchor.after(sep); anchor = sep; }
       pct.addEventListener('focus', () => { pct.textContent = pct.dataset.raw || '0'; });
-      pct.addEventListener('input', () => {
-        const value = toNum(pct.textContent);
-        pct.dataset.raw = String(value);
-        recalcRow(row);
-      });
-      pct.addEventListener('blur', () => {
-        const value = toNum(pct.textContent);
-        pct.dataset.raw = String(value);
-        pct.textContent = value.toFixed(2) + '%';
-        recalcRow(row);
-      });
+      pct.addEventListener('input', () => { pct.dataset.raw = String(toNum(pct.textContent)); recalcRow(row); });
+      pct.addEventListener('blur', () => { const value = toNum(pct.textContent); pct.dataset.raw = String(value); pct.textContent = value.toFixed(2) + '%'; recalcRow(row); });
     });
     recalcRow(row);
   });
@@ -574,28 +460,99 @@ document.addEventListener('DOMContentLoaded', () => {
     const bonusQtyTotal = totalRow.querySelector('.bonus-qty-total');
     if (bonusQtyTotal) {
       let anchor = bonusQtyTotal;
-      const totalDefs = [
-        ['—','reduction-total'],['0','reduction-total reduction-total-usd commission-usd-total'],['','reduction-sep'],
-        ['—','reduction-total'],['0','reduction-total reduction-total-usd returns-usd-total'],['','reduction-sep'],
-        ['—','reduction-total'],['0','reduction-total reduction-total-usd discount-usd-total']
-      ];
-      totalDefs.forEach(([text, cls]) => {
-        const td = document.createElement('td');
-        td.className = cls;
-        td.textContent = text;
-        anchor.after(td);
-        anchor = td;
+      [['—','reduction-total'],['0','reduction-total reduction-total-usd commission-usd-total'],['','reduction-sep'],['—','reduction-total'],['0','reduction-total reduction-total-usd returns-usd-total'],['','reduction-sep'],['—','reduction-total'],['0','reduction-total reduction-total-usd discount-usd-total']].forEach(([text, cls]) => {
+        const td = document.createElement('td'); td.className = cls; td.textContent = text; anchor.after(td); anchor = td;
       });
     }
   }
-
   function recalcTotals() {
     ['commission','returns','discount'].forEach((key) => {
-      let total = 0;
-      table.querySelectorAll(`tbody tr:not(.total-row) .${key}-usd`).forEach((cell) => { total += toNum(cell.textContent); });
-      const totalCell = table.querySelector(`.${key}-usd-total`);
-      if (totalCell) totalCell.textContent = money(total);
+      let total = 0; table.querySelectorAll(`tbody tr:not(.total-row) .${key}-usd`).forEach((cell) => { total += toNum(cell.textContent); });
+      const totalCell = table.querySelector(`.${key}-usd-total`); if (totalCell) totalCell.textContent = money(total);
     });
   }
   recalcTotals();
+});
+
+// Net Sales block: Total USD plus reductions, positioned before Cost/COGS.
+document.addEventListener('DOMContentLoaded', () => {
+  const table = document.getElementById('budgetTable');
+  if (!table) return;
+  const groupRow = table.querySelector('thead tr.group-row');
+  const columnRow = table.querySelector('thead tr.column-row');
+  const costGroup = table.querySelector('.cost-group');
+  if (!groupRow || !columnRow || !costGroup || columnRow.querySelector('.net-sales-head')) return;
+
+  const style = document.createElement('style');
+  style.textContent = `
+    .net-sales-group{background:#1f6673!important;color:#fff!important}
+    .net-sales-head{min-width:118px;background:#1f6673!important;color:#fff!important}
+    .net-sales-cell{background:#edf7f9!important;color:#155763!important;font-weight:900!important}
+    .net-sales-total{background:#dceef1!important;color:#155763!important;font-weight:900!important}
+  `;
+  document.head.appendChild(style);
+
+  const netGroup = document.createElement('th');
+  netGroup.className = 'net-sales-group';
+  netGroup.colSpan = 1;
+  netGroup.textContent = 'NET SALES';
+  groupRow.insertBefore(netGroup, costGroup);
+
+  const discountHead = [...columnRow.children].find((th) => th.textContent.trim().toLowerCase() === 'discount usd');
+  if (!discountHead) return;
+  const netHead = document.createElement('th');
+  netHead.className = 'net-sales-head';
+  netHead.textContent = 'Net Sales';
+  discountHead.after(netHead);
+
+  table.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
+    const discountCell = row.querySelector('.discount-usd');
+    if (!discountCell) return;
+    const td = document.createElement('td');
+    td.className = 'net-sales-cell';
+    discountCell.after(td);
+  });
+
+  const totalRow = table.querySelector('tbody tr.total-row');
+  if (totalRow) {
+    const discountTotal = totalRow.querySelector('.discount-usd-total');
+    if (discountTotal) {
+      const td = document.createElement('td');
+      td.className = 'net-sales-total';
+      discountTotal.after(td);
+    }
+  }
+
+  const toNum = (v) => { const n = Number(String(v ?? '').replace(/,/g,'').trim()); return Number.isFinite(n) ? n : 0; };
+  const fmtMoney = (v) => Number(v).toLocaleString(undefined,{maximumFractionDigits:2});
+
+  function recalcNetSales() {
+    let totalNet = 0;
+    const headers = [...columnRow.children];
+    const totalSalesIndex = headers.findIndex((th) => th.textContent.trim().toLowerCase() === 'total usd');
+    table.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
+      const sales = totalSalesIndex >= 0 ? toNum(row.children[totalSalesIndex]?.textContent) : 0;
+      const commission = toNum(row.querySelector('.commission-usd')?.textContent);
+      const returns = toNum(row.querySelector('.returns-usd')?.textContent);
+      const discount = toNum(row.querySelector('.discount-usd')?.textContent);
+      const net = sales + commission + returns + discount;
+      const cell = row.querySelector('.net-sales-cell');
+      if (cell) cell.textContent = fmtMoney(net);
+      totalNet += net;
+
+      const gp = toNum(row.querySelector('.gp-cell')?.textContent);
+      const gpPctCell = row.querySelector('.gp-pct-cell');
+      if (gpPctCell) gpPctCell.textContent = net !== 0 ? ((gp / net) * 100).toFixed(2) + '%' : '—';
+    });
+    const totalCell = table.querySelector('.net-sales-total');
+    if (totalCell) totalCell.textContent = fmtMoney(totalNet);
+    const totalGp = toNum(table.querySelector('.gp-total')?.textContent);
+    const totalGpPctCell = table.querySelector('.gp-pct-total');
+    if (totalGpPctCell) totalGpPctCell.textContent = totalNet !== 0 ? ((totalGp / totalNet) * 100).toFixed(2) + '%' : '—';
+  }
+
+  table.querySelectorAll('.commission-usd,.returns-usd,.discount-usd').forEach((cell) => {
+    new MutationObserver(recalcNetSales).observe(cell,{childList:true,characterData:true,subtree:true});
+  });
+  recalcNetSales();
 });
