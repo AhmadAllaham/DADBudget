@@ -460,3 +460,142 @@ document.addEventListener('DOMContentLoaded', () => {
   applyCostVisibility();
   syncMenu();
 });
+
+// IMS B26 reductions block: inserted after Bonus QTY and before Cost/COGS.
+document.addEventListener('DOMContentLoaded', () => {
+  const table = document.getElementById('budgetTable');
+  if (!table) return;
+  const groupRow = table.querySelector('thead tr.group-row');
+  const columnRow = table.querySelector('thead tr.column-row');
+  const costGroup = table.querySelector('.cost-group');
+  if (!groupRow || !columnRow || !costGroup || columnRow.querySelector('.reduction-head')) return;
+
+  const style = document.createElement('style');
+  style.textContent = `
+    .reduction-group{background:#8b5a43!important;color:#fff!important}
+    .reduction-head{min-width:104px;background:#744936!important;color:#fff!important}
+    .reduction-sep-head,.reduction-sep{min-width:22px!important;width:22px!important;max-width:22px!important;padding-left:3px!important;padding-right:3px!important;text-align:center!important;background:#f1e6df!important;color:#9a7665!important}
+    .reduction-pct{background:#fff8f4!important;color:#784b36!important;font-weight:900!important;cursor:text;outline:none}
+    .reduction-pct:focus{background:#fff0e8!important;box-shadow:inset 0 0 0 2px rgba(139,90,67,.22)}
+    .reduction-usd{background:#fff5f0!important;color:#a33f36!important;font-weight:900!important}
+    .reduction-total{background:#f3e2d9!important;color:#744936!important;font-weight:900!important}
+    .reduction-total-usd{color:#9f3c34!important}
+  `;
+  document.head.appendChild(style);
+
+  const reductionGroup = document.createElement('th');
+  reductionGroup.className = 'reduction-group';
+  reductionGroup.colSpan = 8;
+  reductionGroup.textContent = 'REDUCTIONS';
+  groupRow.insertBefore(reductionGroup, costGroup);
+
+  const defs = [
+    ['Commission %','commission-pct'],
+    ['Commission USD','commission-usd'],
+    ['.','reduction-sep'],
+    ['Returns %','returns-pct'],
+    ['Returns USD','returns-usd'],
+    ['.','reduction-sep'],
+    ['Discount %','discount-pct'],
+    ['Discount USD','discount-usd']
+  ];
+
+  const bonusQtyHead = [...columnRow.children].find((th) => th.textContent.trim().toLowerCase() === 'bonus qty');
+  if (!bonusQtyHead) return;
+  let headerAnchor = bonusQtyHead;
+  defs.forEach(([label, cls]) => {
+    const th = document.createElement('th');
+    th.className = `reduction-head ${cls.includes('sep') ? 'reduction-sep-head' : ''}`;
+    th.textContent = label;
+    headerAnchor.after(th);
+    headerAnchor = th;
+  });
+
+  const toNum = (v) => {
+    const n = Number(String(v ?? '').replace(/,/g,'').replace('%','').trim());
+    return Number.isFinite(n) ? n : 0;
+  };
+  const money = (v) => Number(v).toLocaleString(undefined,{maximumFractionDigits:2});
+  const totalSalesIndex = [...columnRow.children].findIndex((th) => th.textContent.trim().toLowerCase() === 'total usd');
+
+  function recalcRow(row) {
+    const sales = totalSalesIndex >= 0 ? toNum(row.children[totalSalesIndex]?.textContent) : 0;
+    ['commission','returns','discount'].forEach((key) => {
+      const pctCell = row.querySelector(`.${key}-pct`);
+      const usdCell = row.querySelector(`.${key}-usd`);
+      if (!pctCell || !usdCell) return;
+      const pct = toNum(pctCell.dataset.raw ?? pctCell.textContent);
+      usdCell.textContent = money(-(sales * pct / 100));
+    });
+    recalcTotals();
+  }
+
+  table.querySelectorAll('tbody tr:not(.total-row)').forEach((row) => {
+    const bonusQtyCell = row.querySelector('.bonus-qty');
+    if (!bonusQtyCell) return;
+    let anchor = bonusQtyCell;
+    ['commission','returns','discount'].forEach((key, idx) => {
+      const pct = document.createElement('td');
+      pct.className = `reduction-pct ${key}-pct`;
+      pct.contentEditable = 'true';
+      pct.dataset.raw = '0';
+      pct.textContent = '0.00%';
+      const usd = document.createElement('td');
+      usd.className = `reduction-usd ${key}-usd`;
+      usd.textContent = '0';
+      anchor.after(pct, usd);
+      anchor = usd;
+      if (idx < 2) {
+        const sep = document.createElement('td');
+        sep.className = 'reduction-sep';
+        sep.textContent = '';
+        anchor.after(sep);
+        anchor = sep;
+      }
+
+      pct.addEventListener('focus', () => { pct.textContent = pct.dataset.raw || '0'; });
+      pct.addEventListener('input', () => {
+        const value = toNum(pct.textContent);
+        pct.dataset.raw = String(value);
+        recalcRow(row);
+      });
+      pct.addEventListener('blur', () => {
+        const value = toNum(pct.textContent);
+        pct.dataset.raw = String(value);
+        pct.textContent = value.toFixed(2) + '%';
+        recalcRow(row);
+      });
+    });
+    recalcRow(row);
+  });
+
+  const totalRow = table.querySelector('tbody tr.total-row');
+  if (totalRow) {
+    const bonusQtyTotal = totalRow.querySelector('.bonus-qty-total');
+    if (bonusQtyTotal) {
+      let anchor = bonusQtyTotal;
+      const totalDefs = [
+        ['—','reduction-total'],['0','reduction-total reduction-total-usd commission-usd-total'],['','reduction-sep'],
+        ['—','reduction-total'],['0','reduction-total reduction-total-usd returns-usd-total'],['','reduction-sep'],
+        ['—','reduction-total'],['0','reduction-total reduction-total-usd discount-usd-total']
+      ];
+      totalDefs.forEach(([text, cls]) => {
+        const td = document.createElement('td');
+        td.className = cls;
+        td.textContent = text;
+        anchor.after(td);
+        anchor = td;
+      });
+    }
+  }
+
+  function recalcTotals() {
+    ['commission','returns','discount'].forEach((key) => {
+      let total = 0;
+      table.querySelectorAll(`tbody tr:not(.total-row) .${key}-usd`).forEach((cell) => { total += toNum(cell.textContent); });
+      const totalCell = table.querySelector(`.${key}-usd-total`);
+      if (totalCell) totalCell.textContent = money(total);
+    });
+  }
+  recalcTotals();
+});
