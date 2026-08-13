@@ -2,6 +2,7 @@
 (function(){
   const BASE='dadBudgetIMSSales', META=BASE+'Meta', PREFIX=BASE+'Chunk_', CHUNK_SIZE=250;
   const REDUCTION_KEY='dadBudgetReductionRates', EXCEPTION_KEY='dadBudgetCommissionExceptions';
+  const FTE_COST_KEY='dadBudgetFTECost', FTE_DIST_KEY='dadBudgetFTEDistribution';
   const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const n=v=>{const x=Number(String(v??'').replace(/,/g,'').replace('%','').trim());return Number.isFinite(x)?x:0};
   const money=v=>Number(v||0).toLocaleString(undefined,{maximumFractionDigits:2});
@@ -37,6 +38,48 @@
     return{rates,exceptions,rateRows,exceptionRows,rateSheet:redName||'',exceptionSheet:exName||''};
   }
 
+  function parseFTEValue(v){
+    const raw=String(v??'').trim();
+    if(!raw)return{value:0,invalid:false,fixed:false};
+    const clean=raw.replace(/,/g,'');
+    const exact=Number(clean);
+    if(Number.isFinite(exact))return{value:exact,invalid:false,fixed:false};
+    const doubleDot=clean.match(/^(-?\d+)\.\.(\d+)$/);
+    if(doubleDot){const fixed=Number(`${doubleDot[1]}.${doubleDot[2]}`);return{value:Number.isFinite(fixed)?fixed:0,invalid:false,fixed:true}}
+    return{value:0,invalid:true,fixed:false};
+  }
+
+  function parseFTESheets(wb){
+    const costName=wb.SheetNames.find(x=>norm(x)==='FTECOST');
+    const distName=wb.SheetNames.find(x=>norm(x)==='FTEDIS'||norm(x)==='FTEDISTRIBUTION');
+    const costs=[],distribution={};let costRows=0,distributionRows=0,invalidValues=0,autoFixedValues=0,lastCurrency='';
+
+    if(costName){
+      const mx=XLSX.utils.sheet_to_json(wb.Sheets[costName],{header:1,defval:'',raw:true});
+      for(let i=2;i<mx.length;i++){
+        const r=mx[i]||[],market=String(r[0]??'').trim(),position=String(r[1]??'').trim();
+        if(!market&&!position)continue;
+        const currency=String(r[14]??'').trim();if(currency)lastCurrency=currency;
+        costs.push({market,position,totalAnnual:n(r[13]),currency:currency||lastCurrency});costRows++;
+      }
+    }
+
+    if(distName){
+      const mx=XLSX.utils.sheet_to_json(wb.Sheets[distName],{header:1,defval:'',raw:true});
+      for(let i=1;i<mx.length;i++){
+        const r=mx[i]||[],market=String(r[0]??'').trim(),channel=String(r[1]??'').trim(),category=String(r[2]??'').trim(),brand=String(r[3]??'').trim();
+        if(!market&&!channel&&!brand)continue;
+        const mr=parseFTEValue(r[5]),sup=parseFTEValue(r[6]);
+        if(mr.invalid)invalidValues++;if(sup.invalid)invalidValues++;if(mr.fixed)autoFixedValues++;if(sup.fixed)autoFixedValues++;
+        const key=`${norm(market)}|${norm(channel)}|${norm(brand)}`;
+        if(!distribution[key])distribution[key]={market,channel,category,brand,mrFTE:0,supervisorFTE:0};
+        distribution[key].mrFTE+=mr.value;distribution[key].supervisorFTE+=sup.value;distributionRows++;
+      }
+    }
+
+    return{costs,distribution,costRows,distributionRows,invalidValues,autoFixedValues,costSheet:costName||'',distributionSheet:distName||''};
+  }
+
   async function parseIMS(file){
     if(typeof XLSX==='undefined')throw new Error('Excel reader is not loaded');
     const data=await file.arrayBuffer(),wb=XLSX.read(data,{type:'array'}),sn=wb.SheetNames.find(x=>String(x).trim().toUpperCase()==='B26')||wb.SheetNames[0],mx=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:'',raw:true}),hi=findHeaderRow(mx);
@@ -45,11 +88,11 @@
     const mi=MONTHS.map(m=>hidx(h,[m]));if([ix.region,ix.country,ix.agent,ix.sku,ix.price,ix.totalQty,...mi].some(i=>i<0))throw new Error('Required IMS columns are missing');
     const rows=[];let tq=0,ts=0,mm=0;for(let r=hi+1;r<mx.length;r++){const x=mx[r]||[],sku=String(x[ix.sku]??'').trim(),country=String(x[ix.country]??'').trim(),agent=String(x[ix.agent]??'').trim();if(!sku&&!country&&!agent)continue;const months=mi.map(i=>n(x[i])),calc=months.reduce((a,b)=>a+b,0),src=n(x[ix.totalQty]);if(Math.abs(calc-src)>.0001)mm++;const price=n(x[ix.price]),use=src||calc,sales=months.map(q=>q*price),row={region:String(x[ix.region]??'').trim(),type:ix.type>=0?String(x[ix.type]??'').trim():'',country,subMarket:ix.subMarket>=0?String(x[ix.subMarket]??'').trim():'',agent,sector:ix.sector>=0?String(x[ix.sector]??'').trim():'',brand:ix.brand>=0?String(x[ix.brand]??'').trim():'',sku,category:ix.category>=0?String(x[ix.category]??'').trim():'',price,months,totalQty:use,sourceTotalQty:src,bonusPct:ix.bonus>=0?bonus(x[ix.bonus]):0,sales,totalSales:use*price};rows.push(row);tq+=use;ts+=row.totalSales}
     if(!rows.length)throw new Error('No IMS sales rows were found');
-    const reductions=parseReductionSheets(wb);
-    return{version:3,fileName:file.name,uploadedAt:new Date().toISOString(),sheetName:sn,rows,reductions,validation:{rows:rows.length,totalQty:tq,totalSales:ts,totalQtyMismatches:mm}};
+    const reductions=parseReductionSheets(wb),fte=parseFTESheets(wb);
+    return{version:4,fileName:file.name,uploadedAt:new Date().toISOString(),sheetName:sn,rows,reductions,fte,validation:{rows:rows.length,totalQty:tq,totalSales:ts,totalQtyMismatches:mm}};
   }
 
-  function setupAdminUpload(){const input=document.getElementById('imsInput');if(!input)return;input.addEventListener('change',async e=>{e.stopImmediatePropagation();const file=e.target.files?.[0];if(!file)return;const st=document.getElementById('imsStatus'),fe=document.getElementById('imsFile');try{if(st){st.textContent='Reading...';st.classList.remove('ready','error')}const payload=await parseIMS(file),reductions=payload.reductions||{rates:{},exceptions:{},rateRows:0,exceptionRows:0};localStorage.setItem(REDUCTION_KEY,JSON.stringify(reductions.rates||{}));localStorage.setItem(EXCEPTION_KEY,JSON.stringify(reductions.exceptions||{}));const savePayload={...payload,reductions:undefined};delete savePayload.reductions;const meta=saveIMS(savePayload);localStorage.setItem('dadBudgetIMSFileName',file.name);localStorage.setItem('dadBudgetAdmin_ims',JSON.stringify({name:file.name,updated:payload.uploadedAt,rows:payload.validation.rows,mismatches:payload.validation.totalQtyMismatches,chunks:meta.chunkCount,reductionRows:reductions.rateRows||0,commissionExceptions:reductions.exceptionRows||0,statusText:`${payload.validation.rows} rows • reductions loaded`}));if(fe)fe.textContent=file.name;if(st){st.textContent=`${payload.validation.rows} rows • reductions loaded`;st.classList.add('ready')}alert(`IMS Sales + Reductions loaded successfully\n\nSales rows: ${payload.validation.rows.toLocaleString()}\nReduction rows: ${(reductions.rateRows||0).toLocaleString()}\nSpecial commission SKUs: ${(reductions.exceptionRows||0).toLocaleString()}\nTotal QTY: ${qty(payload.validation.totalQty)}\nTotal Sales USD: ${money(payload.validation.totalSales)}\nQTY check issues: ${payload.validation.totalQtyMismatches}`)}catch(err){if(st){st.textContent='Upload error';st.classList.add('error')}alert('IMS upload error: '+err.message)}finally{input.value=''}},true);const m=loadMeta();if(m){const st=document.getElementById('imsStatus'),fe=document.getElementById('imsFile');if(fe)fe.textContent=m.fileName||'Loaded file';if(st){st.textContent=`${n(m.rowCount)} rows • loaded`;st.classList.add('ready')}}}
+  function setupAdminUpload(){const input=document.getElementById('imsInput');if(!input)return;input.addEventListener('change',async e=>{e.stopImmediatePropagation();const file=e.target.files?.[0];if(!file)return;const st=document.getElementById('imsStatus'),fe=document.getElementById('imsFile');try{if(st){st.textContent='Reading...';st.classList.remove('ready','error')}const payload=await parseIMS(file),reductions=payload.reductions||{rates:{},exceptions:{},rateRows:0,exceptionRows:0},fte=payload.fte||{costs:[],distribution:{},costRows:0,distributionRows:0,invalidValues:0,autoFixedValues:0};localStorage.setItem(REDUCTION_KEY,JSON.stringify(reductions.rates||{}));localStorage.setItem(EXCEPTION_KEY,JSON.stringify(reductions.exceptions||{}));localStorage.setItem(FTE_COST_KEY,JSON.stringify({rows:fte.costs||[],sheet:fte.costSheet||''}));localStorage.setItem(FTE_DIST_KEY,JSON.stringify({map:fte.distribution||{},sheet:fte.distributionSheet||''}));const savePayload={...payload,reductions:undefined,fte:undefined};delete savePayload.reductions;delete savePayload.fte;const meta=saveIMS(savePayload);localStorage.setItem('dadBudgetIMSFileName',file.name);localStorage.setItem('dadBudgetAdmin_ims',JSON.stringify({name:file.name,updated:payload.uploadedAt,rows:payload.validation.rows,totalQty:payload.validation.totalQty,totalSales:payload.validation.totalSales,mismatches:payload.validation.totalQtyMismatches,chunks:meta.chunkCount,reductionRows:reductions.rateRows||0,commissionExceptions:reductions.exceptionRows||0,fteCostRows:fte.costRows||0,fteDistributionRows:fte.distributionRows||0,fteInvalidValues:fte.invalidValues||0,fteAutoFixedValues:fte.autoFixedValues||0,statusText:`${payload.validation.rows} rows • Sales + Reductions + FTE`}));if(fe)fe.textContent=file.name;if(st){st.textContent=`${payload.validation.rows} rows • Sales + Reductions + FTE`;st.classList.add('ready')}alert(`Main Budget workbook loaded successfully\n\nSales rows: ${payload.validation.rows.toLocaleString()}\nReduction rows: ${(reductions.rateRows||0).toLocaleString()}\nSpecial commission SKUs: ${(reductions.exceptionRows||0).toLocaleString()}\nFTE Cost rows: ${(fte.costRows||0).toLocaleString()}\nFTE Distribution rows: ${(fte.distributionRows||0).toLocaleString()}\nFTE values auto-fixed: ${(fte.autoFixedValues||0).toLocaleString()}\nFTE invalid values: ${(fte.invalidValues||0).toLocaleString()}\nTotal QTY: ${qty(payload.validation.totalQty)}\nTotal Sales USD: ${money(payload.validation.totalSales)}\nQTY check issues: ${payload.validation.totalQtyMismatches}`)}catch(err){if(st){st.textContent='Upload error';st.classList.add('error')}alert('IMS upload error: '+err.message)}finally{input.value=''}},true);const m=loadMeta();if(m){const st=document.getElementById('imsStatus'),fe=document.getElementById('imsFile');if(fe)fe.textContent=m.fileName||'Loaded file';if(st){st.textContent=`${n(m.rowCount)} rows • loaded`;st.classList.add('ready')}}}
 
   function setupIMS(){const table=document.getElementById('budgetTable');if(!table)return;const tbody=table.tBodies[0],wrap=document.querySelector('.table-wrap'),meta=loadMeta(),all=loadAllRows(),costMap=(()=>{try{return JSON.parse(localStorage.getItem('dadBudgetCostMaster')||'{}')||{}}catch(e){return{}}})(),costBreakdown=(()=>{try{return JSON.parse(localStorage.getItem('dadBudgetCostBreakdown')||'{}')?.map||{}}catch(e){return{}}})(),rateMap=(()=>{try{return JSON.parse(localStorage.getItem(REDUCTION_KEY)||'{}')||{}}catch(e){return{}}})(),exceptionMap=(()=>{try{return JSON.parse(localStorage.getItem(EXCEPTION_KEY)||'{}')||{}}catch(e){return{}}})();let filtered=all,page=0;const PAGE=250;
     const style=document.createElement('style');style.textContent=`.budget-table tbody tr:not(.total-row):hover td{font-weight:900!important;color:#063f3d!important;background:#e6fffb!important;text-shadow:0 0 7px rgba(20,225,205,.72);box-shadow:inset 0 0 14px rgba(28,222,202,.22)}.reduction-group{background:#8b5a43!important}.reduction-head{background:#744936!important;color:#fff!important}.reduction-pct,.reduction-usd{font-weight:900!important}.net-sales-group,.net-sales-head{background:#1f6673!important;color:#fff!important}.gp-group,.gp-head,.gp-pct-head{background:#176d63!important;color:#fff!important}.fte-group,.fte-head{background:#31566e!important;color:#fff!important}.direct-cost-group,.direct-cost-head{background:#514d70!important;color:#fff!important}.fte-sep,.reduction-sep,.direct-cost-sep,.fte-sep-head,.reduction-sep-head,.direct-cost-sep-head{min-width:18px!important;width:18px!important;max-width:18px!important;padding:0!important;background:#eef2f2!important}.ims-chunk-nav{display:flex;align-items:center;gap:7px}.ims-chunk-nav button{border:1px solid #b9dcd8;background:#fff;color:#0b6661;border-radius:8px;padding:6px 9px;font-size:10px;font-weight:900}.ims-chunk-nav button:disabled{opacity:.4;cursor:default}.ims-chunk-nav span{font-size:10px;color:#60777c;font-weight:800}.special-commission{background:#fff4dd!important;color:#825a13!important}`;document.head.appendChild(style);
