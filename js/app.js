@@ -45,8 +45,36 @@
     const costName=wb.SheetNames.find(x=>norm(x)==='FTECOST');
     const distName=wb.SheetNames.find(x=>norm(x)==='FTEDIS'||norm(x)==='FTEDISTRIBUTION');
     const costs=[],distribution={};let costRows=0,distributionRows=0,invalidValues=0,autoFixedValues=0;
-    if(costName){const mx=XLSX.utils.sheet_to_json(wb.Sheets[costName],{header:1,defval:'',raw:true});for(let i=2;i<mx.length;i++){const r=mx[i]||[],market=String(r[0]??'').trim(),position=String(r[1]??'').trim();if(!market&&!position)continue;costs.push({market,position,totalAnnual:n(r[13])});costRows++}}
-    if(distName){const mx=XLSX.utils.sheet_to_json(wb.Sheets[distName],{header:1,defval:'',raw:true});for(let i=1;i<mx.length;i++){const r=mx[i]||[],market=String(r[0]??'').trim(),channel=String(r[1]??'').trim(),category=String(r[2]??'').trim(),brand=String(r[3]??'').trim();if(!market&&!channel&&!brand)continue;const mr=parseFTEValue(r[5]),sup=parseFTEValue(r[6]);if(mr.invalid)invalidValues++;if(sup.invalid)invalidValues++;if(mr.fixed)autoFixedValues++;if(sup.fixed)autoFixedValues++;const key=`${marketNorm(market)}|${norm(channel)}|${norm(brand)}`;if(!distribution[key])distribution[key]={market,channel,category,brand,mrFTE:0,supervisorFTE:0};distribution[key].mrFTE+=mr.value;distribution[key].supervisorFTE+=sup.value;distributionRows++}}
+
+    if(costName){
+      const mx=XLSX.utils.sheet_to_json(wb.Sheets[costName],{header:1,defval:'',raw:true});
+      const hi=mx.findIndex(r=>{const h=(r||[]).map(norm);return h.includes('MARKET')&&h.includes('POSITION')&&h.includes('TOTALANNUALSALARY')});
+      if(hi>=0){
+        const h=(mx[hi]||[]).map(norm),marketI=h.indexOf('MARKET'),positionI=h.indexOf('POSITION'),annualI=h.indexOf('TOTALANNUALSALARY');
+        for(let i=hi+1;i<mx.length;i++){
+          const r=mx[i]||[],market=String(r[marketI]??'').trim(),position=String(r[positionI]??'').trim();
+          if(!market&&!position)continue;
+          costs.push({market,position,totalAnnual:n(r[annualI])});costRows++;
+        }
+      }
+    }
+
+    if(distName){
+      const mx=XLSX.utils.sheet_to_json(wb.Sheets[distName],{header:1,defval:'',raw:true});
+      const hi=mx.findIndex(r=>{const h=(r||[]).map(norm);return h.includes('MARKET')&&h.includes('CHANNEL')&&h.includes('BRAND')&&h.includes('FTE')&&h.includes('SUPERVISOR')});
+      if(hi>=0){
+        const h=(mx[hi]||[]).map(norm),marketI=h.indexOf('MARKET'),channelI=h.indexOf('CHANNEL'),categoryI=h.indexOf('PRODUCTCATEGORY'),brandI=h.indexOf('BRAND'),fteI=h.indexOf('FTE'),supI=h.indexOf('SUPERVISOR');
+        for(let i=hi+1;i<mx.length;i++){
+          const r=mx[i]||[],market=String(r[marketI]??'').trim(),channel=String(r[channelI]??'').trim(),category=categoryI>=0?String(r[categoryI]??'').trim():'',brand=String(r[brandI]??'').trim();
+          if(!market&&!channel&&!brand)continue;
+          const mr=parseFTEValue(r[fteI]),sup=parseFTEValue(r[supI]);
+          if(mr.invalid)invalidValues++;if(sup.invalid)invalidValues++;if(mr.fixed)autoFixedValues++;if(sup.fixed)autoFixedValues++;
+          const key=`${marketNorm(market)}|${norm(channel)}|${norm(brand)}`;
+          if(!distribution[key])distribution[key]={market,channel,category,brand,mrFTE:0,supervisorFTE:0};
+          distribution[key].mrFTE+=mr.value;distribution[key].supervisorFTE+=sup.value;distributionRows++;
+        }
+      }
+    }
     return{costs,distribution,costRows,distributionRows,invalidValues,autoFixedValues,costSheet:costName||'',distributionSheet:distName||''};
   }
 
@@ -60,7 +88,7 @@
     for(let r=hi+1;r<mx.length;r++){const x=mx[r]||[],sku=String(x[ix.sku]??'').trim(),country=String(x[ix.country]??'').trim(),agent=String(x[ix.agent]??'').trim();if(!sku&&!country&&!agent)continue;const months=mi.map(i=>n(x[i])),calc=months.reduce((a,b)=>a+b,0),src=n(x[ix.totalQty]);if(Math.abs(calc-src)>.0001)mm++;const price=n(x[ix.price]),use=src||calc,sales=months.map(q=>q*price),row={region:String(x[ix.region]??'').trim(),type:ix.type>=0?String(x[ix.type]??'').trim():'',country,subMarket:ix.subMarket>=0?String(x[ix.subMarket]??'').trim():'',agent,sector:ix.sector>=0?String(x[ix.sector]??'').trim():'',brand:ix.brand>=0?String(x[ix.brand]??'').trim():'',sku,category:ix.category>=0?String(x[ix.category]??'').trim():'',price,months,totalQty:use,sourceTotalQty:src,bonusPct:ix.bonus>=0?bonus(x[ix.bonus]):0,sales,totalSales:use*price};rows.push(row);tq+=use;ts+=row.totalSales}
     if(!rows.length)throw new Error('No IMS sales rows were found');
     const reductions=parseReductionSheets(wb),fte=parseFTESheets(wb);
-    return{version:6,fileName:file.name,uploadedAt:new Date().toISOString(),sheetName:sn,rows,reductions,fte,validation:{rows:rows.length,totalQty:tq,totalSales:ts,totalQtyMismatches:mm}};
+    return{version:7,fileName:file.name,uploadedAt:new Date().toISOString(),sheetName:sn,rows,reductions,fte,validation:{rows:rows.length,totalQty:tq,totalSales:ts,totalQtyMismatches:mm}};
   }
 
   function setupAdminUpload(){
