@@ -44,8 +44,8 @@
   function parseFTESheets(wb){
     const costName=wb.SheetNames.find(x=>norm(x)==='FTECOST');
     const distName=wb.SheetNames.find(x=>norm(x)==='FTEDIS'||norm(x)==='FTEDISTRIBUTION');
-    const costs=[],distribution={};let costRows=0,distributionRows=0,invalidValues=0,autoFixedValues=0,lastCurrency='';
-    if(costName){const mx=XLSX.utils.sheet_to_json(wb.Sheets[costName],{header:1,defval:'',raw:true});for(let i=2;i<mx.length;i++){const r=mx[i]||[],market=String(r[0]??'').trim(),position=String(r[1]??'').trim();if(!market&&!position)continue;const currency=String(r[14]??'').trim();if(currency)lastCurrency=currency;costs.push({market,position,totalAnnual:n(r[13]),currency:currency||lastCurrency});costRows++}}
+    const costs=[],distribution={};let costRows=0,distributionRows=0,invalidValues=0,autoFixedValues=0;
+    if(costName){const mx=XLSX.utils.sheet_to_json(wb.Sheets[costName],{header:1,defval:'',raw:true});for(let i=2;i<mx.length;i++){const r=mx[i]||[],market=String(r[0]??'').trim(),position=String(r[1]??'').trim();if(!market&&!position)continue;costs.push({market,position,totalAnnual:n(r[13])});costRows++}}
     if(distName){const mx=XLSX.utils.sheet_to_json(wb.Sheets[distName],{header:1,defval:'',raw:true});for(let i=1;i<mx.length;i++){const r=mx[i]||[],market=String(r[0]??'').trim(),channel=String(r[1]??'').trim(),category=String(r[2]??'').trim(),brand=String(r[3]??'').trim();if(!market&&!channel&&!brand)continue;const mr=parseFTEValue(r[5]),sup=parseFTEValue(r[6]);if(mr.invalid)invalidValues++;if(sup.invalid)invalidValues++;if(mr.fixed)autoFixedValues++;if(sup.fixed)autoFixedValues++;const key=`${marketNorm(market)}|${norm(channel)}|${norm(brand)}`;if(!distribution[key])distribution[key]={market,channel,category,brand,mrFTE:0,supervisorFTE:0};distribution[key].mrFTE+=mr.value;distribution[key].supervisorFTE+=sup.value;distributionRows++}}
     return{costs,distribution,costRows,distributionRows,invalidValues,autoFixedValues,costSheet:costName||'',distributionSheet:distName||''};
   }
@@ -60,7 +60,7 @@
     for(let r=hi+1;r<mx.length;r++){const x=mx[r]||[],sku=String(x[ix.sku]??'').trim(),country=String(x[ix.country]??'').trim(),agent=String(x[ix.agent]??'').trim();if(!sku&&!country&&!agent)continue;const months=mi.map(i=>n(x[i])),calc=months.reduce((a,b)=>a+b,0),src=n(x[ix.totalQty]);if(Math.abs(calc-src)>.0001)mm++;const price=n(x[ix.price]),use=src||calc,sales=months.map(q=>q*price),row={region:String(x[ix.region]??'').trim(),type:ix.type>=0?String(x[ix.type]??'').trim():'',country,subMarket:ix.subMarket>=0?String(x[ix.subMarket]??'').trim():'',agent,sector:ix.sector>=0?String(x[ix.sector]??'').trim():'',brand:ix.brand>=0?String(x[ix.brand]??'').trim():'',sku,category:ix.category>=0?String(x[ix.category]??'').trim():'',price,months,totalQty:use,sourceTotalQty:src,bonusPct:ix.bonus>=0?bonus(x[ix.bonus]):0,sales,totalSales:use*price};rows.push(row);tq+=use;ts+=row.totalSales}
     if(!rows.length)throw new Error('No IMS sales rows were found');
     const reductions=parseReductionSheets(wb),fte=parseFTESheets(wb);
-    return{version:5,fileName:file.name,uploadedAt:new Date().toISOString(),sheetName:sn,rows,reductions,fte,validation:{rows:rows.length,totalQty:tq,totalSales:ts,totalQtyMismatches:mm}};
+    return{version:6,fileName:file.name,uploadedAt:new Date().toISOString(),sheetName:sn,rows,reductions,fte,validation:{rows:rows.length,totalQty:tq,totalSales:ts,totalQtyMismatches:mm}};
   }
 
   function setupAdminUpload(){
@@ -95,19 +95,22 @@
     function costFor(r){const key=norm(r.sku),stored=n(costMap[key]);if(stored)return stored;const d=costBreakdown[key]||{};return ['RM','PM','Direct DL','Direct OH','In-Direct DL','In-Direct OH'].reduce((s,k)=>s+n(d[k]),0)}
 
     const brandSales={};all.forEach(r=>{const k=`${marketNorm(r.country)}|${norm(r.sector)}|${norm(r.brand)}`;brandSales[k]=(brandSales[k]||0)+n(r.totalSales)});
-    const fteProfile={};fteCosts.forEach(r=>{const mk=marketNorm(r.market),p=norm(r.position),annual=n(r.totalAnnual);if(!mk||!annual)return;let type='';if(p.includes('MEDICALREPRESENTATIVE'))type='mr';else if(p.includes('SUPERVISOR'))type='sup';if(!type)return;const key=`${mk}|${type}`;if(!fteProfile[key])fteProfile[key]={sum:0,count:0,currency:r.currency||''};fteProfile[key].sum+=annual;fteProfile[key].count++;if(!fteProfile[key].currency&&r.currency)fteProfile[key].currency=r.currency});
+    const fteProfile={};fteCosts.forEach(r=>{const mk=marketNorm(r.market),p=norm(r.position),annual=n(r.totalAnnual);if(!mk||!annual)return;let type='';if(p.includes('MEDICALREPRESENTATIVE'))type='mr';else if(p.includes('SUPERVISOR'))type='sup';if(!type)return;const key=`${mk}|${type}`;if(!fteProfile[key])fteProfile[key]={sum:0,count:0};fteProfile[key].sum+=annual;fteProfile[key].count++});
     Object.values(fteProfile).forEach(x=>x.avg=x.count?x.sum/x.count:0);
 
     function fteFor(r){
       const k=`${marketNorm(r.country)}|${norm(r.sector)}|${norm(r.brand)}`,d=fteDist[k]||{},salesTotal=n(brandSales[k]),share=salesTotal?n(r.totalSales)/salesTotal:0;
       const mr=n(d.mrFTE)*share,sup=n(d.supervisorFTE)*share;
       const mrP=fteProfile[`${marketNorm(r.country)}|mr`]||{},supP=fteProfile[`${marketNorm(r.country)}|sup`]||{};
-      const mrCost=mr*n(mrP.avg),supCost=sup*n(supP.avg),currency=mrP.currency||supP.currency||'';
-      const sameCurrency=!mrCost||!supCost||!mrP.currency||!supP.currency||norm(mrP.currency)===norm(supP.currency);
-      return{mr,sup,mrCost,supCost,totalCost:sameCurrency?mrCost+supCost:0,currency,sameCurrency,hasAllocation:!!(n(d.mrFTE)||n(d.supervisorFTE)),share};
+      const mrCost=mr*n(mrP.avg),supCost=sup*n(supP.avg);
+      return{mr,sup,mrCost,supCost,totalCost:mrCost+supCost,hasAllocation:!!(n(d.mrFTE)||n(d.supervisorFTE)),share};
     }
 
-    function calcTotals(data){const qm=Array(12).fill(0),sm=Array(12).fill(0);let tq=0,ts=0,bq=0,commissionUsd=0,returnsUsd=0,discountUsd=0,netSales=0,mr=0,sup=0;data.forEach(r=>{r.months.forEach((v,i)=>qm[i]+=n(v));r.sales.forEach((v,i)=>sm[i]+=n(v));tq+=n(r.totalQty);ts+=n(r.totalSales);bq+=n(r.totalQty)*n(r.bonusPct)/100;const z=reductionFor(r),f=fteFor(r);commissionUsd+=z.commissionUsd;returnsUsd+=z.returnsUsd;discountUsd+=z.discountUsd;netSales+=z.netSales;mr+=f.mr;sup+=f.sup});return{qm,sm,tq,ts,bq,commissionUsd,returnsUsd,discountUsd,netSales,mr,sup}}
+    function calcTotals(data){
+      const qm=Array(12).fill(0),sm=Array(12).fill(0);let tq=0,ts=0,bq=0,commissionUsd=0,returnsUsd=0,discountUsd=0,netSales=0,mr=0,mrCost=0,sup=0,supCost=0,totalFteCost=0;
+      data.forEach(r=>{r.months.forEach((v,i)=>qm[i]+=n(v));r.sales.forEach((v,i)=>sm[i]+=n(v));tq+=n(r.totalQty);ts+=n(r.totalSales);bq+=n(r.totalQty)*n(r.bonusPct)/100;const z=reductionFor(r),f=fteFor(r);commissionUsd+=z.commissionUsd;returnsUsd+=z.returnsUsd;discountUsd+=z.discountUsd;netSales+=z.netSales;mr+=f.mr;mrCost+=f.mrCost;sup+=f.sup;supCost+=f.supCost;totalFteCost+=f.totalCost});
+      return{qm,sm,tq,ts,bq,commissionUsd,returnsUsd,discountUsd,netSales,mr,mrCost,sup,supCost,totalFteCost};
+    }
 
     function rowEl(r){
       const tr=document.createElement('tr');tr.dataset.sku=r.sku||'';
@@ -117,14 +120,16 @@
       const z=reductionFor(r);[['commission',z.commission,z.commissionUsd],['returns',z.returns,z.returnsUsd],['discount',z.discount,z.discountUsd]].forEach(([k,rate,usd],i)=>{tr.append(td((rate*100).toFixed(2)+'%',`reduction-pct ${k}-pct${k==='commission'&&z.special?' special-commission':''}`),td(money(usd),`reduction-usd ${k}-usd${usd<0?' negative':''}`));if(i<2)tr.appendChild(td('','reduction-sep'))});tr.appendChild(td(money(z.netSales),'net-sales-cell'+(z.netSales<0?' negative':'')));
       const cost=costFor(r);tr.appendChild(td(cost?money(cost):'—','cost-unit'+(cost?'':' unmatched-cost')));for(let i=0;i<12;i++)tr.appendChild(td(cost?money(n(r.months[i])*cost):'—','cogs-cell'));const cogs=(n(r.totalQty)+bq)*cost;tr.appendChild(td(cost?money(cogs):'—','cogs-total'));
       const gp=n(r.totalSales)-(cost?cogs:0);tr.append(td(money(gp),'gp-cell'+(gp<0?' negative':'')),td(z.netSales?(gp/z.netSales*100).toFixed(2)+'%':'—','gp-pct-cell'));
-      const f=fteFor(r),cur=f.currency?` ${f.currency}`:'';
-      tr.append(td(f.hasAllocation?f.mr.toFixed(3):'0.000','fte-value fte-mr-pct-cell'),td(f.mrCost?money(f.mrCost)+cur:'0','fte-cost-local fte-mr-usd-cell'),td('','fte-sep'),td(f.hasAllocation?f.sup.toFixed(3):'0.000','fte-value fte-mgr-pct-cell'),td(f.supCost?money(f.supCost)+cur:'0','fte-cost-local fte-mgr-usd-cell'),td('','fte-sep'),td(f.totalCost?money(f.totalCost)+cur:'0','fte-cost-local fte-total-cell'));
+      const f=fteFor(r);
+      tr.append(td(f.hasAllocation?f.mr.toFixed(3):'0.000','fte-value fte-mr-pct-cell'),td(f.mrCost?money(f.mrCost):'0','fte-cost-local fte-mr-usd-cell'),td('','fte-sep'),td(f.hasAllocation?f.sup.toFixed(3):'0.000','fte-value fte-mgr-pct-cell'),td(f.supCost?money(f.supCost):'0','fte-cost-local fte-mgr-usd-cell'),td('','fte-sep'),td(f.totalCost?money(f.totalCost):'0','fte-cost-local fte-total-cell'));
       [['0','samples-qty-cell'],['0','samples-usd-cell'],['','direct-cost-sep'],['0','ap-cell'],['','direct-cost-sep'],[money(gp),'profit-direct-cell'],[z.netSales?(gp/z.netSales*100).toFixed(2)+'%':'—','net-profit-pct-cell']].forEach(([t,c])=>tr.appendChild(td(t,c)));
       return tr;
     }
 
     function render(){
-      const pages=Math.max(1,Math.ceil(filtered.length/PAGE));if(page>=pages)page=pages-1;const slice=filtered.slice(page*PAGE,(page+1)*PAGE),frag=document.createDocumentFragment();slice.forEach(r=>frag.appendChild(rowEl(r)));const T=calcTotals(filtered),tr=document.createElement('tr');tr.className='total-row';tr.appendChild(td('TOTAL','text sticky-1'));for(let i=2;i<=10;i++)tr.appendChild(td('',`sticky-${i}`));T.qm.forEach(v=>tr.appendChild(td(qty(v))));tr.appendChild(td(qty(T.tq)));T.sm.forEach(v=>tr.appendChild(td(money(v))));tr.appendChild(td(money(T.ts)));tr.append(td('—','bonus-total'),td(qty(T.bq),'bonus-total'));[T.commissionUsd,T.returnsUsd,T.discountUsd].forEach((v,i)=>{const pct=T.ts?Math.abs(v)/T.ts*100:0;tr.append(td(pct.toFixed(2)+'%','reduction-total'),td(money(v),'reduction-total'+(v<0?' negative':'')));if(i<2)tr.appendChild(td('','reduction-sep'))});tr.appendChild(td(money(T.netSales),'net-sales-total'));for(let i=0;i<14;i++)tr.appendChild(td(i===0?'—':'','cost-total-row'));tr.append(td('','gp-total'),td('','gp-pct-total'));tr.append(td(T.mr.toFixed(3),'fte-total-row'),td('','fte-total-row'),td('','fte-sep'),td(T.sup.toFixed(3),'fte-total-row'),td('','fte-total-row'),td('','fte-sep'),td('','fte-total-row'));for(let i=0;i<7;i++)tr.appendChild(td('',i===2||i===4?'direct-cost-sep':'fte-total-row'));tbody.replaceChildren(frag,tr);
+      const pages=Math.max(1,Math.ceil(filtered.length/PAGE));if(page>=pages)page=pages-1;const slice=filtered.slice(page*PAGE,(page+1)*PAGE),frag=document.createDocumentFragment();slice.forEach(r=>frag.appendChild(rowEl(r)));const T=calcTotals(filtered),tr=document.createElement('tr');tr.className='total-row';tr.appendChild(td('TOTAL','text sticky-1'));for(let i=2;i<=10;i++)tr.appendChild(td('',`sticky-${i}`));T.qm.forEach(v=>tr.appendChild(td(qty(v))));tr.appendChild(td(qty(T.tq)));T.sm.forEach(v=>tr.appendChild(td(money(v))));tr.appendChild(td(money(T.ts)));tr.append(td('—','bonus-total'),td(qty(T.bq),'bonus-total'));[T.commissionUsd,T.returnsUsd,T.discountUsd].forEach((v,i)=>{const pct=T.ts?Math.abs(v)/T.ts*100:0;tr.append(td(pct.toFixed(2)+'%','reduction-total'),td(money(v),'reduction-total'+(v<0?' negative':'')));if(i<2)tr.appendChild(td('','reduction-sep'))});tr.appendChild(td(money(T.netSales),'net-sales-total'));for(let i=0;i<14;i++)tr.appendChild(td(i===0?'—':'','cost-total-row'));tr.append(td('','gp-total'),td('','gp-pct-total'));
+      tr.append(td(T.mr.toFixed(3),'fte-total-row'),td(money(T.mrCost),'fte-total-row'),td('','fte-sep'),td(T.sup.toFixed(3),'fte-total-row'),td(money(T.supCost),'fte-total-row'),td('','fte-sep'),td(money(T.totalFteCost),'fte-total-row'));
+      for(let i=0;i<7;i++)tr.appendChild(td('',i===2||i===4?'direct-cost-sep':'fte-total-row'));tbody.replaceChildren(frag,tr);
       document.getElementById('imsEmpty').style.display=filtered.length?'none':'block';document.getElementById('imsRowBadge').textContent=`${filtered.length.toLocaleString()} Rows`;document.getElementById('imsSourceLine').textContent=meta?`${meta.fileName||'IMS Sales'} • ${filtered.length.toLocaleString()} rows • showing ${slice.length} rows`:'No IMS Sales file loaded yet.';navInfo.textContent=`Chunk ${page+1} / ${pages}`;prev.disabled=page<=0;next.disabled=page>=pages-1;if(wrap)wrap.scrollTop=0;
     }
 
