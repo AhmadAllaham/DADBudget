@@ -11,9 +11,49 @@
   const rateFraction=v=>{const x=n(v);return Math.abs(x)<=1?x:x/100};
   const marketNorm=v=>{const z=norm(v);return z==='KSA'?'SAUDI':z==='SAUDIARABIA'?'SAUDI':z};
 
+  function currentProfile(){try{return JSON.parse(localStorage.getItem('dadBudgetCurrentProfile')||'null')}catch(e){return null}}
+  function moduleForLink(link){
+    const href=(link.getAttribute('href')||'').split('?')[0].toLowerCase(),label=String(link.textContent||'').trim().toLowerCase();
+    if(href.includes('user-settings'))return'admin_only';
+    if(href.includes('data-admin'))return'data_admin';
+    if(href.includes('ims-sales'))return'ims';
+    if(href.includes('capex'))return'capex';
+    if(href.includes('travel-budget'))return'travel';
+    if(href.includes('hr-budget'))return'hr';
+    if(href.includes('ap-budget'))return'ap';
+    if(href.includes('opex'))return'opex';
+    if(href.includes('index'))return'dashboard';
+    if(label.includes('p&l'))return'pl';
+    if(label.includes('approval'))return'approvals';
+    return'';
+  }
+  function applyCachedAccess(){
+    const p=currentProfile();if(!p)return;
+    const isAdmin=p.isMainAdmin===true||p.role==='admin',mods=new Set(Array.isArray(p.modules)?p.modules:[]);
+    const nav=document.querySelector('.sidebar-nav');
+    if(nav){
+      nav.querySelectorAll('a').forEach(a=>{const req=moduleForLink(a);if(!req)return;a.style.display=req==='admin_only'?(isAdmin?'':'none'):((isAdmin||mods.has(req))?'':'none')});
+      nav.querySelectorAll('.nav-section').forEach(s=>{if(String(s.textContent||'').trim().toUpperCase()==='ADMIN'){let el=s.nextElementSibling,show=false;while(el&&!el.classList.contains('nav-section')){if(el.tagName==='A'&&el.style.display!=='none')show=true;el=el.nextElementSibling}s.style.display=show?'':'none'}});
+    }
+    const allowed=Array.isArray(p.departments)?p.departments.filter(Boolean):(p.department?[p.department]:[]),all=isAdmin||allowed.includes('ALL');
+    const restrictDepartmentSelect=()=>{
+      const sel=document.getElementById('deptFilter');if(!sel||all||!allowed.length)return;
+      const allowedSet=new Set(allowed.map(String));
+      [...sel.options].forEach(o=>{if(o.value&&!allowedSet.has(String(o.value)))o.remove()});
+      if(!allowedSet.has(String(sel.value||''))){const next=[...sel.options].find(o=>o.value&&allowedSet.has(String(o.value)));if(next){sel.value=next.value;sel.dispatchEvent(new Event('change',{bubbles:true}))}}
+      if(allowed.length===1)sel.disabled=true;
+    };
+    restrictDepartmentSelect();
+    const sel=document.getElementById('deptFilter');if(sel&&!all){let timer;new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(restrictDepartmentSelect,0)}).observe(sel,{childList:true})}
+  }
+  function ensureFirebaseSession(){
+    const path=(location.pathname.split('/').pop()||'').toLowerCase();if(path==='login.html'||path==='')return;
+    if(document.querySelector('script[src*="js/firebase.js"]'))return;
+    const s=document.createElement('script');s.type='module';s.src='js/firebase.js?v=20260816-global-access-7';document.head.appendChild(s);
+  }
+
   function setupShell(){
-    const lf=document.getElementById('loginForm');if(lf)lf.addEventListener('submit',e=>{e.preventDefault();location.href='index.html'});
-    const lo=document.getElementById('logoutBtn');if(lo)lo.addEventListener('click',()=>location.href='login.html');
+    const lo=document.getElementById('logoutBtn');if(lo)lo.addEventListener('click',async e=>{e.preventDefault();e.stopImmediatePropagation();try{if(window.DADFirebase)await window.DADFirebase.signOut()}catch(_){}localStorage.removeItem('dadBudgetCurrentUid');localStorage.removeItem('dadBudgetCurrentEmail');localStorage.removeItem('dadBudgetCurrentProfile');location.replace('login.html')},true);
     const shell=document.querySelector('.app-shell'),side=document.querySelector('.sidebar');if(!shell||!side)return;
     const nav=side.querySelector('.sidebar-nav');
     if(nav){
@@ -42,6 +82,7 @@
     let b=side.querySelector('.sidebar-toggle');if(!b){b=document.createElement('button');b.type='button';b.className='sidebar-toggle';b.title='Open / Close Sidebar';b.textContent='‹';side.appendChild(b)}
     if(localStorage.getItem('dadBudgetSidebarCollapsed')==='true')shell.classList.add('sidebar-collapsed');
     b.addEventListener('click',()=>{shell.classList.toggle('sidebar-collapsed');localStorage.setItem('dadBudgetSidebarCollapsed',shell.classList.contains('sidebar-collapsed')?'true':'false')});
+    applyCachedAccess();ensureFirebaseSession();
   }
 
   function clearIMS(){let meta=null;try{meta=JSON.parse(localStorage.getItem(META)||'null')}catch(e){};for(let i=0;i<n(meta?.chunkCount);i++)localStorage.removeItem(PREFIX+i);localStorage.removeItem(META);localStorage.removeItem(BASE);localStorage.removeItem('dadBudgetIMSSalesData')}
@@ -68,36 +109,8 @@
     const costName=wb.SheetNames.find(x=>norm(x)==='FTECOST');
     const distName=wb.SheetNames.find(x=>norm(x)==='FTEDIS'||norm(x)==='FTEDISTRIBUTION');
     const costs=[],distribution={};let costRows=0,distributionRows=0,invalidValues=0,autoFixedValues=0;
-
-    if(costName){
-      const mx=XLSX.utils.sheet_to_json(wb.Sheets[costName],{header:1,defval:'',raw:true});
-      const hi=mx.findIndex(r=>{const h=(r||[]).map(norm);return h.includes('MARKET')&&h.includes('POSITION')&&h.includes('TOTALANNUALSALARY')});
-      if(hi>=0){
-        const h=(mx[hi]||[]).map(norm),marketI=h.indexOf('MARKET'),positionI=h.indexOf('POSITION'),annualI=h.indexOf('TOTALANNUALSALARY');
-        for(let i=hi+1;i<mx.length;i++){
-          const r=mx[i]||[],market=String(r[marketI]??'').trim(),position=String(r[positionI]??'').trim();
-          if(!market&&!position)continue;
-          costs.push({market,position,totalAnnual:n(r[annualI])});costRows++;
-        }
-      }
-    }
-
-    if(distName){
-      const mx=XLSX.utils.sheet_to_json(wb.Sheets[distName],{header:1,defval:'',raw:true});
-      const hi=mx.findIndex(r=>{const h=(r||[]).map(norm);return h.includes('MARKET')&&h.includes('CHANNEL')&&h.includes('BRAND')&&h.includes('FTE')&&h.includes('SUPERVISOR')});
-      if(hi>=0){
-        const h=(mx[hi]||[]).map(norm),marketI=h.indexOf('MARKET'),channelI=h.indexOf('CHANNEL'),categoryI=h.indexOf('PRODUCTCATEGORY'),brandI=h.indexOf('BRAND'),fteI=h.indexOf('FTE'),supI=h.indexOf('SUPERVISOR');
-        for(let i=hi+1;i<mx.length;i++){
-          const r=mx[i]||[],market=String(r[marketI]??'').trim(),channel=String(r[channelI]??'').trim(),category=categoryI>=0?String(r[categoryI]??'').trim():'',brand=String(r[brandI]??'').trim();
-          if(!market&&!channel&&!brand)continue;
-          const mr=parseFTEValue(r[fteI]),sup=parseFTEValue(r[supI]);
-          if(mr.invalid)invalidValues++;if(sup.invalid)invalidValues++;if(mr.fixed)autoFixedValues++;if(sup.fixed)autoFixedValues++;
-          const key=`${marketNorm(market)}|${norm(channel)}|${norm(brand)}`;
-          if(!distribution[key])distribution[key]={market,channel,category,brand,mrFTE:0,supervisorFTE:0};
-          distribution[key].mrFTE+=mr.value;distribution[key].supervisorFTE+=sup.value;distributionRows++;
-        }
-      }
-    }
+    if(costName){const mx=XLSX.utils.sheet_to_json(wb.Sheets[costName],{header:1,defval:'',raw:true});const hi=mx.findIndex(r=>{const h=(r||[]).map(norm);return h.includes('MARKET')&&h.includes('POSITION')&&h.includes('TOTALANNUALSALARY')});if(hi>=0){const h=(mx[hi]||[]).map(norm),marketI=h.indexOf('MARKET'),positionI=h.indexOf('POSITION'),annualI=h.indexOf('TOTALANNUALSALARY');for(let i=hi+1;i<mx.length;i++){const r=mx[i]||[],market=String(r[marketI]??'').trim(),position=String(r[positionI]??'').trim();if(!market&&!position)continue;costs.push({market,position,totalAnnual:n(r[annualI])});costRows++}}}
+    if(distName){const mx=XLSX.utils.sheet_to_json(wb.Sheets[distName],{header:1,defval:'',raw:true});const hi=mx.findIndex(r=>{const h=(r||[]).map(norm);return h.includes('MARKET')&&h.includes('CHANNEL')&&h.includes('BRAND')&&h.includes('FTE')&&h.includes('SUPERVISOR')});if(hi>=0){const h=(mx[hi]||[]).map(norm),marketI=h.indexOf('MARKET'),channelI=h.indexOf('CHANNEL'),categoryI=h.indexOf('PRODUCTCATEGORY'),brandI=h.indexOf('BRAND'),fteI=h.indexOf('FTE'),supI=h.indexOf('SUPERVISOR');for(let i=hi+1;i<mx.length;i++){const r=mx[i]||[],market=String(r[marketI]??'').trim(),channel=String(r[channelI]??'').trim(),category=categoryI>=0?String(r[categoryI]??'').trim():'',brand=String(r[brandI]??'').trim();if(!market&&!channel&&!brand)continue;const mr=parseFTEValue(r[fteI]),sup=parseFTEValue(r[supI]);if(mr.invalid)invalidValues++;if(sup.invalid)invalidValues++;if(mr.fixed)autoFixedValues++;if(sup.fixed)autoFixedValues++;const key=`${marketNorm(market)}|${norm(channel)}|${norm(brand)}`;if(!distribution[key])distribution[key]={market,channel,category,brand,mrFTE:0,supervisorFTE:0};distribution[key].mrFTE+=mr.value;distribution[key].supervisorFTE+=sup.value;distributionRows++}}}
     return{costs,distribution,costRows,distributionRows,invalidValues,autoFixedValues,costSheet:costName||'',distributionSheet:distName||''};
   }
 
@@ -144,51 +157,15 @@
     const td=(t,c='')=>{const x=document.createElement('td');x.textContent=t;x.className=c;return x};
     function reductionFor(r){const channel=norm(r.sector),market=norm(r.region),get=kind=>n(rateMap[`${channel}|${market}|${norm(kind)}`]);let commission=get('Commissions'),special=false;const exKey=`${norm(r.agent)}|${norm(r.sku)}`;if(Object.prototype.hasOwnProperty.call(exceptionMap,exKey)){commission=n(exceptionMap[exKey]);special=true}const returns=get('Returns'),discount=get('Discounts'),base=n(r.totalSales),commissionUsd=-(base*commission),returnsUsd=-(base*returns),discountUsd=-(base*discount),netSales=base+commissionUsd+returnsUsd+discountUsd;return{commission,returns,discount,commissionUsd,returnsUsd,discountUsd,netSales,special}}
     function costFor(r){const key=norm(r.sku),stored=n(costMap[key]);if(stored)return stored;const d=costBreakdown[key]||{};return ['RM','PM','Direct DL','Direct OH','In-Direct DL','In-Direct OH'].reduce((s,k)=>s+n(d[k]),0)}
-
     const brandSales={};all.forEach(r=>{const k=`${marketNorm(r.country)}|${norm(r.sector)}|${norm(r.brand)}`;brandSales[k]=(brandSales[k]||0)+n(r.totalSales)});
-    const fteProfile={};fteCosts.forEach(r=>{const mk=marketNorm(r.market),p=norm(r.position),annual=n(r.totalAnnual);if(!mk||!annual)return;let type='';if(p.includes('MEDICALREPRESENTATIVE'))type='mr';else if(p.includes('SUPERVISOR'))type='sup';if(!type)return;const key=`${mk}|${type}`;if(!fteProfile[key])fteProfile[key]={sum:0,count:0};fteProfile[key].sum+=annual;fteProfile[key].count++});
-    Object.values(fteProfile).forEach(x=>x.avg=x.count?x.sum/x.count:0);
-
-    function fteFor(r){
-      const k=`${marketNorm(r.country)}|${norm(r.sector)}|${norm(r.brand)}`,d=fteDist[k]||{},salesTotal=n(brandSales[k]),share=salesTotal?n(r.totalSales)/salesTotal:0;
-      const mr=n(d.mrFTE)*share,sup=n(d.supervisorFTE)*share;
-      const mrP=fteProfile[`${marketNorm(r.country)}|mr`]||{},supP=fteProfile[`${marketNorm(r.country)}|sup`]||{};
-      const mrCost=mr*n(mrP.avg),supCost=sup*n(supP.avg);
-      return{mr,sup,mrCost,supCost,totalCost:mrCost+supCost,hasAllocation:!!(n(d.mrFTE)||n(d.supervisorFTE)),share};
-    }
-
-    function calcTotals(data){
-      const qm=Array(12).fill(0),sm=Array(12).fill(0);let tq=0,ts=0,bq=0,commissionUsd=0,returnsUsd=0,discountUsd=0,netSales=0,mr=0,mrCost=0,sup=0,supCost=0,totalFteCost=0;
-      data.forEach(r=>{r.months.forEach((v,i)=>qm[i]+=n(v));r.sales.forEach((v,i)=>sm[i]+=n(v));tq+=n(r.totalQty);ts+=n(r.totalSales);bq+=n(r.totalQty)*n(r.bonusPct)/100;const z=reductionFor(r),f=fteFor(r);commissionUsd+=z.commissionUsd;returnsUsd+=z.returnsUsd;discountUsd+=z.discountUsd;netSales+=z.netSales;mr+=f.mr;mrCost+=f.mrCost;sup+=f.sup;supCost+=f.supCost;totalFteCost+=f.totalCost});
-      return{qm,sm,tq,ts,bq,commissionUsd,returnsUsd,discountUsd,netSales,mr,mrCost,sup,supCost,totalFteCost};
-    }
-
-    function rowEl(r){
-      const tr=document.createElement('tr');tr.dataset.sku=r.sku||'';
-      const base=[r.region,r.type,r.country,r.subMarket,r.agent,r.sector,r.brand,r.sku,r.category];base.forEach((v,i)=>tr.appendChild(td(v||'',`text sticky-${i+1}`)));tr.appendChild(td(money(r.price),'price-col sticky-10'));
-      r.months.forEach(v=>tr.appendChild(td(qty(v),'qty-cell')));tr.appendChild(td(qty(r.totalQty),'total-cell'));r.sales.forEach(v=>tr.appendChild(td(money(v),'sales-cell')));tr.appendChild(td(money(r.totalSales),'total-cell'));
-      const bp=n(r.bonusPct),bq=n(r.totalQty)*bp/100;tr.append(td(bp.toFixed(2)+'%','bonus-percent'),td(qty(bq),'bonus-qty'));
-      const z=reductionFor(r);[['commission',z.commission,z.commissionUsd],['returns',z.returns,z.returnsUsd],['discount',z.discount,z.discountUsd]].forEach(([k,rate,usd],i)=>{tr.append(td((rate*100).toFixed(2)+'%',`reduction-pct ${k}-pct${k==='commission'&&z.special?' special-commission':''}`),td(money(usd),`reduction-usd ${k}-usd${usd<0?' negative':''}`));if(i<2)tr.appendChild(td('','reduction-sep'))});tr.appendChild(td(money(z.netSales),'net-sales-cell'+(z.netSales<0?' negative':'')));
-      const cost=costFor(r);tr.appendChild(td(cost?money(cost):'—','cost-unit'+(cost?'':' unmatched-cost')));for(let i=0;i<12;i++)tr.appendChild(td(cost?money(n(r.months[i])*cost):'—','cogs-cell'));const cogs=(n(r.totalQty)+bq)*cost;tr.appendChild(td(cost?money(cogs):'—','cogs-total'));
-      const gp=n(r.totalSales)-(cost?cogs:0);tr.append(td(money(gp),'gp-cell'+(gp<0?' negative':'')),td(z.netSales?(gp/z.netSales*100).toFixed(2)+'%':'—','gp-pct-cell'));
-      const f=fteFor(r);
-      tr.append(td(f.hasAllocation?f.mr.toFixed(3):'0.000','fte-value fte-mr-pct-cell'),td(f.mrCost?money(f.mrCost):'0','fte-cost-local fte-mr-usd-cell'),td('','fte-sep'),td(f.hasAllocation?f.sup.toFixed(3):'0.000','fte-value fte-mgr-pct-cell'),td(f.supCost?money(f.supCost):'0','fte-cost-local fte-mgr-usd-cell'),td('','fte-sep'),td(f.totalCost?money(f.totalCost):'0','fte-cost-local fte-total-cell'));
-      [['0','samples-qty-cell'],['0','samples-usd-cell'],['','direct-cost-sep'],['0','ap-cell'],['','direct-cost-sep'],[money(gp),'profit-direct-cell'],[z.netSales?(gp/z.netSales*100).toFixed(2)+'%':'—','net-profit-pct-cell']].forEach(([t,c])=>tr.appendChild(td(t,c)));
-      return tr;
-    }
-
-    function render(){
-      const pages=Math.max(1,Math.ceil(filtered.length/PAGE));if(page>=pages)page=pages-1;const slice=filtered.slice(page*PAGE,(page+1)*PAGE),frag=document.createDocumentFragment();slice.forEach(r=>frag.appendChild(rowEl(r)));const T=calcTotals(filtered),tr=document.createElement('tr');tr.className='total-row';tr.appendChild(td('TOTAL','text sticky-1'));for(let i=2;i<=10;i++)tr.appendChild(td('',`sticky-${i}`));T.qm.forEach(v=>tr.appendChild(td(qty(v))));tr.appendChild(td(qty(T.tq)));T.sm.forEach(v=>tr.appendChild(td(money(v))));tr.appendChild(td(money(T.ts)));tr.append(td('—','bonus-total'),td(qty(T.bq),'bonus-total'));[T.commissionUsd,T.returnsUsd,T.discountUsd].forEach((v,i)=>{const pct=T.ts?Math.abs(v)/T.ts*100:0;tr.append(td(pct.toFixed(2)+'%','reduction-total'),td(money(v),'reduction-total'+(v<0?' negative':'')));if(i<2)tr.appendChild(td('','reduction-sep'))});tr.appendChild(td(money(T.netSales),'net-sales-total'));for(let i=0;i<14;i++)tr.appendChild(td(i===0?'—':'','cost-total-row'));tr.append(td('','gp-total'),td('','gp-pct-total'));
-      tr.append(td(T.mr.toFixed(3),'fte-total-row'),td(money(T.mrCost),'fte-total-row'),td('','fte-sep'),td(T.sup.toFixed(3),'fte-total-row'),td(money(T.supCost),'fte-total-row'),td('','fte-sep'),td(money(T.totalFteCost),'fte-total-row'));
-      for(let i=0;i<7;i++)tr.appendChild(td('',i===2||i===4?'direct-cost-sep':'fte-total-row'));tbody.replaceChildren(frag,tr);
-      document.getElementById('imsEmpty').style.display=filtered.length?'none':'block';document.getElementById('imsRowBadge').textContent=`${filtered.length.toLocaleString()} Rows`;document.getElementById('imsSourceLine').textContent=meta?`${meta.fileName||'IMS Sales'} • ${filtered.length.toLocaleString()} rows • showing ${slice.length} rows`:'No IMS Sales file loaded yet.';navInfo.textContent=`Chunk ${page+1} / ${pages}`;prev.disabled=page<=0;next.disabled=page>=pages-1;if(wrap)wrap.scrollTop=0;
-    }
-
-    const badge=document.querySelector('.sheet-badges'),nav=document.createElement('div'),prev=document.createElement('button'),next=document.createElement('button'),navInfo=document.createElement('span');nav.className='ims-chunk-nav';prev.textContent='‹ Prev';next.textContent='Next ›';nav.append(prev,navInfo,next);badge?.prepend(nav);prev.addEventListener('click',()=>{if(page>0){page--;render()}});next.addEventListener('click',()=>{if((page+1)*PAGE<filtered.length){page++;render()}});
-    const ids=[['filterRegion','region'],['filterCountry','country'],['filterAgent','agent'],['filterSector','sector']];ids.forEach(([id,key])=>{const el=document.getElementById(id);[...new Set(all.map(r=>r[key]).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b))).forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;el.appendChild(o)})});
-    function apply(){const rv=document.getElementById('filterRegion').value,cv=document.getElementById('filterCountry').value,av=document.getElementById('filterAgent').value,sv=document.getElementById('filterSector').value,qv=document.getElementById('filterSearch').value.trim().toLowerCase();filtered=all.filter(r=>(!rv||r.region===rv)&&(!cv||r.country===cv)&&(!av||r.agent===av)&&(!sv||r.sector===sv)&&(!qv||String(r.brand).toLowerCase().includes(qv)||String(r.sku).toLowerCase().includes(qv)));page=0;render()}
-    ids.forEach(([id])=>document.getElementById(id).addEventListener('change',apply));document.getElementById('filterSearch').addEventListener('input',apply);document.getElementById('clearFilters').addEventListener('click',()=>{ids.forEach(([id])=>document.getElementById(id).value='');document.getElementById('filterSearch').value='';filtered=all;page=0;render()});render();
+    const fteProfile={};fteCosts.forEach(r=>{const mk=marketNorm(r.market),p=norm(r.position),annual=n(r.totalAnnual);if(!mk||!annual)return;let type='';if(p.includes('MEDICALREPRESENTATIVE'))type='mr';else if(p.includes('SUPERVISOR'))type='sup';if(!type)return;const key=`${mk}|${type}`;if(!fteProfile[key])fteProfile[key]={sum:0,count:0};fteProfile[key].sum+=annual;fteProfile[key].count++});Object.values(fteProfile).forEach(x=>x.avg=x.count?x.sum/x.count:0);
+    function fteFor(r){const k=`${marketNorm(r.country)}|${norm(r.sector)}|${norm(r.brand)}`,d=fteDist[k]||{},salesTotal=n(brandSales[k]),share=salesTotal?n(r.totalSales)/salesTotal:0;const mr=n(d.mrFTE)*share,sup=n(d.supervisorFTE)*share;const mrP=fteProfile[`${marketNorm(r.country)}|mr`]||{},supP=fteProfile[`${marketNorm(r.country)}|sup`]||{};const mrCost=mr*n(mrP.avg),supCost=sup*n(supP.avg);return{mr,sup,mrCost,supCost,totalCost:mrCost+supCost,hasAllocation:!!(n(d.mrFTE)||n(d.supervisorFTE)),share}}
+    function calcTotals(data){const qm=Array(12).fill(0),sm=Array(12).fill(0);let tq=0,ts=0,bq=0,commissionUsd=0,returnsUsd=0,discountUsd=0,netSales=0,mr=0,mrCost=0,sup=0,supCost=0,totalFteCost=0;data.forEach(r=>{r.months.forEach((v,i)=>qm[i]+=n(v));r.sales.forEach((v,i)=>sm[i]+=n(v));tq+=n(r.totalQty);ts+=n(r.totalSales);bq+=n(r.totalQty)*n(r.bonusPct)/100;const z=reductionFor(r),f=fteFor(r);commissionUsd+=z.commissionUsd;returnsUsd+=z.returnsUsd;discountUsd+=z.discountUsd;netSales+=z.netSales;mr+=f.mr;mrCost+=f.mrCost;sup+=f.sup;supCost+=f.supCost;totalFteCost+=f.totalCost});return{qm,sm,tq,ts,bq,commissionUsd,returnsUsd,discountUsd,netSales,mr,mrCost,sup,supCost,totalFteCost}}
+    function rowEl(r){const tr=document.createElement('tr');tr.dataset.sku=r.sku||'';const base=[r.region,r.type,r.country,r.subMarket,r.agent,r.sector,r.brand,r.sku,r.category];base.forEach((v,i)=>tr.appendChild(td(v||'',`text sticky-${i+1}`)));tr.appendChild(td(money(r.price),'price-col sticky-10'));r.months.forEach(v=>tr.appendChild(td(qty(v),'qty-cell')));tr.appendChild(td(qty(r.totalQty),'total-cell'));r.sales.forEach(v=>tr.appendChild(td(money(v),'sales-cell')));tr.appendChild(td(money(r.totalSales),'total-cell'));const bp=n(r.bonusPct),bq=n(r.totalQty)*bp/100;tr.append(td(bp.toFixed(2)+'%','bonus-percent'),td(qty(bq),'bonus-qty'));const z=reductionFor(r);[['commission',z.commission,z.commissionUsd],['returns',z.returns,z.returnsUsd],['discount',z.discount,z.discountUsd]].forEach(([k,rate,usd],i)=>{tr.append(td((rate*100).toFixed(2)+'%',`reduction-pct ${k}-pct${k==='commission'&&z.special?' special-commission':''}`),td(money(usd),`reduction-usd ${k}-usd${usd<0?' negative':''}`));if(i<2)tr.appendChild(td('','reduction-sep'))});tr.appendChild(td(money(z.netSales),'net-sales-cell'+(z.netSales<0?' negative':'')));const cost=costFor(r);tr.appendChild(td(cost?money(cost):'—','cost-unit'+(cost?'':' unmatched-cost')));for(let i=0;i<12;i++)tr.appendChild(td(cost?money(n(r.months[i])*cost):'—','cogs-cell'));const cogs=(n(r.totalQty)+bq)*cost;tr.appendChild(td(cost?money(cogs):'—','cogs-total'));const gp=n(r.totalSales)-(cost?cogs:0);tr.append(td(money(gp),'gp-cell'+(gp<0?' negative':'')),td(z.netSales?(gp/z.netSales*100).toFixed(2)+'%':'—','gp-pct-cell'));const f=fteFor(r);tr.append(td(f.hasAllocation?f.mr.toFixed(3):'0.000','fte-value fte-mr-pct-cell'),td(f.mrCost?money(f.mrCost):'0','fte-cost-local fte-mr-usd-cell'),td('','fte-sep'),td(f.hasAllocation?f.sup.toFixed(3):'0.000','fte-value fte-mgr-pct-cell'),td(f.supCost?money(f.supCost):'0','fte-cost-local fte-mgr-usd-cell'),td('','fte-sep'),td(f.totalCost?money(f.totalCost):'0','fte-cost-local fte-total-cell'));[['0','samples-qty-cell'],['0','samples-usd-cell'],['','direct-cost-sep'],['0','ap-cell'],['','direct-cost-sep'],[money(gp),'profit-direct-cell'],[z.netSales?(gp/z.netSales*100).toFixed(2)+'%':'—','net-profit-pct-cell']].forEach(([t,c])=>tr.appendChild(td(t,c)));return tr}
+    function render(){const pages=Math.max(1,Math.ceil(filtered.length/PAGE));if(page>=pages)page=pages-1;const slice=filtered.slice(page*PAGE,(page+1)*PAGE),frag=document.createDocumentFragment();slice.forEach(r=>frag.appendChild(rowEl(r)));const T=calcTotals(filtered),tr=document.createElement('tr');tr.className='total-row';tr.appendChild(td('TOTAL','text sticky-1'));for(let i=2;i<=10;i++)tr.appendChild(td('',`sticky-${i}`));T.qm.forEach(v=>tr.appendChild(td(qty(v))));tr.appendChild(td(qty(T.tq)));T.sm.forEach(v=>tr.appendChild(td(money(v))));tr.appendChild(td(money(T.ts)));tr.append(td('—','bonus-total'),td(qty(T.bq),'bonus-total'));[T.commissionUsd,T.returnsUsd,T.discountUsd].forEach((v,i)=>{const pct=T.ts?Math.abs(v)/T.ts*100:0;tr.append(td(pct.toFixed(2)+'%','reduction-total'),td(money(v),'reduction-total'+(v<0?' negative':'')));if(i<2)tr.appendChild(td('','reduction-sep'))});tr.appendChild(td(money(T.netSales),'net-sales-total'));for(let i=0;i<14;i++)tr.appendChild(td(i===0?'—':'','cost-total-row'));tr.append(td('','gp-total'),td('','gp-pct-total'));tr.append(td(T.mr.toFixed(3),'fte-total-row'),td(money(T.mrCost),'fte-total-row'),td('','fte-sep'),td(T.sup.toFixed(3),'fte-total-row'),td(money(T.supCost),'fte-total-row'),td('','fte-sep'),td(money(T.totalFteCost),'fte-total-row'));for(let i=0;i<7;i++)tr.appendChild(td('',i===2||i===4?'direct-cost-sep':'fte-total-row'));tbody.replaceChildren(frag,tr);document.getElementById('imsEmpty').style.display=filtered.length?'none':'block';document.getElementById('imsRowBadge').textContent=`${filtered.length.toLocaleString()} Rows`;document.getElementById('imsSourceLine').textContent=meta?`${meta.fileName||'IMS Sales'} • ${filtered.length.toLocaleString()} rows • showing ${slice.length} rows`:'No IMS Sales file loaded yet.';navInfo.textContent=`Chunk ${page+1} / ${pages}`;prev.disabled=page<=0;next.disabled=page>=pages-1;if(wrap)wrap.scrollTop=0}
+    const badge=document.querySelector('.sheet-badges'),nav=document.createElement('div'),prev=document.createElement('button'),next=document.createElement('button'),navInfo=document.createElement('span');nav.className='ims-chunk-nav';prev.textContent='‹ Prev';next.textContent='Next ›';nav.append(prev,navInfo,next);badge?.prepend(nav);prev.addEventListener('click',()=>{if(page>0){page--;render()}});next.addEventListener('click',()=>{if((page+1)*PAGE<filtered.length){page++;render()}});const ids=[['filterRegion','region'],['filterCountry','country'],['filterAgent','agent'],['filterSector','sector']];ids.forEach(([id,key])=>{const el=document.getElementById(id);[...new Set(all.map(r=>r[key]).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b))).forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;el.appendChild(o)})});function apply(){const rv=document.getElementById('filterRegion').value,cv=document.getElementById('filterCountry').value,av=document.getElementById('filterAgent').value,sv=document.getElementById('filterSector').value,qv=document.getElementById('filterSearch').value.trim().toLowerCase();filtered=all.filter(r=>(!rv||r.region===rv)&&(!cv||r.country===cv)&&(!av||r.agent===av)&&(!sv||r.sector===sv)&&(!qv||String(r.brand).toLowerCase().includes(qv)||String(r.sku).toLowerCase().includes(qv)));page=0;render()}ids.forEach(([id])=>document.getElementById(id).addEventListener('change',apply));document.getElementById('filterSearch').addEventListener('input',apply);document.getElementById('clearFilters').addEventListener('click',()=>{ids.forEach(([id])=>document.getElementById(id).value='');document.getElementById('filterSearch').value='';filtered=all;page=0;render()});render();
   }
 
-  document.addEventListener('DOMContentLoaded',()=>{setupShell();setupAdminUpload();setupIMS()});
+  document.addEventListener('DOMContentLoaded',()=>{setupShell();setupAdminUpload();setupIMS();setTimeout(applyCachedAccess,0)});
+  window.addEventListener('dad-user-ready',()=>setTimeout(applyCachedAccess,0));
 })();
