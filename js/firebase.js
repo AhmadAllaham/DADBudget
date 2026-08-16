@@ -136,12 +136,15 @@ function applyUserAccess(profile) {
   }
 
   const logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn && !document.getElementById('currentUserBadge')) {
-    const badge = document.createElement('div');
-    badge.id = 'currentUserBadge';
-    badge.style.cssText = 'display:flex;flex-direction:column;align-items:flex-end;margin-left:auto;margin-right:8px;font-size:10px;line-height:1.35;color:#557076';
+  if (logoutBtn) {
+    let badge = document.getElementById('currentUserBadge');
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.id = 'currentUserBadge';
+      badge.style.cssText = 'display:flex;flex-direction:column;align-items:flex-end;margin-left:auto;margin-right:8px;font-size:10px;line-height:1.35;color:#557076';
+      logoutBtn.parentNode?.insertBefore(badge, logoutBtn);
+    }
     badge.innerHTML = `<b style="color:#163f46">${profile.email || ''}</b><span>${profile.role || ''}</span>`;
-    logoutBtn.parentNode?.insertBefore(badge, logoutBtn);
   }
 
   const currentPath = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
@@ -171,7 +174,9 @@ window.DADFirebase = {
   mainAdminUid: MAIN_ADMIN_UID,
   mainAdminEmail: MAIN_ADMIN_EMAIL,
   async signIn(email, password) {
-    const cred = await signInWithEmailAndPassword(auth, email, password);
+    try { await signOut(auth); } catch (_) {}
+    clearSessionCache();
+    const cred = await signInWithEmailAndPassword(auth, String(email || '').trim().toLowerCase(), password);
     await ensureMainAdminProfile(cred.user);
     const profile = await getProfile(cred.user.uid);
     if (!profile) {
