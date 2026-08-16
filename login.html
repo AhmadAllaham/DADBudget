@@ -54,13 +54,12 @@
         <button class="login-submit" id="loginSubmit" type="submit"><span>Sign In</span><span class="submit-arrow">→</span></button>
       </form>
       <div class="login-error" id="loginError"></div>
-      <div class="security-note"><div class="security-icon">✓</div><div><b>Authorized users only</b><span>Login is now validated by Firebase Authentication.</span></div></div>
+      <div class="security-note"><div class="security-icon">✓</div><div><b>Authorized users only</b><span>Login is validated by Firebase Authentication and the Firestore user profile.</span></div></div>
     </div><footer class="login-footer">© 2026 Budget 2027 &nbsp;•&nbsp; Planning &amp; Management Application</footer></div></section>
   </main>
 
-  <script src="js/main-admin-profile.js?v=20260816-uid-1"></script>
-  <script src="js/app.js?v=20260816-auth-2"></script>
-  <script type="module" src="js/firebase.js?v=20260816-auth-2"></script>
+  <script src="js/app.js?v=20260816-auth-session-3"></script>
+  <script type="module" src="js/firebase.js?v=20260816-auth-session-3"></script>
   <script>
     (function(){
       const form=document.getElementById('loginForm'),btn=document.getElementById('loginSubmit'),err=document.getElementById('loginError');
