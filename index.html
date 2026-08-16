@@ -34,7 +34,7 @@
     </aside>
 
     <main class="main-content">
-      <div class="status-banner">Budget workspace is ready.</div>
+      <div class="status-banner" id="firebaseStatus">Firebase: loading connection...</div>
 
       <section class="page-header card">
         <div>
@@ -71,6 +71,18 @@
       <section class="card roadmap-preview">
         <div class="section-head">
           <div>
+            <span class="eyebrow">FIREBASE</span>
+            <h2>Cloud Firestore Connection</h2>
+            <p style="margin:4px 0 0;color:#71878b;font-size:11px">Project: budget-8c575</p>
+          </div>
+          <button class="teal-btn" id="firebaseTestBtn" type="button">Test Firestore</button>
+        </div>
+        <div style="padding-top:8px;color:#71878b;font-size:11px">The test creates/updates <b>system_status / web_connection</b>. After it succeeds, we will connect the budget collections one by one.</div>
+      </section>
+
+      <section class="card roadmap-preview">
+        <div class="section-head">
+          <div>
             <span class="eyebrow">ROADMAP</span>
             <h2>Budget Process 2027</h2>
           </div>
@@ -88,6 +100,29 @@
     </main>
   </div>
 
-  <script src="js/app.js?v=20260816-navigation-fix1"></script>
+  <script src="js/app.js?v=20260816-firebase-1"></script>
+  <script type="module" src="js/firebase.js?v=20260816-1"></script>
+  <script>
+    (function(){
+      const status=document.getElementById('firebaseStatus'),btn=document.getElementById('firebaseTestBtn');
+      function ready(){status.textContent='Firebase SDK connected · Project budget-8c575';}
+      if(window.DADFirebase)ready();
+      window.addEventListener('dad-firebase-ready',ready);
+      btn.addEventListener('click',async()=>{
+        try{
+          btn.disabled=true;btn.textContent='Testing...';
+          if(!window.DADFirebase)throw new Error('Firebase SDK is still loading.');
+          const path=await window.DADFirebase.testConnection();
+          status.textContent='Firestore connected successfully · '+path;
+          status.style.background='#e9f9f3';status.style.color='#087a64';
+          btn.textContent='Connected ✓';
+        }catch(e){
+          status.textContent='Firestore test failed · '+e.message;
+          status.style.background='#fff0f0';status.style.color='#a63b3b';
+          btn.textContent='Test Firestore';btn.disabled=false;
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
