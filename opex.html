@@ -1,123 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>OPEX Planning - DAD Budget 2027</title>
 <link rel="stylesheet" href="css/style.css">
 <style>
-.opex-page{padding-top:30px}.sidebar-nav .nav-section{margin:15px 8px 5px;color:rgba(255,255,255,.46);font-size:8px;font-weight:900;letter-spacing:.15em}.opex-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:14px}.opex-head h1{margin:2px 0 5px;font-size:28px}.opex-head p{margin:0;color:var(--muted);font-size:12px}.dept-chip{padding:8px 12px;border-radius:999px;background:#eef9f7;border:1px solid #c4e5df;color:#0b756d;font-size:10px;font-weight:900}.kpi-strip{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:10px;margin-bottom:12px}.kpi-mini{padding:13px 14px}.kpi-mini span{display:block;color:#74898d;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}.kpi-mini strong{display:block;margin-top:5px;font-size:19px;color:#173f68}.kpi-mini small{display:block;margin-top:3px;color:#829295;font-size:9px}.opex-shell{overflow:hidden}.sheet-toolbar{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:14px 16px;border-bottom:1px solid #deecea}.sheet-toolbar h2{margin:0;font-size:17px}.sheet-toolbar p{margin:4px 0 0;color:#7d8e92;font-size:10px}.toolbar-actions{display:flex;gap:8px;align-items:center}.upload-data-btn{height:34px;border:1px solid #4ed4c8;background:linear-gradient(90deg,#0e8f86,#13a79b);color:#fff;border-radius:8px;padding:0 12px;font-size:10px;font-weight:900;cursor:pointer;box-shadow:0 0 12px rgba(21,189,174,.18)}.upload-data-btn:hover{box-shadow:0 0 9px rgba(38,255,235,.45),0 0 18px rgba(38,255,235,.20)}.upload-status{font-size:9px;font-weight:900;color:#72868a}.upload-status.ready{color:#087a64}.upload-status.error{color:#a63b3b}.ghost-btn{height:34px;border:1px solid #bfded9;background:#fff;color:#36585d;border-radius:8px;padding:0 11px;font-size:10px;font-weight:900}.table-wrap{overflow:auto;max-height:650px;background:#fff}.opex-table{border-collapse:separate;border-spacing:0;width:100%;min-width:1040px;font-size:11px;color:#20383e}.opex-table th,.opex-table td{border-right:1px solid #e5eeee;border-bottom:1px solid #e5eeee}.opex-table thead th{position:sticky;top:0;z-index:15;background:#0a2c61;color:#fff;padding:10px 9px;text-align:right;font-size:11px}.opex-table thead th:first-child,.opex-table td:first-child{text-align:left}.opex-table thead th:first-child{min-width:300px}.opex-table td{padding:8px 9px;text-align:right;background:#fff;font-variant-numeric:tabular-nums}.opex-table td:first-child{font-weight:700}.opex-table .group-row td{background:#fffed0!important;font-weight:1000;color:#22363b}.opex-table .group-row td:first-child{font-size:12px}.opex-table .detail-row td:first-child{padding-left:24px;font-weight:650}.opex-table .total-row td{position:sticky;bottom:0;z-index:12;background:#082765!important;color:#fff!important;font-weight:1000;border-top:2px solid #082765}.opex-table .fy-budget{background:#f2fbf9;font-weight:900;color:#0b7169}.opex-table .remaining{background:#f7fafb;font-weight:900}.opex-table .placeholder{color:#9ba9ac;font-style:italic}.negative{color:#b23b3b!important}.sheet-note{display:flex;justify-content:space-between;gap:12px;padding:10px 15px;background:#f7fbfa;border-top:1px solid #e3efed;color:#75898d;font-size:10px}.sheet-note b{color:#0c786f}.month-chip{display:inline-flex;padding:4px 8px;border-radius:999px;background:#fff3bf;color:#7b6200;font-size:9px;font-weight:900;margin-left:8px}@media(max-width:1100px){.kpi-strip{grid-template-columns:repeat(2,1fr)}}@media(max-width:700px){.opex-page{padding:16px 10px}.opex-head{flex-direction:column}.kpi-strip{grid-template-columns:1fr}.sheet-toolbar{align-items:flex-start;flex-direction:column}.toolbar-actions{flex-wrap:wrap}}
+.opex-page{padding-top:30px}.sidebar-nav .nav-section{margin:15px 8px 5px;color:rgba(255,255,255,.46);font-size:8px;font-weight:900;letter-spacing:.15em}.opex-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:14px}.opex-head h1{margin:2px 0 5px;font-size:28px}.opex-head p{margin:0;color:var(--muted);font-size:12px}.dept-chip{padding:8px 12px;border-radius:999px;background:#eef9f7;border:1px solid #c4e5df;color:#0b756d;font-size:10px;font-weight:900}.kpi-strip{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:10px;margin-bottom:12px}.kpi-mini{padding:13px 14px}.kpi-mini span{display:block;color:#74898d;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}.kpi-mini strong{display:block;margin-top:5px;font-size:19px;color:#173f68}.kpi-mini small{display:block;margin-top:3px;color:#829295;font-size:9px}.opex-shell{overflow:hidden}.sheet-toolbar{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:14px 16px;border-bottom:1px solid #deecea}.sheet-toolbar h2{margin:0;font-size:17px}.sheet-toolbar p{margin:4px 0 0;color:#7d8e92;font-size:10px}.toolbar-actions{display:flex;gap:8px;align-items:center}.upload-data-btn{height:34px;border:1px solid #4ed4c8;background:linear-gradient(90deg,#0e8f86,#13a79b);color:#fff;border-radius:8px;padding:0 12px;font-size:10px;font-weight:900;cursor:pointer;box-shadow:0 0 12px rgba(21,189,174,.18)}.upload-status{font-size:9px;font-weight:900;color:#72868a;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.upload-status.ready{color:#087a64}.upload-status.error{color:#a63b3b}.ghost-btn{height:34px;border:1px solid #bfded9;background:#fff;color:#36585d;border-radius:8px;padding:0 11px;font-size:10px;font-weight:900}.table-wrap{overflow:auto;max-height:650px;background:#fff}.opex-table{border-collapse:separate;border-spacing:0;width:100%;min-width:1080px;font-size:11px;color:#20383e}.opex-table th,.opex-table td{border-right:1px solid #e5eeee;border-bottom:1px solid #e5eeee}.opex-table thead th{position:sticky;top:0;z-index:15;background:#0a2c61;color:#fff;padding:10px 9px;text-align:right;font-size:11px}.opex-table thead th:first-child,.opex-table td:first-child{text-align:left}.opex-table thead th:first-child{min-width:330px}.opex-table td{padding:8px 9px;text-align:right;background:#fff;font-variant-numeric:tabular-nums}.opex-table .group-row td{background:#fffed0!important;font-weight:1000;color:#22363b}.opex-table .group-row td:first-child{font-size:12px}.opex-table .detail-row td:first-child{padding-left:26px;font-weight:650}.opex-table .detail-row:hover td{background:#f3fbfa}.opex-table .total-row td{position:sticky;bottom:0;z-index:12;background:#082765!important;color:#fff!important;font-weight:1000;border-top:2px solid #082765}.opex-table .fy-budget{background:#f2fbf9;font-weight:900;color:#0b7169}.opex-table .remaining{background:#f7fafb;font-weight:900}.placeholder{color:#9ba9ac;font-style:italic}.negative{color:#b23b3b!important}.sheet-note{display:flex;justify-content:space-between;gap:12px;padding:10px 15px;background:#f7fbfa;border-top:1px solid #e3efed;color:#75898d;font-size:10px}.sheet-note b{color:#0c786f}.month-chip{display:inline-flex;padding:4px 8px;border-radius:999px;background:#fff3bf;color:#7b6200;font-size:9px;font-weight:900;margin-left:8px}.empty-row td{text-align:center!important;padding:28px!important;color:#819397!important}@media(max-width:1100px){.kpi-strip{grid-template-columns:repeat(2,1fr)}}@media(max-width:700px){.opex-page{padding:16px 10px}.opex-head{flex-direction:column}.kpi-strip{grid-template-columns:1fr}.sheet-toolbar{align-items:flex-start;flex-direction:column}.toolbar-actions{flex-wrap:wrap}}
 </style>
 </head>
-<body>
-<div class="app-shell">
-<aside class="sidebar">
-<div class="sidebar-brand"><div class="brand-badge">B27</div><div><strong>BUDGET 2027</strong><span>PLANNING CENTER</span></div></div>
-<nav class="sidebar-nav">
-<div class="nav-section">PLANNING</div>
-<a href="index.html">Dashboard</a>
-<a href="ims-sales.html">IMS Sales</a>
-<a class="active" href="opex.html">OPEX Planning</a>
-<a href="#">CAPEX Planning</a>
-<a href="#">Projects</a>
-<a href="#">P&amp;L</a>
-<div class="nav-section">WORKFLOW</div>
-<a href="#">Roadmap</a><a href="#">Approval Center</a><a href="#">Assumptions</a>
-<div class="nav-section">ADMIN</div><a href="data-admin.html">Data Admin</a>
-</nav>
-</aside>
+<body><div class="app-shell">
+<aside class="sidebar"><div class="sidebar-brand"><div class="brand-badge">B27</div><div><strong>BUDGET 2027</strong><span>PLANNING CENTER</span></div></div><nav class="sidebar-nav"><div class="nav-section">PLANNING</div><a href="index.html">Dashboard</a><a href="ims-sales.html">IMS Sales</a><a class="active" href="opex.html">OPEX Planning</a><a href="#">CAPEX Planning</a><a href="#">Projects</a><a href="#">P&amp;L</a><div class="nav-section">WORKFLOW</div><a href="#">Roadmap</a><a href="#">Approval Center</a><a href="#">Assumptions</a><div class="nav-section">ADMIN</div><a href="data-admin.html">Data Admin</a></nav></aside>
 <main class="main-content opex-page">
-<div class="opex-head">
-<div><span class="eyebrow">DEPARTMENT BUDGET</span><h1>OPEX Planning <span class="month-chip">YTD June</span></h1><p>Department operating expenses baseline and Budget 2027 planning view.</p></div>
-<div class="dept-chip">1000200102 · Central Marketing Department</div>
-</div>
-
-<section class="kpi-strip">
-<article class="card kpi-mini"><span>LY YTD</span><strong id="kpiLy">—</strong><small>Data placeholder</small></article>
-<article class="card kpi-mini"><span>Budget YTD</span><strong id="kpiBudget">327,021</strong><small>Budget through June</small></article>
-<article class="card kpi-mini"><span>Actual YTD</span><strong id="kpiActual">307,769</strong><small>Actual through June</small></article>
-<article class="card kpi-mini"><span>FY Budget</span><strong id="kpiFy">—</strong><small>Budget 2027 input</small></article>
-<article class="card kpi-mini"><span>Remaining</span><strong id="kpiRemaining">—</strong><small>FY Budget − Actual YTD</small></article>
-</section>
-
-<section class="card opex-shell">
-<div class="sheet-toolbar"><div><h2>S&amp;M OPEX</h2><p>Central Marketing Department · Department summary and account detail</p></div><div class="toolbar-actions"><span class="upload-status" id="opexUploadStatus">No OPEX file uploaded</span><button class="upload-data-btn" type="button" id="opexUploadBtn">Upload OPEX Data</button><input type="file" id="opexUploadInput" accept=".xlsx,.xls" hidden><button class="ghost-btn" type="button">Download Template</button><button class="teal-btn" type="button">Submit Budget</button></div></div>
-<div class="table-wrap">
-<table class="opex-table" id="opexTable">
-<thead><tr><th>Group / Expense</th><th>LY YTD</th><th>Budget YTD</th><th>Actual YTD</th><th>FY Budget</th><th>Remaining</th></tr></thead>
-<tbody>
-<tr class="group-row" data-label="Employees Benefits"><td>Employees Benefits</td><td class="ly placeholder">—</td><td class="budget">236,835</td><td class="actual">238,768</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="group-row" data-label="Travel Costs"><td>Travel Costs</td><td class="ly placeholder">—</td><td class="budget">21,270</td><td class="actual">10,245</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="group-row" data-label="Depreciation and Amortization"><td>Depreciation and Amortization</td><td class="ly placeholder">—</td><td class="budget">811</td><td class="actual">1,095</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="group-row" data-label="Maintenance cost"><td>Maintenance cost</td><td class="ly placeholder">—</td><td class="budget">355</td><td class="actual">—</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="group-row" data-label="A&P, Marketing Activities"><td>A&amp;P, Marketing Activities</td><td class="ly placeholder">—</td><td class="budget">48,181</td><td class="actual">48,319</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="group-row" data-label="IT and Connectivity Expenses"><td>IT and Connectivity Expenses</td><td class="ly placeholder">—</td><td class="budget">—</td><td class="actual">201</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="group-row" data-label="Professional & Consultation Expenses"><td>Professional &amp; Consultation Expenses</td><td class="ly placeholder">—</td><td class="budget">—</td><td class="actual">—</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="group-row" data-label="Utilities Expenses"><td>Utilities Expenses</td><td class="ly placeholder">—</td><td class="budget">1,433</td><td class="actual">1,217</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="group-row" data-label="Insurance Expenses"><td>Insurance Expenses</td><td class="ly placeholder">—</td><td class="budget">—</td><td class="actual">9</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="group-row" data-label="Logistic Expenses"><td>Logistic Expenses</td><td class="ly placeholder">—</td><td class="budget">—</td><td class="actual">—</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="group-row" data-label="Governmental and Taxes Expenses"><td>Governmental and Taxes Expenses</td><td class="ly placeholder">—</td><td class="budget">—</td><td class="actual">—</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="group-row" data-label="Vehicles Expenses"><td>Vehicles Expenses</td><td class="ly placeholder">—</td><td class="budget">—</td><td class="actual">—</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="group-row" data-label="Products related Expense"><td>Products related Expense</td><td class="ly placeholder">—</td><td class="budget">—</td><td class="actual">—</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="group-row" data-label="Other Expenses"><td>Other Expenses</td><td class="ly placeholder">—</td><td class="budget">18,136</td><td class="actual">7,914</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="detail-row" data-label="Basic Salaries"><td>Basic Salaries</td><td class="ly placeholder">—</td><td class="budget">151,076</td><td class="actual">161,234</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="detail-row" data-label="13th, 14th Salaries"><td>13th, 14th Salaries</td><td class="ly placeholder">—</td><td class="budget">24,108</td><td class="actual">24,117</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="detail-row" data-label="Living Allowance"><td>Living Allowance</td><td class="ly placeholder">—</td><td class="budget">720</td><td class="actual">720</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="detail-row" data-label="Nursery Allowance"><td>Nursery Allowance</td><td class="ly placeholder">—</td><td class="budget">2,832</td><td class="actual">900</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="detail-row" data-label="Vacation Provision Expenses"><td>Vacation Provision Expenses</td><td class="ly placeholder">—</td><td class="budget">—</td><td class="actual">4,573</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="detail-row" data-label="Salaries Incentive"><td>Salaries Incentive</td><td class="ly placeholder">—</td><td class="budget">—</td><td class="actual">—</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="detail-row" data-label="Sales Force Commissions"><td>Sales Force Commissions</td><td class="ly placeholder">—</td><td class="budget">—</td><td class="actual">—</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="detail-row" data-label="Social Security Contributions"><td>Social Security Contributions</td><td class="ly placeholder">—</td><td class="budget">23,678</td><td class="actual">20,927</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="detail-row" data-label="Transportation Allowance"><td>Transportation Allowance</td><td class="ly placeholder">—</td><td class="budget">19,065</td><td class="actual">18,840</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="detail-row" data-label="Indemnity Provision Expenses"><td>Indemnity Provision Expenses</td><td class="ly placeholder">—</td><td class="budget">—</td><td class="actual">—</td><td class="fy-budget placeholder">—</td><td class="remaining placeholder">—</td></tr>
-<tr class="total-row"><td>Total OPEX</td><td id="totalLy">—</td><td id="totalBudget">327,021</td><td id="totalActual">307,769</td><td id="totalFy">—</td><td id="totalRemaining">—</td></tr>
-</tbody>
-</table>
-</div>
-<div class="sheet-note"><span><b>Upload OPEX Data:</b> reads Budget and Actual YTD sheets and updates matching expense rows automatically.</span><span><b>LY YTD:</b> reserved for your data later.</span></div>
-</section>
+<div class="opex-head"><div><span class="eyebrow">DEPARTMENT BUDGET</span><h1>OPEX Planning <span class="month-chip">YTD June</span></h1><p>All OPEX categories and every expense item for the department.</p></div><div class="dept-chip" id="deptChip">1000200102 · Central Marketing Department</div></div>
+<section class="kpi-strip"><article class="card kpi-mini"><span>LY YTD</span><strong id="kpiLy">—</strong><small>Reserved for later</small></article><article class="card kpi-mini"><span>Budget YTD</span><strong id="kpiBudget">—</strong><small>Budget through June</small></article><article class="card kpi-mini"><span>Actual YTD</span><strong id="kpiActual">—</strong><small>Actual through June</small></article><article class="card kpi-mini"><span>FY Budget</span><strong id="kpiFy">—</strong><small>Full-year budget</small></article><article class="card kpi-mini"><span>Remaining</span><strong id="kpiRemaining">—</strong><small>FY Budget − Actual YTD</small></article></section>
+<section class="card opex-shell"><div class="sheet-toolbar"><div><h2>S&amp;M OPEX</h2><p id="sheetSub">Central Marketing Department · Complete category and account detail</p></div><div class="toolbar-actions"><span class="upload-status" id="opexUploadStatus">No OPEX file uploaded</span><button class="upload-data-btn" type="button" id="opexUploadBtn">Upload OPEX Data</button><input type="file" id="opexUploadInput" accept=".xlsx,.xls" hidden><button class="ghost-btn" type="button">Download Template</button><button class="teal-btn" type="button">Submit Budget</button></div></div>
+<div class="table-wrap"><table class="opex-table" id="opexTable"><thead><tr><th>Category / Expense Item</th><th>LY YTD</th><th>Budget YTD</th><th>Actual YTD</th><th>FY Budget</th><th>Remaining</th></tr></thead><tbody id="opexBody"><tr class="empty-row"><td colspan="6">Upload the OPEX workbook to show all categories and items.</td></tr></tbody></table></div>
+<div class="sheet-note"><span><b>Complete view:</b> every expense account found for this department is shown under its category.</span><span><b>LY YTD:</b> kept ready for the data you will add later.</span></div></section>
 <button class="dark-btn" id="logoutBtn" style="margin-top:12px">Log out</button>
-</main>
-</div>
+</main></div>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="js/app.js?v=20260816-opex-upload-1"></script>
+<script src="js/app.js?v=20260816-opex-all-items-1"></script>
 <script>
 (function(){
-const KEY='dadBudgetOPEXBaseline';
-const btn=document.getElementById('opexUploadBtn'),input=document.getElementById('opexUploadInput'),status=document.getElementById('opexUploadStatus');
+const KEY='dadBudgetOPEXBaselineV2',TARGET_CC='1000200102',YTD_PERIOD=6;
+const CATEGORIES=['Employees Benefits','Travel Costs','Depreciation and Amortization','Maintenance cost','A&P, Marketing Activities','IT and Connectivity Expenses','Professional & Consultation Expenses','Utilities Expenses','Insurance Expenses','Logistic Expenses','Governmental and Taxes Expenses','Vehicles Expenses','Products related Expense','Other Expenses'];
+const btn=document.getElementById('opexUploadBtn'),input=document.getElementById('opexUploadInput'),status=document.getElementById('opexUploadStatus'),body=document.getElementById('opexBody');
 const norm=v=>String(v??'').trim().toUpperCase().replace(/&/g,'AND').replace(/[^A-Z0-9]/g,'');
-const num=v=>{if(typeof v==='number'&&Number.isFinite(v))return v;const x=Number(String(v??'').replace(/,/g,'').replace(/\(([^)]+)\)/,'-$1').trim());return Number.isFinite(x)?x:0};
-const fmt=v=>Number(v||0).toLocaleString(undefined,{maximumFractionDigits:0});
+const num=v=>{if(typeof v==='number'&&Number.isFinite(v))return v;let s=String(v??'').replace(/,/g,'').trim();if(/^\(.*\)$/.test(s))s='-'+s.slice(1,-1);const x=Number(s);return Number.isFinite(x)?x:0};
+const fmt=v=>Math.abs(Number(v||0))<.005?'—':Number(v||0).toLocaleString(undefined,{maximumFractionDigits:0});
+const cell=(v,cls='')=>`<td class="${cls}${Number(v)<0?' negative':''}">${v===null||v===undefined?'—':fmt(v)}</td>`;
 function findSheet(wb,terms){return wb.SheetNames.find(n=>terms.some(t=>norm(n).includes(norm(t))))||''}
-function mapSheet(ws){
- const mx=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true}),out={};
- mx.forEach(r=>{
-   let label='';
-   for(const c of r){if(typeof c==='string'&&c.trim()&&!/^[-+]?\d[\d,.]*$/.test(c.trim())){label=c.trim();break}}
-   if(!label)return;
-   let value=null;
-   for(let i=r.length-1;i>=0;i--){const c=r[i];if((typeof c==='number'&&Number.isFinite(c))||(typeof c==='string'&&c.trim()&&/^[-+]?\(?[\d,.]+\)?$/.test(c.trim()))){value=num(c);break}}
-   if(value===null)return;
-   out[norm(label)]=(out[norm(label)]||0)+value;
- });
- return out;
-}
-function applyMap(budgetMap,actualMap){
- let budgetTotal=0,actualTotal=0;
- document.querySelectorAll('#opexTable tbody tr[data-label]').forEach(tr=>{
-   const key=norm(tr.dataset.label),b=Object.prototype.hasOwnProperty.call(budgetMap,key)?budgetMap[key]:null,a=Object.prototype.hasOwnProperty.call(actualMap,key)?actualMap[key]:null;
-   const bc=tr.querySelector('.budget'),ac=tr.querySelector('.actual');
-   if(bc&&b!==null){bc.textContent=fmt(b);bc.classList.remove('placeholder')}
-   if(ac&&a!==null){ac.textContent=fmt(a);ac.classList.remove('placeholder')}
-   if(tr.classList.contains('group-row')){if(b!==null)budgetTotal+=b;if(a!==null)actualTotal+=a}
- });
- document.getElementById('totalBudget').textContent=fmt(budgetTotal);document.getElementById('totalActual').textContent=fmt(actualTotal);document.getElementById('kpiBudget').textContent=fmt(budgetTotal);document.getElementById('kpiActual').textContent=fmt(actualTotal);
-}
-function restore(){try{const x=JSON.parse(localStorage.getItem(KEY)||'null');if(!x)return;applyMap(x.budget||{},x.actual||{});status.textContent=x.fileName+' loaded';status.classList.add('ready')}catch(e){}}
-btn.addEventListener('click',()=>input.click());
-input.addEventListener('change',async()=>{const file=input.files?.[0];if(!file)return;try{status.textContent='Reading...';status.classList.remove('ready','error');const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});const bName=findSheet(wb,['Budget']),aName=findSheet(wb,['Actual YTD','Actual']);if(!bName&&!aName)throw new Error('Budget / Actual YTD sheets were not found');const budget=bName?mapSheet(wb.Sheets[bName]):{},actual=aName?mapSheet(wb.Sheets[aName]):{};localStorage.setItem(KEY,JSON.stringify({fileName:file.name,uploadedAt:new Date().toISOString(),budgetSheet:bName,actualSheet:aName,budget,actual}));applyMap(budget,actual);status.textContent=file.name+' loaded';status.classList.add('ready')}catch(err){status.textContent='Upload error';status.classList.add('error');alert('OPEX upload error: '+err.message)}finally{input.value=''}});
-restore();
+function headerIndex(row,names){const h=(row||[]).map(norm);for(const name of names){const i=h.indexOf(norm(name));if(i>=0)return i}return-1}
+function categoryFor(name){const s=norm(name);
+ if(/SALAR|WAGE|ALLOWANCE|BONUS|INCENTIVE|SOCIALSECURITY|MEDICAL|INSURANCEEMPLOYEE|INDEMNITY|OVERTIME|NURSERY|VACATION|EMPLOYEE|STAFF|DAILYWORKER/.test(s))return'Employees Benefits';
+ if(/TRAVEL|TICKET|HOTEL|PERDIEM|TRANSPORTATION/.test(s))return'Travel Costs';
+ if(/DEPRECI|AMORTI/.test(s))return'Depreciation and Amortization';
+ if(/MAINTENANCE|REPAIR|CALIBRATION|SPAREPART|TOOLSMAINT/.test(s))return'Maintenance cost';
+ if(/ADVERT|MARKETING|PROMOTION|AANDP|SAMPLE|CONFERENCE|EVENT|BOOTH|SPONSOR|GIVEAWAY|PRINTINGPROMO/.test(s))return'A&P, Marketing Activities';
+ if(/TELEPHONE|MOBILE|INTERNET|CONNECT|SOFTWARE|LICENSE|SUBSCRIPTION|IT|COMPUTER/.test(s))return'IT and Connectivity Expenses';
+ if(/CONSULT|PROFESSIONAL|TRAINING|LEGAL|AUDIT|ADVISORY|FEE/.test(s))return'Professional & Consultation Expenses';
+ if(/ELECTRIC|WATER|UTILITY|GAS|FUELFORGENERATOR/.test(s))return'Utilities Expenses';
+ if(/INSURANCE/.test(s))return'Insurance Expenses';
+ if(/FREIGHT|COURIER|SHIPPING|LOGISTIC|CUSTOM|CLEARANCE|WAREHOUSE|DELIVERY/.test(s))return'Logistic Expenses';
+ if(/TAX|GOVERN|LICENSEFEE|REGISTRATION|STAMP|MUNICIPAL/.test(s))return'Governmental and Taxes Expenses';
+ if(/VEHICLE|CAR|FUEL|PETROL|GARAGE|AUTOMOBILE/.test(s))return'Vehicles Expenses';
+ if(/PRODUCT|REGISTRATIONPRODUCT|STABILITY|BIOEQUIV|DOSSIER/.test(s))return'Products related Expense';
+ return'Other Expenses'}
+function parseBudget(ws){const mx=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true});let hi=mx.findIndex(r=>headerIndex(r,['Fund Center'])>=0&&headerIndex(r,['Commitment Item'])>=0&&headerIndex(r,['Budget Value'])>=0);if(hi<0)throw new Error('Budget headers were not found');const h=mx[hi],ccI=headerIndex(h,['Fund Center']),acctI=headerIndex(h,['Commitment Item']),valI=headerIndex(h,['Budget Value']),nameI=headerIndex(h,['Acc','Account Description']),periodI=headerIndex(h,['Period']),deptI=headerIndex(h,['SAP CC']);const out={};let dept='';for(let i=hi+1;i<mx.length;i++){const r=mx[i]||[];if(norm(r[ccI])!==norm(TARGET_CC))continue;const code=String(r[acctI]??'').trim(),name=String(r[nameI]??code).trim()||code;if(!code&&!name)continue;if(!dept&&deptI>=0)dept=String(r[deptI]??'').trim();const key=norm(code)||norm(name);if(!out[key])out[key]={code,name,budgetYTD:0,fyBudget:0,actualYTD:0};const v=num(r[valI]),p=Number(r[periodI]);out[key].fyBudget+=v;if(Number.isFinite(p)&&p<=YTD_PERIOD)out[key].budgetYTD+=v}return{items:out,dept}}
+function parseActual(ws,items){const mx=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true});let hi=mx.findIndex(r=>headerIndex(r,['Cost Center'])>=0&&headerIndex(r,['Amount in Local Currency'])>=0);if(hi<0)return{items,dept:''};const h=mx[hi],ccI=headerIndex(h,['Cost Center']),acctI=headerIndex(h,['Account']),valI=headerIndex(h,['Amount in Local Currency']),nameI=headerIndex(h,['SAP TB Descreption','SAP TB Description','Description']),deptI=headerIndex(h,['SAP CC']);let dept='';for(let i=hi+1;i<mx.length;i++){const r=mx[i]||[];if(norm(r[ccI])!==norm(TARGET_CC))continue;const code=String(r[acctI]??'').trim(),name=String(r[nameI]??code).trim()||code,key=norm(code)||norm(name);if(!dept&&deptI>=0)dept=String(r[deptI]??'').trim();if(!items[key])items[key]={code,name,budgetYTD:0,fyBudget:0,actualYTD:0};if(name)items[key].name=name;items[key].actualYTD+=num(r[valI])}return{items,dept}}
+function totals(items){return Object.values(items).reduce((a,x)=>{a.b+=x.budgetYTD;a.a+=x.actualYTD;a.f+=x.fyBudget;return a},{b:0,a:0,f:0})}
+function render(model){const groups={};CATEGORIES.forEach(c=>groups[c]=[]);Object.values(model.items||{}).forEach(x=>groups[categoryFor(x.name)].push(x));let html='';CATEGORIES.forEach(cat=>{const arr=groups[cat].sort((a,b)=>String(a.name).localeCompare(String(b.name)));const g=arr.reduce((s,x)=>({b:s.b+x.budgetYTD,a:s.a+x.actualYTD,f:s.f+x.fyBudget}),{b:0,a:0,f:0}),rem=g.f-g.a;html+=`<tr class="group-row"><td>${cat}</td><td class="placeholder">—</td>${cell(g.b)}${cell(g.a)}${cell(g.f,'fy-budget')}${cell(rem,'remaining')}</tr>`;arr.forEach(x=>{const rem=x.fyBudget-x.actualYTD;html+=`<tr class="detail-row"><td>${x.name}${x.code?` <span style="color:#9aa8ab;font-size:9px">(${x.code})</span>`:''}</td><td class="placeholder">—</td>${cell(x.budgetYTD)}${cell(x.actualYTD)}${cell(x.fyBudget,'fy-budget')}${cell(rem,'remaining')}</tr>`})});const t=totals(model.items||{}),remaining=t.f-t.a;html+=`<tr class="total-row"><td>Total OPEX</td><td>—</td>${cell(t.b)}${cell(t.a)}${cell(t.f)}${cell(remaining)}</tr>`;body.innerHTML=html;document.getElementById('kpiBudget').textContent=fmt(t.b);document.getElementById('kpiActual').textContent=fmt(t.a);document.getElementById('kpiFy').textContent=fmt(t.f);document.getElementById('kpiRemaining').textContent=fmt(remaining);const dept=model.dept||'Central Marketing Department';document.getElementById('deptChip').textContent=`${TARGET_CC} · ${dept}`;document.getElementById('sheetSub').textContent=`${dept} · Complete category and account detail`}
+function restore(){try{const x=JSON.parse(localStorage.getItem(KEY)||'null');if(!x)return;render(x);status.textContent=x.fileName+' loaded';status.classList.add('ready')}catch(e){}}
+btn.addEventListener('click',()=>input.click());input.addEventListener('change',async()=>{const file=input.files?.[0];if(!file)return;try{status.textContent='Reading...';status.classList.remove('ready','error');const wb=XLSX.read(await file.arrayBuffer(),{type:'array'}),bName=findSheet(wb,['Budget']),aName=findSheet(wb,['Actual YTD','Actual']);if(!bName)throw new Error('Budget sheet was not found');const b=parseBudget(wb.Sheets[bName]),a=aName?parseActual(wb.Sheets[aName],b.items):{items:b.items,dept:''},model={fileName:file.name,uploadedAt:new Date().toISOString(),budgetSheet:bName,actualSheet:aName,dept:a.dept||b.dept,items:a.items};localStorage.setItem(KEY,JSON.stringify(model));render(model);status.textContent=file.name+' loaded';status.classList.add('ready')}catch(err){status.textContent='Upload error';status.classList.add('error');alert('OPEX upload error: '+err.message)}finally{input.value=''}});restore();
 })();
 </script>
-</body>
-</html>
+</body></html>
