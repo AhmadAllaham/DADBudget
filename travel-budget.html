@@ -10,7 +10,7 @@
 </style>
 </head>
 <body><div class="app-shell">
-<aside class="sidebar"><div class="sidebar-brand"><div class="brand-badge">B27</div><div><strong>BUDGET 2027</strong><span>PLANNING CENTER</span></div></div><nav class="sidebar-nav"><div class="nav-section">PLANNING</div><a href="index.html">Dashboard</a><a href="ims-sales.html">IMS Sales</a><a href="opex.html">OPEX Planning</a><div class="opex-subnav"><a href="opex-summary.html">Summary</a><a href="hr-budget.html">HR</a><a href="ap-budget.html">A&amp;P</a><a class="active" href="travel-budget.html">Travel</a></div><a href="#">CAPEX Planning</a><a href="#">Projects</a><a href="#">P&amp;L</a><div class="nav-section">WORKFLOW</div><a href="#">Roadmap</a><a href="#">Approval Center</a><a href="#">Assumptions</a><div class="nav-section">ADMIN</div><a href="data-admin.html">Data Admin</a></nav></aside>
+<aside class="sidebar"><div class="sidebar-brand"><div class="brand-badge">B27</div><div><strong>BUDGET 2027</strong><span>PLANNING CENTER</span></div></div><nav class="sidebar-nav"><div class="nav-section">PLANNING</div><a href="index.html">Dashboard</a><a href="ims-sales.html">IMS Sales</a><a href="opex.html">OPEX Planning</a><div class="opex-subnav"><a href="opex-summary.html">Summary</a><a href="hr-budget.html">HR</a><a href="ap-budget.html">A&amp;P</a><a class="active" href="travel-budget.html">Travel</a></div><a href="capex.html">CAPEX Planning</a><a href="#">Projects</a><a href="#">P&amp;L</a><div class="nav-section">WORKFLOW</div><a href="#">Roadmap</a><a href="#">Approval Center</a><a href="#">Assumptions</a><div class="nav-section">ADMIN</div><a href="data-admin.html">Data Admin</a></nav></aside>
 <main class="main-content module-page">
 <div class="page-head"><span class="eyebrow">OPEX SUB-MODULE</span><h1>Travel Budget</h1><p>Travel values coming from the Travel Budget sheets uploaded by departments.</p></div>
 <section class="filter-bar"><article class="card filter-card"><label>Department</label><select id="deptFilter"><option value="">All Departments</option></select></article><article class="card filter-card"><label>Month</label><select id="monthFilter"><option value="">All Months</option></select></article><article class="card filter-card"><label>Travel Type</label><select id="typeFilter"><option value="">All Travel Types</option></select></article><article class="card filter-card"><label>Search</label><input id="searchBox" placeholder="Department or Fund Center"></article></section>
@@ -18,7 +18,7 @@
 <section class="card table-card"><div class="table-head"><h2>Travel Budget by Department / Month / G/L</h2><p>Only Travel accounts 6020001–6020010 are shown.</p></div><div class="table-wrap"><table class="travel-table"><thead><tr><th>Department</th><th>Fund Center</th><th>Month</th><th>G/L Account</th><th>Travel Type</th><th>Budget 2027</th></tr></thead><tbody id="travelBody"><tr><td colspan="6" class="empty">No uploaded Travel data yet.</td></tr></tbody></table></div><div class="note">Data is sourced from the Travel Budget sheets that were uploaded through the department OPEX workbook and mapped into Travel G/L accounts.</div></section>
 <button class="dark-btn" id="logoutBtn" style="margin-top:12px">Log out</button>
 </main></div>
-<script src="js/app.js?v=20260816-travel-data-2"></script>
+<script src="js/app.js?v=20260816-navigation-fix1"></script>
 <script>
 (function(){
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
