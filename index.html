@@ -9,93 +9,27 @@
 <body>
   <div class="app-shell">
     <aside class="sidebar">
-      <div class="sidebar-brand">
-        <div class="brand-badge">B27</div>
-        <div><strong>BUDGET 2027</strong><span>REPORT CENTER</span></div>
-      </div>
-
+      <div class="sidebar-brand"><div class="brand-badge">B27</div><div><strong>BUDGET 2027</strong><span>REPORT CENTER</span></div></div>
       <nav class="sidebar-nav">
-        <a class="active" href="index.html">Dashboard</a>
-        <a href="#">Roadmap</a>
-        <a href="opex.html">OPEX Planning</a>
-        <a href="capex.html">CAPEX Planning</a>
-        <a href="#">Projects</a>
-        <a href="ims-sales.html">IMS Sales</a>
-        <a href="#">P&amp;L</a>
-        <a href="#">Approval Center</a>
-        <a href="#">Assumptions</a>
-        <a href="#">Scenarios</a>
-        <div style="margin:15px 8px 5px;color:rgba(255,255,255,.46);font-size:8px;font-weight:900;letter-spacing:.15em">ADMIN</div>
-        <a href="data-admin.html">Data Admin</a>
-        <a href="user-settings.html">User Settings</a>
+        <a class="active" href="index.html">Dashboard</a><a href="#">Roadmap</a><a href="opex.html">OPEX Planning</a><a href="capex.html">CAPEX Planning</a><a href="#">Projects</a><a href="ims-sales.html">IMS Sales</a><a href="#">P&amp;L</a><a href="#">Approval Center</a><a href="#">Assumptions</a><a href="#">Scenarios</a>
+        <div style="margin:15px 8px 5px;color:rgba(255,255,255,.46);font-size:8px;font-weight:900;letter-spacing:.15em">ADMIN</div><a href="data-admin.html">Data Admin</a><a href="user-settings.html">User Settings</a>
       </nav>
     </aside>
-
     <main class="main-content">
       <div class="status-banner" id="firebaseStatus">Firebase: loading authenticated session...</div>
-
-      <section class="page-header card">
-        <div>
-          <span class="eyebrow">BUDGET 2027</span>
-          <h1>Budget Planning Command Center</h1>
-          <p>OPEX, CAPEX, Projects, Sales, P&amp;L and approvals in one workspace.</p>
-        </div>
-        <button class="dark-btn" id="logoutBtn">Log out</button>
-      </section>
-
-      <section class="kpi-grid">
-        <article class="card kpi-card"><span>Total OPEX</span><strong>—</strong><small>Waiting for submissions</small></article>
-        <article class="card kpi-card"><span>Total CAPEX</span><strong>—</strong><small>Waiting for submissions</small></article>
-        <article class="card kpi-card"><span>Budget Progress</span><strong>0%</strong><small>Planning cycle not started</small></article>
-        <article class="card kpi-card"><span>Next Deadline</span><strong>—</strong><small>Roadmap will define deadlines</small></article>
-      </section>
-
-      <section class="card roadmap-preview">
-        <div class="section-head">
-          <div><span class="eyebrow">FIREBASE</span><h2>Cloud Firestore Connection</h2><p style="margin:4px 0 0;color:#71878b;font-size:11px">Project: budget-8c575</p></div>
-          <button class="teal-btn" id="firebaseTestBtn" type="button">Test Firestore</button>
-        </div>
-        <div style="padding-top:8px;color:#71878b;font-size:11px">Authenticated user access is loaded from <b>users / UID</b>.</div>
-      </section>
-
-      <section class="card roadmap-preview">
-        <div class="section-head"><div><span class="eyebrow">ROADMAP</span><h2>Budget Process 2027</h2></div><button class="teal-btn">Open Roadmap</button></div>
-        <div class="roadmap-line">
-          <div><span class="dot"></span><b>Kick-Off</b><small>Start</small></div>
-          <div><span class="dot"></span><b>Templates</b><small>Release</small></div>
-          <div><span class="dot"></span><b>Submissions</b><small>Departments</small></div>
-          <div><span class="dot"></span><b>Finance Review</b><small>Validation</small></div>
-          <div><span class="dot"></span><b>Management</b><small>Approval</small></div>
-          <div><span class="dot"></span><b>Final Budget</b><small>Freeze</small></div>
-        </div>
-      </section>
+      <section class="page-header card"><div><span class="eyebrow">BUDGET 2027</span><h1>Budget Planning Command Center</h1><p>OPEX, CAPEX, Projects, Sales, P&amp;L and approvals in one workspace.</p></div><button class="dark-btn" id="logoutBtn">Log out</button></section>
+      <section class="kpi-grid"><article class="card kpi-card"><span>Total OPEX</span><strong>—</strong><small>Waiting for submissions</small></article><article class="card kpi-card"><span>Total CAPEX</span><strong>—</strong><small>Waiting for submissions</small></article><article class="card kpi-card"><span>Budget Progress</span><strong>0%</strong><small>Planning cycle not started</small></article><article class="card kpi-card"><span>Next Deadline</span><strong>—</strong><small>Roadmap will define deadlines</small></article></section>
+      <section class="card roadmap-preview"><div class="section-head"><div><span class="eyebrow">CURRENT USER</span><h2 id="currentUserTitle">Loading user...</h2><p id="currentUserDepartments" style="margin:4px 0 0;color:#71878b;font-size:11px"></p></div><button class="teal-btn" id="firebaseTestBtn" type="button">Test Firestore</button></div><div style="padding-top:8px;color:#71878b;font-size:11px">Access is loaded from <b>users / UID</b> in Firestore.</div></section>
+      <section class="card roadmap-preview"><div class="section-head"><div><span class="eyebrow">ROADMAP</span><h2>Budget Process 2027</h2></div><button class="teal-btn">Open Roadmap</button></div><div class="roadmap-line"><div><span class="dot"></span><b>Kick-Off</b><small>Start</small></div><div><span class="dot"></span><b>Templates</b><small>Release</small></div><div><span class="dot"></span><b>Submissions</b><small>Departments</small></div><div><span class="dot"></span><b>Finance Review</b><small>Validation</small></div><div><span class="dot"></span><b>Management</b><small>Approval</small></div><div><span class="dot"></span><b>Final Budget</b><small>Freeze</small></div></div></section>
     </main>
   </div>
-
-  <script src="js/app.js?v=20260816-auth-session-3"></script>
-  <script type="module" src="js/firebase.js?v=20260816-auth-session-3"></script>
+  <script src="js/app.js?v=20260816-user-switch-5"></script>
+  <script type="module" src="js/firebase.js?v=20260816-user-switch-5"></script>
   <script>
     (function(){
-      const status=document.getElementById('firebaseStatus'),btn=document.getElementById('firebaseTestBtn');
-      window.addEventListener('dad-user-ready',e=>{
-        const p=e.detail?.profile||{};
-        status.textContent=`Signed in: ${p.email||''} · ${p.role||''}`;
-        status.style.background='#e9f9f3';status.style.color='#087a64';
-      });
-      btn.addEventListener('click',async()=>{
-        try{
-          btn.disabled=true;btn.textContent='Testing...';
-          if(!window.DADFirebase)throw new Error('Firebase SDK is still loading.');
-          const path=await window.DADFirebase.testConnection();
-          status.textContent='Firestore connected successfully · '+path;
-          status.style.background='#e9f9f3';status.style.color='#087a64';
-          btn.textContent='Connected ✓';
-        }catch(e){
-          status.textContent='Firestore test failed · '+e.message;
-          status.style.background='#fff0f0';status.style.color='#a63b3b';
-          btn.textContent='Test Firestore';btn.disabled=false;
-        }
-      });
+      const status=document.getElementById('firebaseStatus'),btn=document.getElementById('firebaseTestBtn'),title=document.getElementById('currentUserTitle'),deps=document.getElementById('currentUserDepartments');
+      window.addEventListener('dad-user-ready',e=>{const p=e.detail?.profile||{};status.textContent=`Signed in: ${p.email||''} · ${p.role||''}`;status.style.background='#e9f9f3';status.style.color='#087a64';title.textContent=p.email||'Authenticated user';const ds=Array.isArray(p.departmentLabels)&&p.departmentLabels.length?p.departmentLabels:(p.departmentLabel?[p.departmentLabel]:[]);deps.textContent=`Role: ${p.role||'—'} · Departments: ${ds.join(' | ')||'Not Restricted'}`;});
+      btn.addEventListener('click',async()=>{try{btn.disabled=true;btn.textContent='Testing...';if(!window.DADFirebase)throw new Error('Firebase SDK is still loading.');const path=await window.DADFirebase.testConnection();status.textContent='Firestore connected successfully · '+path;status.style.background='#e9f9f3';status.style.color='#087a64';btn.textContent='Connected ✓'}catch(e){status.textContent='Firestore test failed · '+e.message;status.style.background='#fff0f0';status.style.color='#a63b3b';btn.textContent='Test Firestore';btn.disabled=false}});
     })();
   </script>
 </body>
