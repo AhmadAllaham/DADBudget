@@ -18,6 +18,8 @@
     .login-brand-copy{margin-top:36px!important;animation:brandTextReveal .85s ease-out both .5s}
     .login-feature-grid{animation:brandTextReveal .9s ease-out both .72s}
     .login-brand-footer{animation:brandTextReveal .9s ease-out both .9s}
+    .login-error{display:none;margin-top:12px;padding:10px 12px;border:1px solid #efc1c1;border-radius:8px;background:#fff0f0;color:#a63b3b;font-size:10px;font-weight:850}
+    .login-error.show{display:block}
     @keyframes brandReveal{0%{opacity:0;transform:translateY(18px) scale(.965);filter:blur(7px)}100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
     @keyframes brandTextReveal{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}
     @keyframes logoFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
@@ -44,86 +46,63 @@
       <div class="login-brand-copy">
         <div class="login-kicker">FINANCIAL PLANNING PLATFORM</div>
         <h1>Plan. Align.<br />Achieve.</h1>
-        <p>
-          Collaborate across departments and markets to build a smarter,
-          controlled and fully visible budget for 2027.
-        </p>
+        <p>Collaborate across departments and markets to build a smarter, controlled and fully visible budget for 2027.</p>
       </div>
 
       <div class="login-feature-grid">
-        <div class="login-feature">
-          <div class="feature-icon">CP</div>
-          <div><b>Collaborative Planning</b><span>Departments and markets work in one controlled process.</span></div>
-        </div>
-        <div class="login-feature">
-          <div class="feature-icon">FV</div>
-          <div><b>Full Visibility</b><span>Actual, Budget, Estimated and Budget 2027 in one view.</span></div>
-        </div>
-        <div class="login-feature">
-          <div class="feature-icon">SR</div>
-          <div><b>Secure &amp; Reliable</b><span>Access control, audit trail and approvals will be connected later.</span></div>
-        </div>
-        <div class="login-feature">
-          <div class="feature-icon">SD</div>
-          <div><b>Smarter Decisions</b><span>Live comparisons, scenarios and management insight.</span></div>
-        </div>
+        <div class="login-feature"><div class="feature-icon">CP</div><div><b>Collaborative Planning</b><span>Departments and markets work in one controlled process.</span></div></div>
+        <div class="login-feature"><div class="feature-icon">FV</div><div><b>Full Visibility</b><span>Actual, Budget, Estimated and Budget 2027 in one view.</span></div></div>
+        <div class="login-feature"><div class="feature-icon">SR</div><div><b>Secure &amp; Reliable</b><span>Firebase Authentication and Firestore access control.</span></div></div>
+        <div class="login-feature"><div class="feature-icon">SD</div><div><b>Smarter Decisions</b><span>Live comparisons, scenarios and management insight.</span></div></div>
       </div>
 
-      <div class="login-brand-footer">
-        <span class="secure-dot"></span>
-        <span>Secure Access</span>
-        <i></i>
-        <span>Built for Finance Planning</span>
-      </div>
+      <div class="login-brand-footer"><span class="secure-dot"></span><span>Secure Access</span><i></i><span>Built for Finance Planning</span></div>
     </section>
 
     <section class="login-form-panel">
       <div class="login-form-wrap">
         <div class="login-lang">◎&nbsp;&nbsp;English⌄</div>
-
         <div class="login-card">
           <span class="eyebrow">WELCOME BACK</span>
           <h2>Sign in to your account</h2>
-          <p>Enter your credentials to access Budget 2027.</p>
-
+          <p>Enter your Firebase credentials to access Budget 2027.</p>
           <form id="loginForm">
             <label for="email">Email address</label>
-            <div class="login-input-wrap">
-              <span class="input-icon">@</span>
-              <input id="email" type="email" placeholder="Enter your email" required />
-            </div>
-
+            <div class="login-input-wrap"><span class="input-icon">@</span><input id="email" type="email" placeholder="Enter your email" required /></div>
             <label for="password">Password</label>
-            <div class="login-input-wrap">
-              <span class="input-icon">•</span>
-              <input id="password" type="password" placeholder="Enter your password" required />
-            </div>
-
-            <div class="login-options">
-              <label class="remember"><input type="checkbox" /> Remember me</label>
-              <a href="#" onclick="return false;">Forgot password?</a>
-            </div>
-
-            <button class="login-submit" type="submit">
-              <span>Sign In</span>
-              <span class="submit-arrow">→</span>
-            </button>
+            <div class="login-input-wrap"><span class="input-icon">•</span><input id="password" type="password" placeholder="Enter your password" required /></div>
+            <div class="login-options"><label class="remember"><input type="checkbox" /> Remember me</label><a href="#" onclick="return false;">Forgot password?</a></div>
+            <button class="login-submit" id="loginSubmit" type="submit"><span>Sign In</span><span class="submit-arrow">→</span></button>
           </form>
-
-          <div class="security-note">
-            <div class="security-icon">✓</div>
-            <div>
-              <b>Authorized users only</b>
-              <span>Access and user permissions will be activated when Firebase is connected.</span>
-            </div>
-          </div>
+          <div class="login-error" id="loginError"></div>
+          <div class="security-note"><div class="security-icon">✓</div><div><b>Authorized users only</b><span>Login is now validated by Firebase Authentication.</span></div></div>
         </div>
-
         <footer class="login-footer">© 2026 Budget 2027 &nbsp;•&nbsp; Planning &amp; Management Application</footer>
       </div>
     </section>
   </main>
 
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=20260816-auth-1"></script>
+  <script type="module" src="js/firebase.js?v=20260816-auth-1"></script>
+  <script>
+    (function(){
+      const form=document.getElementById('loginForm'),btn=document.getElementById('loginSubmit'),err=document.getElementById('loginError');
+      function message(text){err.textContent=text;err.classList.toggle('show',!!text)}
+      form.addEventListener('submit',async e=>{
+        e.preventDefault();e.stopImmediatePropagation();message('');
+        try{
+          btn.disabled=true;btn.querySelector('span').textContent='Signing in...';
+          if(!window.DADFirebase)throw new Error('Firebase is still loading. Please try again.');
+          const user=await window.DADFirebase.signIn(document.getElementById('email').value.trim(),document.getElementById('password').value);
+          localStorage.setItem('dadBudgetCurrentUid',user.uid);
+          localStorage.setItem('dadBudgetCurrentEmail',(user.email||'').toLowerCase());
+          location.href='index.html';
+        }catch(x){
+          message(x.code==='auth/invalid-credential'?'Invalid email or password.':(x.message||'Sign in failed.'));
+          btn.disabled=false;btn.querySelector('span').textContent='Sign In';
+        }
+      },true);
+    })();
+  </script>
 </body>
 </html>
