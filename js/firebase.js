@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
+import { getFirestore, doc, getDoc, getDocs, collection, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyDAMLbm1ngqtzKjnDp6AMz8ucyhqNSnfBY',
@@ -37,6 +37,21 @@ async function ensureMainAdminProfile(user) {
   return ref.path;
 }
 
+function cleanUserProfile(uid, profile = {}) {
+  const isMain = uid === MAIN_ADMIN_UID;
+  return {
+    uid,
+    email: String(profile.email || '').trim().toLowerCase(),
+    role: isMain ? 'admin' : String(profile.role || 'department_user'),
+    isMainAdmin: isMain,
+    enabled: isMain ? true : profile.enabled !== false,
+    department: isMain ? 'ALL' : String(profile.department || ''),
+    departmentLabel: isMain ? 'All Departments' : String(profile.departmentLabel || 'All / Not Restricted'),
+    modules: isMain ? ALL_MODULES : Array.isArray(profile.modules) ? profile.modules : [],
+    updatedAt: serverTimestamp()
+  };
+}
+
 window.DADFirebase = {
   app,
   auth,
@@ -58,6 +73,25 @@ window.DADFirebase = {
   async getUserProfile(uid) {
     const snap = await getDoc(doc(db, 'users', uid));
     return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+  },
+  async listUserProfiles() {
+    const snap = await getDocs(collection(db, 'users'));
+    return snap.docs.map(x => ({ id: x.id, ...x.data() }));
+  },
+  async saveUserProfile(uid, profile) {
+    if (!auth.currentUser) throw new Error('Sign in first.');
+    if (!uid) throw new Error('Firebase UID is required.');
+    const ref = doc(db, 'users', uid);
+    await setDoc(ref, cleanUserProfile(uid, profile), { merge: true });
+    return ref.path;
+  },
+  async setUserEnabled(uid, enabled) {
+    if (!auth.currentUser) throw new Error('Sign in first.');
+    if (!uid) throw new Error('Firebase UID is required.');
+    if (uid === MAIN_ADMIN_UID && !enabled) throw new Error('Main Admin cannot be disabled.');
+    const ref = doc(db, 'users', uid);
+    await setDoc(ref, { enabled: !!enabled, updatedAt: serverTimestamp() }, { merge: true });
+    return ref.path;
   },
   async bootstrapMainAdmin() {
     const user = auth.currentUser;
