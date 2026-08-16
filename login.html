@@ -58,8 +58,7 @@
     </div><footer class="login-footer">© 2026 Budget 2027 &nbsp;•&nbsp; Planning &amp; Management Application</footer></div></section>
   </main>
 
-  <script src="js/app.js?v=20260816-auth-session-3"></script>
-  <script type="module" src="js/firebase.js?v=20260816-auth-session-3"></script>
+  <script type="module" src="js/firebase.js?v=20260816-user-switch-5"></script>
   <script>
     (function(){
       const form=document.getElementById('loginForm'),btn=document.getElementById('loginSubmit'),err=document.getElementById('loginError');
@@ -69,10 +68,8 @@
         try{
           btn.disabled=true;btn.querySelector('span').textContent='Signing in...';
           if(!window.DADFirebase)throw new Error('Firebase is still loading. Please try again.');
-          const user=await window.DADFirebase.signIn(document.getElementById('email').value.trim(),document.getElementById('password').value);
-          localStorage.setItem('dadBudgetCurrentUid',user.uid);
-          localStorage.setItem('dadBudgetCurrentEmail',(user.email||'').toLowerCase());
-          location.href='index.html';
+          await window.DADFirebase.signIn(document.getElementById('email').value.trim(),document.getElementById('password').value);
+          location.replace('index.html');
         }catch(x){
           message(x.code==='auth/invalid-credential'?'Invalid email or password.':(x.message||'Sign in failed.'));
           btn.disabled=false;btn.querySelector('span').textContent='Sign In';
