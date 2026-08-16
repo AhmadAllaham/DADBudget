@@ -16,6 +16,21 @@
     const lo=document.getElementById('logoutBtn');if(lo)lo.addEventListener('click',()=>location.href='login.html');
     const shell=document.querySelector('.app-shell'),side=document.querySelector('.sidebar');if(!shell||!side)return;
     const nav=side.querySelector('.sidebar-nav');if(nav&&!nav.querySelector('a[href="data-admin.html"]')){const s=document.createElement('div');s.className='nav-section';s.textContent='ADMIN';const a=document.createElement('a');a.href='data-admin.html';a.textContent='Data Admin';nav.append(s,a)}
+    const sub=side.querySelector('.opex-subnav');
+    if(sub){
+      const parent=sub.previousElementSibling;
+      if(parent&&parent.tagName==='A'){
+        if(!sub.querySelector('a[href="opex.html"]')){const detail=document.createElement('a');detail.href='opex.html';detail.textContent='OPEX Detail';sub.prepend(detail)}
+        parent.classList.add('opex-parent-toggle');
+        if(!parent.querySelector('.opex-nav-caret')){const c=document.createElement('span');c.className='opex-nav-caret';c.textContent='▾';parent.appendChild(c)}
+        const path=(location.pathname.split('/').pop()||'').toLowerCase(),opexPage=['opex.html','opex-summary.html','hr-budget.html','ap-budget.html','travel-budget.html'].includes(path);
+        const stored=localStorage.getItem('dadBudgetOPEXNavOpen');
+        const open=stored===null?opexPage:stored==='true';
+        sub.classList.toggle('opex-subnav-open',open);parent.classList.toggle('opex-parent-open',open);
+        parent.addEventListener('click',e=>{e.preventDefault();const next=!sub.classList.contains('opex-subnav-open');sub.classList.toggle('opex-subnav-open',next);parent.classList.toggle('opex-parent-open',next);localStorage.setItem('dadBudgetOPEXNavOpen',next?'true':'false')});
+        const st=document.createElement('style');st.textContent='.opex-parent-toggle{display:flex!important;align-items:center;justify-content:space-between}.opex-nav-caret{font-size:10px;transition:transform .18s ease}.opex-parent-open .opex-nav-caret{transform:rotate(180deg)}.opex-subnav{display:none!important}.opex-subnav.opex-subnav-open{display:block!important}';document.head.appendChild(st);
+      }
+    }
     let b=side.querySelector('.sidebar-toggle');if(!b){b=document.createElement('button');b.type='button';b.className='sidebar-toggle';b.title='Open / Close Sidebar';b.textContent='‹';side.appendChild(b)}
     if(localStorage.getItem('dadBudgetSidebarCollapsed')==='true')shell.classList.add('sidebar-collapsed');
     b.addEventListener('click',()=>{shell.classList.toggle('sidebar-collapsed');localStorage.setItem('dadBudgetSidebarCollapsed',shell.classList.contains('sidebar-collapsed')?'true':'false')});
