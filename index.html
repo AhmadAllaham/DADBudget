@@ -11,10 +11,7 @@
     <aside class="sidebar">
       <div class="sidebar-brand">
         <div class="brand-badge">B27</div>
-        <div>
-          <strong>BUDGET 2027</strong>
-          <span>REPORT CENTER</span>
-        </div>
+        <div><strong>BUDGET 2027</strong><span>REPORT CENTER</span></div>
       </div>
 
       <nav class="sidebar-nav">
@@ -35,7 +32,7 @@
     </aside>
 
     <main class="main-content">
-      <div class="status-banner" id="firebaseStatus">Firebase: loading connection...</div>
+      <div class="status-banner" id="firebaseStatus">Firebase: loading authenticated session...</div>
 
       <section class="page-header card">
         <div>
@@ -47,48 +44,22 @@
       </section>
 
       <section class="kpi-grid">
-        <article class="card kpi-card">
-          <span>Total OPEX</span>
-          <strong>—</strong>
-          <small>Waiting for submissions</small>
-        </article>
-        <article class="card kpi-card">
-          <span>Total CAPEX</span>
-          <strong>—</strong>
-          <small>Waiting for submissions</small>
-        </article>
-        <article class="card kpi-card">
-          <span>Budget Progress</span>
-          <strong>0%</strong>
-          <small>Planning cycle not started</small>
-        </article>
-        <article class="card kpi-card">
-          <span>Next Deadline</span>
-          <strong>—</strong>
-          <small>Roadmap will define deadlines</small>
-        </article>
+        <article class="card kpi-card"><span>Total OPEX</span><strong>—</strong><small>Waiting for submissions</small></article>
+        <article class="card kpi-card"><span>Total CAPEX</span><strong>—</strong><small>Waiting for submissions</small></article>
+        <article class="card kpi-card"><span>Budget Progress</span><strong>0%</strong><small>Planning cycle not started</small></article>
+        <article class="card kpi-card"><span>Next Deadline</span><strong>—</strong><small>Roadmap will define deadlines</small></article>
       </section>
 
       <section class="card roadmap-preview">
         <div class="section-head">
-          <div>
-            <span class="eyebrow">FIREBASE</span>
-            <h2>Cloud Firestore Connection</h2>
-            <p style="margin:4px 0 0;color:#71878b;font-size:11px">Project: budget-8c575</p>
-          </div>
+          <div><span class="eyebrow">FIREBASE</span><h2>Cloud Firestore Connection</h2><p style="margin:4px 0 0;color:#71878b;font-size:11px">Project: budget-8c575</p></div>
           <button class="teal-btn" id="firebaseTestBtn" type="button">Test Firestore</button>
         </div>
-        <div style="padding-top:8px;color:#71878b;font-size:11px">The test creates/updates <b>system_status / web_connection</b>. After it succeeds, we will connect the budget collections one by one.</div>
+        <div style="padding-top:8px;color:#71878b;font-size:11px">Authenticated user access is loaded from <b>users / UID</b>.</div>
       </section>
 
       <section class="card roadmap-preview">
-        <div class="section-head">
-          <div>
-            <span class="eyebrow">ROADMAP</span>
-            <h2>Budget Process 2027</h2>
-          </div>
-          <button class="teal-btn">Open Roadmap</button>
-        </div>
+        <div class="section-head"><div><span class="eyebrow">ROADMAP</span><h2>Budget Process 2027</h2></div><button class="teal-btn">Open Roadmap</button></div>
         <div class="roadmap-line">
           <div><span class="dot"></span><b>Kick-Off</b><small>Start</small></div>
           <div><span class="dot"></span><b>Templates</b><small>Release</small></div>
@@ -101,15 +72,16 @@
     </main>
   </div>
 
-  <script src="js/main-admin-profile.js?v=20260816-mainadmin-1"></script>
-  <script src="js/app.js?v=20260816-firebase-1"></script>
-  <script type="module" src="js/firebase.js?v=20260816-1"></script>
+  <script src="js/app.js?v=20260816-auth-session-3"></script>
+  <script type="module" src="js/firebase.js?v=20260816-auth-session-3"></script>
   <script>
     (function(){
       const status=document.getElementById('firebaseStatus'),btn=document.getElementById('firebaseTestBtn');
-      function ready(){status.textContent='Firebase SDK connected · Project budget-8c575';}
-      if(window.DADFirebase)ready();
-      window.addEventListener('dad-firebase-ready',ready);
+      window.addEventListener('dad-user-ready',e=>{
+        const p=e.detail?.profile||{};
+        status.textContent=`Signed in: ${p.email||''} · ${p.role||''}`;
+        status.style.background='#e9f9f3';status.style.color='#087a64';
+      });
       btn.addEventListener('click',async()=>{
         try{
           btn.disabled=true;btn.textContent='Testing...';
