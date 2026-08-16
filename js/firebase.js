@@ -15,7 +15,7 @@ const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
 const pathNow=()=>((location.pathname.split('/').pop()||'index.html').toLowerCase());
 const clean=v=>String(v??'').trim();
 const isAdminProfile=p=>p?.isMainAdmin===true||p?.role==='admin';
-function departmentsOf(p){return Array.isArray(p?.departments)?p.departments.map(clean).filter(Boolean):(p?.department?[clean(p.department)]:[])}
+const departmentsOf=p=>Array.isArray(p?.departments)?p.departments.map(clean).filter(Boolean):(p?.department?[clean(p.department)]:[]);
 
 async function getProfile(uid){const s=await getDoc(doc(db,'users',uid));return s.exists()?{id:s.id,...s.data()}:null}
 async function ensureMainAdminProfile(user){
@@ -29,9 +29,7 @@ function cleanUserProfile(uid,p={}){
 function clearSession(){localStorage.removeItem('dadBudgetCurrentUid');localStorage.removeItem('dadBudgetCurrentEmail');localStorage.removeItem(PROFILE_KEY)}
 function cacheSession(user,p){localStorage.setItem('dadBudgetCurrentUid',user.uid);localStorage.setItem('dadBudgetCurrentEmail',(user.email||'').toLowerCase());localStorage.setItem(PROFILE_KEY,JSON.stringify({uid:user.uid,email:(user.email||'').toLowerCase(),role:p.role||'',isMainAdmin:!!p.isMainAdmin,enabled:p.enabled!==false,department:p.department||'',departments:departmentsOf(p),departmentLabel:p.departmentLabel||'',departmentLabels:Array.isArray(p.departmentLabels)?p.departmentLabels:[],modules:Array.isArray(p.modules)?p.modules:[]}))}
 
-function moduleForPath(p){
-  if(!p||p==='index.html')return'dashboard';if(p==='ims-sales.html')return'ims';if(p==='capex.html')return'capex';if(p==='travel-budget.html')return'travel';if(p==='hr-budget.html')return'hr';if(p==='ap-budget.html')return'ap';if(p==='data-admin.html')return'data_admin';if(p==='user-settings.html'||p==='activity-log.html')return'admin_only';if(p==='opex.html'||p==='opex-summary.html')return'opex';return'';
-}
+function moduleForPath(p){if(!p||p==='index.html')return'dashboard';if(p==='ims-sales.html')return'ims';if(p==='capex.html')return'capex';if(p==='travel-budget.html')return'travel';if(p==='hr-budget.html')return'hr';if(p==='ap-budget.html')return'ap';if(p==='data-admin.html')return'data_admin';if(p==='user-settings.html'||p==='activity-log.html')return'admin_only';if(p==='opex.html'||p==='opex-summary.html')return'opex';return''}
 function moduleForLink(a){const h=(a.getAttribute('href')||'').split('?')[0].toLowerCase(),t=(a.textContent||'').trim().toLowerCase();if(h.includes('user-settings')||h.includes('activity-log'))return'admin_only';if(h.includes('data-admin'))return'data_admin';if(h.includes('ims-sales'))return'ims';if(h.includes('capex'))return'capex';if(h.includes('travel-budget'))return'travel';if(h.includes('hr-budget'))return'hr';if(h.includes('ap-budget'))return'ap';if(h.includes('opex'))return'opex';if(h.includes('index'))return'dashboard';if(t.includes('p&l'))return'pl';if(t.includes('approval'))return'approvals';return''}
 function applyUserAccess(p){
   const admin=isAdminProfile(p),mods=new Set(Array.isArray(p.modules)?p.modules:[]),nav=document.querySelector('.sidebar-nav');
@@ -46,20 +44,45 @@ function setDeptMessage(text,error=false){const s=document.getElementById('deptF
 function localOpex(){const keys=Object.keys(localStorage).filter(k=>/^dadBudgetOPEXBaselineV\d+$/i.test(k)).sort((a,b)=>Number((b.match(/\d+$/)||[0])[0])-Number((a.match(/\d+$/)||[0])[0]));for(const k of keys){try{const m=JSON.parse(localStorage.getItem(k)||'null');if(m?.departments&&Object.keys(m.departments).length)return m}catch(_){}}return null}
 function rebuildMaster(deps){const out={};Object.values(deps||{}).forEach(d=>Object.values(d?.items||{}).forEach(x=>{const c=clean(x?.code);if(c&&!out[c])out[c]={code:c,name:clean(x?.name)||c}}));return out}
 function saveOpexLocal(m){localStorage.setItem(OPEX_KEY,JSON.stringify(m));window.dispatchEvent(new CustomEvent('dad-opex-cloud-ready',{detail:{departments:Object.keys(m.departments||{}).length,fileName:m.fileName||''}}));window.dispatchEvent(new CustomEvent('dad-opex-refresh-departments'))}
+
+function bytesToBase64(bytes){let s='';const step=0x8000;for(let i=0;i<bytes.length;i+=step)s+=String.fromCharCode(...bytes.subarray(i,i+step));return btoa(s)}
+function base64ToBytes(s){const bin=atob(s),out=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);return out}
+async function gzipText(text){
+  if(typeof CompressionStream==='undefined')return null;
+  const stream=new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function gunzipText(bytes){
+  if(typeof DecompressionStream==='undefined')throw new Error('This browser cannot decompress the shared OPEX baseline. Please use an updated Chrome or Edge browser.');
+  const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return await new Response(stream).text();
+}
+async function encodeDepartment(d){
+  const raw=JSON.stringify(d),rawBytes=new Blob([raw]).size,gz=await gzipText(raw);
+  if(gz){const b64=bytesToBase64(gz),storedBytes=new Blob([b64]).size;if(storedBytes<900000)return{encoding:'gzip-base64-v1',payload:b64,rawBytes,storedBytes}}
+  if(rawBytes<900000)return{encoding:'json-v1',payload:raw,rawBytes,storedBytes:rawBytes};
+  throw new Error(`Department ${clean(d?.cc)} is still too large for Firestore after compression.`);
+}
+async function decodeDepartment(data,id){
+  if(data?.encoding==='gzip-base64-v1'){const txt=await gunzipText(base64ToBytes(data.payload||''));const d=JSON.parse(txt);return{...d,cc:clean(d.cc||id)}}
+  if(data?.encoding==='json-v1'){const d=JSON.parse(data.payload||'{}');return{...d,cc:clean(d.cc||id)}}
+  return{...data,cc:clean(data?.cc||id),cloudUpdatedAt:undefined};
+}
+
 async function publishOpexBaseline(model){
   if(!auth.currentUser||auth.currentUser.uid!==MAIN_ADMIN_UID)throw new Error('Only Main Admin can publish the OPEX baseline.');if(!model?.departments)throw new Error('No OPEX baseline found.');
-  const deps=Object.values(model.departments||{});
-  await setDoc(doc(db,'opex_baseline_meta','current'),{fileName:model.fileName||'OPEX Baseline',mappingInfo:model.mappingInfo||{},departmentCount:deps.length,publishedBy:auth.currentUser.uid,publishedEmail:(auth.currentUser.email||'').toLowerCase(),publishedAt:serverTimestamp(),clientPublishedAt:new Date().toISOString(),schemaVersion:2},{merge:false});
-  for(const d of deps){const cc=clean(d?.cc);if(!cc)continue;const payload={...d,cc};const bytes=new Blob([JSON.stringify(payload)]).size;if(bytes>900000)throw new Error(`Department ${cc} is too large for Firestore (${Math.round(bytes/1024)} KB).`);await setDoc(doc(db,'opex_baseline_departments',cc),{...payload,cloudUpdatedAt:serverTimestamp()},{merge:false})}
-  return{departments:deps.length,fileName:model.fileName||''};
+  const deps=Object.values(model.departments||{}),published=[];
+  for(const d of deps){const cc=clean(d?.cc);if(!cc)continue;const encoded=await encodeDepartment({...d,cc});await setDoc(doc(db,'opex_baseline_departments',cc),{cc,name:clean(d.name||cc),encoding:encoded.encoding,payload:encoded.payload,rawBytes:encoded.rawBytes,storedBytes:encoded.storedBytes,cloudUpdatedAt:serverTimestamp()},{merge:false});published.push(cc)}
+  await setDoc(doc(db,'opex_baseline_meta','current'),{fileName:model.fileName||'OPEX Baseline',mappingInfo:model.mappingInfo||{},departmentCount:published.length,departments:published,publishedBy:auth.currentUser.uid,publishedEmail:(auth.currentUser.email||'').toLowerCase(),publishedAt:serverTimestamp(),clientPublishedAt:new Date().toISOString(),schemaVersion:3},{merge:false});
+  return{departments:published.length,fileName:model.fileName||''};
 }
 async function loadCloudOpexBaseline(p){
-  if(!auth.currentUser)return null;const metaSnap=await getDoc(doc(db,'opex_baseline_meta','current'));if(!metaSnap.exists())throw new Error('OPEX baseline is not published yet. Open OPEX once with the Main Admin account.');
+  if(!auth.currentUser)throw new Error('No signed-in Firebase user.');const metaSnap=await getDoc(doc(db,'opex_baseline_meta','current'));if(!metaSnap.exists())throw new Error('OPEX baseline is not published yet. Open OPEX once with the Main Admin account.');
   const meta=metaSnap.data()||{},admin=isAdminProfile(p),assigned=departmentsOf(p),deps={};
-  if(admin||assigned.includes('ALL')){const s=await getDocs(collection(db,'opex_baseline_departments'));s.forEach(x=>{const d=x.data();deps[clean(d.cc||x.id)]={...d,cloudUpdatedAt:undefined}})}
+  if(admin||assigned.includes('ALL')){const s=await getDocs(collection(db,'opex_baseline_departments'));for(const x of s.docs)deps[x.id]=await decodeDepartment(x.data(),x.id)}
   else{
     if(!assigned.length)throw new Error('No departments are assigned to this user.');
-    const errors=[];for(const cc of assigned){try{const s=await getDoc(doc(db,'opex_baseline_departments',cc));if(s.exists()){const d=s.data();deps[cc]={...d,cloudUpdatedAt:undefined}}else errors.push(`${cc} not found`)}catch(e){errors.push(`${cc}: ${e.code||e.message}`)}}
+    const errors=[];for(const cc of assigned){try{const s=await getDoc(doc(db,'opex_baseline_departments',cc));if(s.exists())deps[cc]=await decodeDepartment(s.data(),cc);else errors.push(`${cc} not found`)}catch(e){errors.push(`${cc}: ${e.code||e.message}`)}}
     if(!Object.keys(deps).length)throw new Error(errors.length?errors.join(' | '):'No assigned OPEX departments were found.');
   }
   return{fileName:meta.fileName||'Cloud OPEX Baseline',mappingInfo:meta.mappingInfo||{},departments:deps,accountMaster:rebuildMaster(deps),cloud:true,cloudPublishedAt:meta.clientPublishedAt||''};
@@ -67,20 +90,20 @@ async function loadCloudOpexBaseline(p){
 function applyDepartmentFilter(p){
   if(!OPEX_PAGES.has(pathNow())||isAdminProfile(p)||departmentsOf(p).includes('ALL'))return;
   const allowed=departmentsOf(p),set=new Set(allowed),sel=document.getElementById('deptFilter'),m=localOpex();if(!sel)return;
-  if(!m?.departments){setDeptMessage('Waiting for shared OPEX baseline...');return}
+  if(!m?.departments){if(sel.dataset.cloudState!=='error')setDeptMessage('Waiting for shared OPEX baseline...');return}
   const list=Object.values(m.departments).filter(d=>set.has(clean(d.cc))).sort((a,b)=>clean(a.name||a.cc).localeCompare(clean(b.name||b.cc)));
   if(!list.length){setDeptMessage('No assigned department found in shared OPEX baseline',true);return}
-  const old=sel.value;sel.innerHTML='';list.forEach(d=>{const o=document.createElement('option');o.value=clean(d.cc);o.textContent=`${clean(d.cc)} · ${clean(d.name||d.cc)}`;sel.appendChild(o)});sel.value=set.has(old)&&m.departments[old]?old:(allowed.find(x=>m.departments[x])||clean(list[0].cc));sel.disabled=list.length===1;localStorage.setItem('dadBudgetOPEXSelectedDept',sel.value);sel.dispatchEvent(new Event('change',{bubbles:true}));
+  const old=sel.value;sel.innerHTML='';list.forEach(d=>{const o=document.createElement('option');o.value=clean(d.cc);o.textContent=`${clean(d.cc)} · ${clean(d.name||d.cc)}`;sel.appendChild(o)});sel.value=set.has(old)&&m.departments[old]?old:(allowed.find(x=>m.departments[x])||clean(list[0].cc));sel.disabled=list.length===1;sel.dataset.cloudState='ready';localStorage.setItem('dadBudgetOPEXSelectedDept',sel.value);sel.dispatchEvent(new Event('change',{bubbles:true}));
 }
 async function syncOpex(p){
-  if(!OPEX_PAGES.has(pathNow()))return;
+  if(!OPEX_PAGES.has(pathNow()))return true;
   try{
     if(isAdminProfile(p)){
-      const local=localOpex();if(local?.departments){setDeptMessage('Publishing shared OPEX baseline...');await publishOpexBaseline(local);window.dispatchEvent(new CustomEvent('dad-opex-cloud-published',{detail:{departments:Object.keys(local.departments).length}}));return}
-      const cloud=await loadCloudOpexBaseline(p);if(cloud)saveOpexLocal(cloud);return;
+      const local=localOpex();if(local?.departments){setDeptMessage('Publishing shared OPEX baseline...');const r=await publishOpexBaseline(local);window.dispatchEvent(new CustomEvent('dad-opex-cloud-published',{detail:r}));const s=document.getElementById('deptFilter');if(s)s.dataset.cloudState='ready';return true}
+      const cloud=await loadCloudOpexBaseline(p);saveOpexLocal(cloud);return true;
     }
-    setDeptMessage('Loading your OPEX departments...');const cloud=await loadCloudOpexBaseline(p);saveOpexLocal(cloud);applyDepartmentFilter(p);
-  }catch(e){console.error('OPEX cloud sync failed:',e);setDeptMessage(`Cloud error: ${e.code||e.message||'Unknown error'}`,true);window.dispatchEvent(new CustomEvent('dad-opex-cloud-error',{detail:{message:e.message||String(e),code:e.code||''}}))}
+    setDeptMessage('Loading your OPEX departments...');const cloud=await loadCloudOpexBaseline(p);saveOpexLocal(cloud);applyDepartmentFilter(p);return true;
+  }catch(e){console.error('OPEX cloud sync failed:',e);setDeptMessage(`Cloud error: ${e.code||e.message||'Unknown error'}`,true);window.dispatchEvent(new CustomEvent('dad-opex-cloud-error',{detail:{message:e.message||String(e),code:e.code||''}}));return false}
 }
 
 function safeKey(v){return clean(v||'GENERAL').toUpperCase().replace(/[^A-Z0-9_-]+/g,'_').slice(0,160)||'GENERAL'}
@@ -104,6 +127,9 @@ window.DADFirebase={
 
 onAuthStateChanged(auth,async user=>{
   const login=pathNow()==='login.html'||pathNow()==='';if(!user){clearSession();if(!login)location.replace('login.html');return}if(login)return;
-  try{await ensureMainAdminProfile(user);const p=await getProfile(user.uid);if(!p||p.enabled===false){await signOut(auth);clearSession();location.replace('login.html');return}cacheSession(user,p);setupLogout();applyUserAccess(p);await syncOpex(p);applyDepartmentFilter(p);setupUploadAudit(p);window.addEventListener('dad-opex-cloud-ready',()=>applyDepartmentFilter(p));window.dispatchEvent(new CustomEvent('dad-user-ready',{detail:{user,profile:p}}))}catch(e){console.error('Budget user session error:',e)}
+  try{
+    await ensureMainAdminProfile(user);const p=await getProfile(user.uid);if(!p||p.enabled===false){await signOut(auth);clearSession();location.replace('login.html');return}
+    cacheSession(user,p);setupLogout();applyUserAccess(p);const ok=await syncOpex(p);if(ok)applyDepartmentFilter(p);setupUploadAudit(p);window.addEventListener('dad-opex-cloud-ready',()=>applyDepartmentFilter(p));window.dispatchEvent(new CustomEvent('dad-user-ready',{detail:{user,profile:p}}));
+  }catch(e){console.error('Budget user session error:',e);if(OPEX_PAGES.has(pathNow()))setDeptMessage(`Session error: ${e.code||e.message||'Unknown error'}`,true)}
 });
 window.dispatchEvent(new CustomEvent('dad-firebase-ready',{detail:{projectId:firebaseConfig.projectId,mainAdminUid:MAIN_ADMIN_UID}}));
