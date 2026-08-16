@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, getDocs, collection, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 
 const firebaseConfig = {
@@ -30,7 +30,9 @@ async function ensureMainAdminProfile(user) {
     isMainAdmin: true,
     enabled: true,
     department: 'ALL',
+    departments: ['ALL'],
     departmentLabel: 'All Departments',
+    departmentLabels: ['All Departments'],
     modules: ALL_MODULES,
     updatedAt: serverTimestamp()
   }, { merge: true });
@@ -39,14 +41,24 @@ async function ensureMainAdminProfile(user) {
 
 function cleanUserProfile(uid, profile = {}) {
   const isMain = uid === MAIN_ADMIN_UID;
+  const incomingDepartments = Array.isArray(profile.departments)
+    ? profile.departments.map(x => String(x || '').trim()).filter(Boolean)
+    : (profile.department ? [String(profile.department).trim()] : []);
+  const incomingLabels = Array.isArray(profile.departmentLabels)
+    ? profile.departmentLabels.map(x => String(x || '').trim()).filter(Boolean)
+    : (profile.departmentLabel ? [String(profile.departmentLabel).trim()] : []);
+  const departments = isMain ? ['ALL'] : [...new Set(incomingDepartments)];
+  const departmentLabels = isMain ? ['All Departments'] : incomingLabels;
   return {
     uid,
     email: String(profile.email || '').trim().toLowerCase(),
     role: isMain ? 'admin' : String(profile.role || 'department_user'),
     isMainAdmin: isMain,
     enabled: isMain ? true : profile.enabled !== false,
-    department: isMain ? 'ALL' : String(profile.department || ''),
-    departmentLabel: isMain ? 'All Departments' : String(profile.departmentLabel || 'All / Not Restricted'),
+    department: isMain ? 'ALL' : String(departments[0] || ''),
+    departments,
+    departmentLabel: isMain ? 'All Departments' : String(departmentLabels[0] || 'Not Restricted'),
+    departmentLabels,
     modules: isMain ? ALL_MODULES : Array.isArray(profile.modules) ? profile.modules : [],
     updatedAt: serverTimestamp()
   };
@@ -92,6 +104,12 @@ window.DADFirebase = {
     const ref = doc(db, 'users', uid);
     await setDoc(ref, { enabled: !!enabled, updatedAt: serverTimestamp() }, { merge: true });
     return ref.path;
+  },
+  async sendPasswordReset(email) {
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    if (!cleanEmail) throw new Error('User email is required.');
+    await sendPasswordResetEmail(auth, cleanEmail);
+    return cleanEmail;
   },
   async bootstrapMainAdmin() {
     const user = auth.currentUser;
