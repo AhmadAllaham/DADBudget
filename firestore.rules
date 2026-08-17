@@ -64,6 +64,22 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /capex_budget_submissions/{fundCenter} {
+      allow read: if isMainAdmin() || hasDepartment(fundCenter);
+      allow create: if isMainAdmin()
+                    || (hasDepartment(fundCenter)
+                        && request.resource.data.workflowStatus == 'uploaded'
+                        && request.resource.data.status == 'uploaded'
+                        && request.resource.data.submittedBy == request.auth.uid);
+      allow update: if isMainAdmin()
+                    || (hasDepartment(fundCenter)
+                        && resource.data.workflowStatus == 'returned'
+                        && request.resource.data.workflowStatus == 'uploaded'
+                        && request.resource.data.status == 'uploaded'
+                        && request.resource.data.submittedBy == request.auth.uid);
+      allow delete: if false;
+    }
+
     match /budget_submission_status/{fundCenter} {
       allow read, create, update: if isMainAdmin();
       allow read: if hasDepartment(fundCenter);
