@@ -57,3 +57,4 @@ onAuthStateChanged(auth,u=>{if(u){applyAccessPolish();refresh(u)}});window.addEv
 
 const page=(location.pathname.split('/').pop()||'').toLowerCase();
 if(page==='opex.html'||page==='opex-summary.html') import('./opex-fy27-integrity-fix.js?v=20260817-fy27-vs-fy26-2').catch(e=>console.error('OPEX FY27 integrity fix failed:',e));
+if(page==='submission-control.html') import('./finance-return-button.js?v=20260817-explicit-return-1').catch(e=>console.error('Finance return button failed:',e));
