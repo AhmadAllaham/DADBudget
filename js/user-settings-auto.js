@@ -16,11 +16,11 @@ async function syncManagerAssignments(uid,profile,deps){
   await Promise.all(deps.map(async d=>{
     const cc=clean(d.cc);if(!cc)return;
     const label=clean(d.label),name=label.includes('·')?clean(label.split('·').slice(1).join('·')):label||cc;
-    await setDoc(doc(db,'budget_submission_status',cc),{
-      fundCenter:cc,departmentName:name,
-      managerUid:uid,managerEmail:clean(profile.email).toLowerCase(),managerStatus:'assigned',
-      managerAssignedAt:serverTimestamp(),managerAssignedClientAt:new Date().toISOString()
-    },{merge:true});
+    const payload={fundCenter:cc,departmentName:name,managerUid:uid,managerEmail:clean(profile.email).toLowerCase(),managerStatus:'assigned',managerAssignedAt:serverTimestamp(),managerAssignedClientAt:new Date().toISOString()};
+    await Promise.all([
+      setDoc(doc(db,'budget_submission_status',cc),payload,{merge:true}),
+      setDoc(doc(db,'opex_budget_submissions',cc),{...payload,name},{merge:true})
+    ]);
   }));
 }
 async function saveUserAutomatically(){
