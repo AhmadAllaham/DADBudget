@@ -50,7 +50,7 @@
       <form id="loginForm">
         <label for="email">Email address</label><div class="login-input-wrap"><span class="input-icon">@</span><input id="email" type="email" placeholder="Enter your email" required /></div>
         <label for="password">Password</label><div class="login-input-wrap"><span class="input-icon">•</span><input id="password" type="password" placeholder="Enter your password" required /></div>
-        <div class="login-options"><label class="remember"><input type="checkbox" /> Remember me</label><a href="#" onclick="return false;">Forgot password?</a></div>
+        <div class="login-options"><label class="remember"><input id="rememberMe" type="checkbox" /> Remember me</label><a href="#" onclick="return false;">Forgot password?</a></div>
         <button class="login-submit" id="loginSubmit" type="submit"><span>Sign In</span><span class="submit-arrow">→</span></button>
       </form>
       <div class="login-error" id="loginError"></div>
@@ -58,17 +58,19 @@
     </div><footer class="login-footer">© 2026 Budget 2027 &nbsp;•&nbsp; Planning &amp; Management Application</footer></div></section>
   </main>
 
-  <script type="module" src="js/firebase.js?v=20260816-user-switch-5"></script>
+  <script type="module" src="js/firebase.js?v=20260817-remember-login-1"></script>
   <script>
     (function(){
-      const form=document.getElementById('loginForm'),btn=document.getElementById('loginSubmit'),err=document.getElementById('loginError');
+      const form=document.getElementById('loginForm'),btn=document.getElementById('loginSubmit'),err=document.getElementById('loginError'),email=document.getElementById('email'),remember=document.getElementById('rememberMe');
+      remember.checked=localStorage.getItem('dadBudgetRememberMe')==='1';
+      if(remember.checked)email.value=localStorage.getItem('dadBudgetRememberedEmail')||'';
       function message(text){err.textContent=text;err.classList.toggle('show',!!text)}
       form.addEventListener('submit',async e=>{
         e.preventDefault();e.stopImmediatePropagation();message('');
         try{
           btn.disabled=true;btn.querySelector('span').textContent='Signing in...';
           if(!window.DADFirebase)throw new Error('Firebase is still loading. Please try again.');
-          await window.DADFirebase.signIn(document.getElementById('email').value.trim(),document.getElementById('password').value);
+          await window.DADFirebase.signIn(email.value.trim(),document.getElementById('password').value,remember.checked);
           location.replace('index.html');
         }catch(x){
           message(x.code==='auth/invalid-credential'?'Invalid email or password.':(x.message||'Sign in failed.'));
