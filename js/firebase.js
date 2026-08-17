@@ -46,9 +46,9 @@ onAuthStateChanged(auth,async user=>{const login=pathNow()==='login.html'||pathN
 window.dispatchEvent(new CustomEvent('dad-firebase-ready',{detail:{projectId:firebaseConfig.projectId,mainAdminUid:MAIN_ADMIN_UID}}));
 
 if(pathNow()==='opex.html'){
-  import('./opex-sync-v2.js?v=20260817-admin-baseline-persist-1').catch(e=>console.error('OPEX sync module failed:',e));
+  import('./opex-sync-v2.js?v=20260817-workflow-upload-lock-2').catch(e=>console.error('OPEX sync module failed:',e));
   import('./opex-account-name-fix.js?v=20260817-account-name-fix-1').catch(e=>console.error('OPEX account name fixer failed:',e));
-  import('./opex-labels.js?v=20260817-approved-hard-lock-live-3').catch(e=>console.error('OPEX label updater failed:',e));
+  import('./opex-labels.js?v=20260817-workflow-hard-lock-live-4').catch(e=>console.error('OPEX label updater failed:',e));
 }
 if(pathNow()==='submission-control.html') import('./central-progress-control.js?v=20260817-return-button-live-3').catch(e=>console.error('Central progress controls failed:',e));
 if(pathNow()==='user-settings.html') import('./user-settings-auto.js?v=20260817-auto-user-1').catch(e=>console.error('Automatic user creation controls failed:',e));
