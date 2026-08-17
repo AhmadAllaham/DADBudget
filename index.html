@@ -39,7 +39,7 @@
     <main class="main-content">
       <div class="status-banner" id="firebaseStatus">Firebase: loading authenticated session...</div>
       <section class="page-header card"><div><span class="eyebrow">BUDGET 2027</span><h1>Budget Planning Command Center</h1><p>OPEX, CAPEX, Projects, Sales, P&amp;L and approvals in one workspace.</p></div><button class="dark-btn" id="logoutBtn">Log out</button></section>
-      <section class="kpi-grid"><article class="card kpi-card"><span>Total OPEX</span><strong>—</strong><small>Waiting for submissions</small></article><article class="card kpi-card"><span>Total CAPEX</span><strong>—</strong><small>Waiting for submissions</small></article><article class="card kpi-card"><span>Budget Progress</span><strong>0%</strong><small>Planning cycle not started</small></article><article class="card kpi-card"><span>Next Deadline</span><strong>—</strong><small>Loading roadmap...</small></article></section>
+      <section class="kpi-grid"><article class="card kpi-card"><span>Total OPEX</span><strong>—</strong><small>Loading OPEX data...</small></article><article class="card kpi-card"><span>Total CAPEX</span><strong>—</strong><small>Loading CAPEX data...</small></article><article class="card kpi-card"><span>Budget Progress</span><strong>0%</strong><small>Planning cycle not started</small></article><article class="card kpi-card"><span>Next Deadline</span><strong>—</strong><small>Loading roadmap...</small></article></section>
       <section class="card roadmap-preview" id="adminDiagnostics"><div class="section-head"><div><span class="eyebrow">ADMIN DIAGNOSTICS</span><h2 id="currentUserTitle">Loading user...</h2><p id="currentUserDepartments" style="margin:4px 0 0"></p></div><button class="teal-btn" id="firebaseTestBtn" type="button">Test Firestore</button></div><div style="padding-top:8px">Access is loaded from <b>users / UID</b> in Firestore.</div></section>
       <section class="card roadmap-preview"><div class="section-head"><div><span class="eyebrow">ROADMAP</span><h2>Budget Process 2027</h2></div><button class="teal-btn" type="button" onclick="location.href='roadmap.html'">Open Roadmap</button></div><div class="roadmap-line"><div><span class="dot"></span><b>Kick-Off</b><small>Start</small></div><div><span class="dot"></span><b>Templates</b><small>Release</small></div><div><span class="dot"></span><b>Submissions</b><small>Departments</small></div><div><span class="dot"></span><b>Finance Review</b><small>Validation</small></div><div><span class="dot"></span><b>Management</b><small>Approval</small></div><div><span class="dot"></span><b>Final Budget</b><small>Freeze</small></div></div></section>
     </main>
@@ -54,7 +54,7 @@
       btn.addEventListener('click',async()=>{try{btn.disabled=true;btn.textContent='Testing...';if(!window.DADFirebase)throw new Error('Firebase SDK is still loading.');const path=await window.DADFirebase.testConnection();status.textContent='Firestore connected successfully · '+path;status.style.background='#e9f9f3';status.style.color='#087a64';btn.textContent='Connected ✓'}catch(e){status.textContent='Firestore test failed · '+e.message;status.style.background='#fff0f0';status.style.color='#a63b3b';btn.textContent='Test Firestore';btn.disabled=false}});
     })();
   </script>
-  <script type="module" src="js/dashboard-submissions.js?v=20260817-readable-workflow-1"></script>
+  <script type="module" src="js/dashboard-submissions.js?v=20260817-resilient-budget-totals-1"></script>
   <script src="js/dashboard-roadmap.js?v=20260817-1"></script>
 </body>
 </html>
