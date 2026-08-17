@@ -6,7 +6,7 @@ const app=getApps()[0],auth=getAuth(app),db=getFirestore(app),MAIN='PST3chwdZmaQ
 const workflowWeights={not_submitted:0,uploaded:25,pending_manager:40,manager_returned:35,manager_approved:55,submitted:55,under_review:75,returned:50,approved:100};
 const labels={not_submitted:'Not Submitted',uploaded:'Uploaded',pending_manager:'Pending Manager Approval',manager_returned:'Returned by Manager',manager_approved:'Manager Approved',submitted:'Submitted',under_review:'Finance Review',returned:'Returned by Finance',approved:'Approved'};
 const WORKFLOW_SHARE=70,SALARIES_SHARE=15,DEPRECIATION_SHARE=15;
-function statusOf(st,hasUpload){return st?.status||st?.workflowStatus||(hasUpload?'uploaded':'not_submitted')}
+function statusOf(st,hasUpload){return st?.workflowStatus||st?.status||(hasUpload?'uploaded':'not_submitted')}
 function departmentProgress(st,hasUpload){const workflow=statusOf(st,hasUpload),workflowPct=workflowWeights[workflow]??0;return Math.round((workflowPct/100)*WORKFLOW_SHARE+(st?.salariesReady===true?SALARIES_SHARE:0)+(st?.depreciationReady===true?DEPRECIATION_SHARE:0))}
 function inputTag(label,ready){return `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 6px;border-radius:999px;background:${ready?'#eaf8f4':'#f2f4f5'};color:${ready?'#087a64':'#71878b'};font-size:8px;font-weight:1000">${label}: ${ready?'Loaded':'Finance Pending'}</span>`}
 function ensureSection(){
@@ -39,7 +39,7 @@ async function load(user){
     if(!ids.length){summary.textContent=admin?'No department submissions yet.':'No departments assigned.';return}
     let total=0,submittedCount=0,pendingManager=0,managerApproved=0;
     const cards=ids.map(cc=>{
-      const upload=uploads[cc]||{},data={...upload,...(statuses[cc]||{})},st=statusOf(data,!!uploads[cc]),name=resolveDepartmentName(cc,baselineNames,profileNames,data,upload),w=departmentProgress(data,!!uploads[cc]);total+=w;
+      const upload=uploads[cc]||{},data={...(statuses[cc]||{}),...upload},st=statusOf(data,!!uploads[cc]),name=resolveDepartmentName(cc,baselineNames,profileNames,data,upload),w=departmentProgress(data,!!uploads[cc]);total+=w;
       if(['manager_approved','submitted','under_review','approved'].includes(st))submittedCount++;if(st==='pending_manager')pendingManager++;if(st==='manager_approved')managerApproved++;
       const workflowContribution=Math.round(((workflowWeights[st]??0)/100)*WORKFLOW_SHARE);
       const managerInfo=data.managerEmail?`<div style="font-size:8px;color:#7b8f92;margin-top:5px">Manager: ${data.managerEmail}</div>`:'';
