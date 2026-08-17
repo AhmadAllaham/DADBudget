@@ -17,12 +17,6 @@
     .roadmap-preview h2,#submissionStatusSection h2{font-size:23px!important;line-height:1.2;margin:5px 0;color:#123e63!important;font-weight:1000}
     .roadmap-preview>.section-head+div{font-size:11.5px!important;line-height:1.55;color:#4d686e!important;font-weight:700}
     #submissionSummary{font-size:12.5px!important;line-height:1.55!important;color:#3d5d64!important;font-weight:800}
-    #submissionStatusGrid{gap:10px!important}
-    #submissionStatusGrid>div{padding:14px 15px!important;min-height:90px;border-color:#c9dfdc!important}
-    #submissionStatusGrid>div>div:first-child{font-size:10.5px!important;color:#49666d!important;font-weight:1000!important}
-    #submissionStatusGrid>div>div:nth-child(2){font-size:14.5px!important;line-height:1.25;margin-top:4px!important;color:#123e63!important;font-weight:1000!important}
-    #submissionStatusGrid span{font-size:11px!important;font-weight:1000!important}
-    #submissionStatusGrid>div>div:last-child{font-size:9.5px!important;line-height:1.4;color:#536d73!important;font-weight:750!important}
     .roadmap-line b{font-size:12.5px!important;color:#0f334f!important;font-weight:1000}
     .roadmap-line small{font-size:10.5px!important;color:#506c72!important;font-weight:750}
     .teal-btn,.dark-btn{font-size:11.5px!important;font-weight:1000;padding:10px 14px}
@@ -57,8 +51,7 @@
       btn.addEventListener('click',async()=>{try{btn.disabled=true;btn.textContent='Testing...';if(!window.DADFirebase)throw new Error('Firebase SDK is still loading.');const path=await window.DADFirebase.testConnection();status.textContent='Firestore connected successfully · '+path;status.style.background='#e9f9f3';status.style.color='#087a64';btn.textContent='Connected ✓'}catch(e){status.textContent='Firestore test failed · '+e.message;status.style.background='#fff0f0';status.style.color='#a63b3b';btn.textContent='Test Firestore';btn.disabled=false}});
     })();
   </script>
-  <script type="module" src="js/dashboard-submissions.js?v=20260817-manager-workflow-final-1"></script>
-  <script type="module" src="js/dashboard-workflow-groups.js?v=20260817-grouped-workflow-1"></script>
+  <script type="module" src="js/dashboard-submissions.js?v=20260817-compact-workflow-1"></script>
   <script src="js/dashboard-roadmap.js?v=20260817-1"></script>
 </body>
 </html>
