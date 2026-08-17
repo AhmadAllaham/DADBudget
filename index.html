@@ -23,8 +23,8 @@
       <section class="card roadmap-preview"><div class="section-head"><div><span class="eyebrow">ROADMAP</span><h2>Budget Process 2027</h2></div><button class="teal-btn">Open Roadmap</button></div><div class="roadmap-line"><div><span class="dot"></span><b>Kick-Off</b><small>Start</small></div><div><span class="dot"></span><b>Templates</b><small>Release</small></div><div><span class="dot"></span><b>Submissions</b><small>Departments</small></div><div><span class="dot"></span><b>Finance Review</b><small>Validation</small></div><div><span class="dot"></span><b>Management</b><small>Approval</small></div><div><span class="dot"></span><b>Final Budget</b><small>Freeze</small></div></div></section>
     </main>
   </div>
-  <script src="js/app.js?v=20260817-submission-dashboard-1"></script>
-  <script type="module" src="js/firebase.js?v=20260817-submission-dashboard-1"></script>
+  <script src="js/app.js?v=20260817-submission-dashboard-2"></script>
+  <script type="module" src="js/firebase.js?v=20260817-submission-dashboard-2"></script>
   <script>
     (function(){
       const status=document.getElementById('firebaseStatus'),btn=document.getElementById('firebaseTestBtn'),title=document.getElementById('currentUserTitle'),deps=document.getElementById('currentUserDepartments');
@@ -32,6 +32,6 @@
       btn.addEventListener('click',async()=>{try{btn.disabled=true;btn.textContent='Testing...';if(!window.DADFirebase)throw new Error('Firebase SDK is still loading.');const path=await window.DADFirebase.testConnection();status.textContent='Firestore connected successfully · '+path;status.style.background='#e9f9f3';status.style.color='#087a64';btn.textContent='Connected ✓'}catch(e){status.textContent='Firestore test failed · '+e.message;status.style.background='#fff0f0';status.style.color='#a63b3b';btn.textContent='Test Firestore';btn.disabled=false}});
     })();
   </script>
-  <script type="module" src="js/dashboard-submissions.js?v=20260817-1"></script>
+  <script type="module" src="js/dashboard-submissions.js?v=20260817-2"></script>
 </body>
 </html>
