@@ -6,28 +6,28 @@
   <title>DAD Budget 2027</title>
   <link rel="stylesheet" href="css/style.css" />
   <style>
-    .main-content{font-size:15px}
-    .status-banner{font-size:14px!important;font-weight:800;line-height:1.45}
-    .page-header h1{font-size:34px!important;line-height:1.15;margin:5px 0 6px}
-    .page-header p{font-size:14px!important;line-height:1.55}
-    .page-header .eyebrow,.roadmap-preview .eyebrow,#submissionStatusSection .eyebrow{font-size:11px!important;letter-spacing:.16em;font-weight:1000}
-    .kpi-card span{font-size:11px!important;font-weight:1000}
-    .kpi-card strong{font-size:30px!important;line-height:1.1;margin-top:7px}
-    .kpi-card small{font-size:11px!important;line-height:1.45}
-    #currentUserTitle{font-size:24px!important;line-height:1.2;margin:5px 0}
-    #currentUserDepartments{font-size:12px!important;line-height:1.6!important}
-    .roadmap-preview h2,#submissionStatusSection h2{font-size:23px!important;line-height:1.2;margin:5px 0}
-    .roadmap-preview>.section-head+div{font-size:11px!important;line-height:1.55}
-    #submissionSummary{font-size:12px!important;line-height:1.55!important}
+    .main-content{font-size:15px;color:#163b43}
+    .status-banner{font-size:14px!important;font-weight:900;line-height:1.45;color:#075f59!important}
+    .page-header h1{font-size:34px!important;line-height:1.15;margin:5px 0 6px;color:#102f55;font-weight:1000}
+    .page-header p{font-size:14px!important;line-height:1.55;color:#48666d!important;font-weight:700}
+    .page-header .eyebrow,.roadmap-preview .eyebrow,#submissionStatusSection .eyebrow{font-size:11px!important;letter-spacing:.16em;font-weight:1000;color:#0b756d!important}
+    .kpi-card span{font-size:11.5px!important;font-weight:1000;color:#45636a!important}
+    .kpi-card strong{font-size:30px!important;line-height:1.1;margin-top:7px;color:#123e63!important;font-weight:1000}
+    .kpi-card small{font-size:11.5px!important;line-height:1.45;color:#16786f!important;font-weight:750}
+    #currentUserTitle{font-size:24px!important;line-height:1.2;margin:5px 0;color:#123e63!important;font-weight:1000}
+    #currentUserDepartments{font-size:12.5px!important;line-height:1.65!important;color:#405f66!important;font-weight:750}
+    .roadmap-preview h2,#submissionStatusSection h2{font-size:23px!important;line-height:1.2;margin:5px 0;color:#123e63!important;font-weight:1000}
+    .roadmap-preview>.section-head+div{font-size:11.5px!important;line-height:1.55;color:#4d686e!important;font-weight:700}
+    #submissionSummary{font-size:12.5px!important;line-height:1.55!important;color:#3d5d64!important;font-weight:800}
     #submissionStatusGrid{gap:10px!important}
-    #submissionStatusGrid>div{padding:13px 14px!important;min-height:84px}
-    #submissionStatusGrid>div>div:first-child{font-size:10px!important}
-    #submissionStatusGrid>div>div:nth-child(2){font-size:14px!important;line-height:1.25;margin-top:4px!important}
-    #submissionStatusGrid span{font-size:10.5px!important}
-    #submissionStatusGrid>div>div:last-child{font-size:9px!important;line-height:1.4}
-    .roadmap-line b{font-size:12px!important}
-    .roadmap-line small{font-size:10px!important}
-    .teal-btn,.dark-btn{font-size:11px!important;font-weight:900;padding:10px 14px}
+    #submissionStatusGrid>div{padding:14px 15px!important;min-height:90px;border-color:#c9dfdc!important}
+    #submissionStatusGrid>div>div:first-child{font-size:10.5px!important;color:#49666d!important;font-weight:1000!important}
+    #submissionStatusGrid>div>div:nth-child(2){font-size:14.5px!important;line-height:1.25;margin-top:4px!important;color:#123e63!important;font-weight:1000!important}
+    #submissionStatusGrid span{font-size:11px!important;font-weight:1000!important}
+    #submissionStatusGrid>div>div:last-child{font-size:9.5px!important;line-height:1.4;color:#536d73!important;font-weight:750!important}
+    .roadmap-line b{font-size:12.5px!important;color:#0f334f!important;font-weight:1000}
+    .roadmap-line small{font-size:10.5px!important;color:#506c72!important;font-weight:750}
+    .teal-btn,.dark-btn{font-size:11.5px!important;font-weight:1000;padding:10px 14px}
     @media(max-width:900px){.page-header h1{font-size:29px!important}.kpi-card strong{font-size:27px!important}#currentUserTitle,.roadmap-preview h2,#submissionStatusSection h2{font-size:21px!important}}
   </style>
 </head>
@@ -44,12 +44,12 @@
       <div class="status-banner" id="firebaseStatus">Firebase: loading authenticated session...</div>
       <section class="page-header card"><div><span class="eyebrow">BUDGET 2027</span><h1>Budget Planning Command Center</h1><p>OPEX, CAPEX, Projects, Sales, P&amp;L and approvals in one workspace.</p></div><button class="dark-btn" id="logoutBtn">Log out</button></section>
       <section class="kpi-grid"><article class="card kpi-card"><span>Total OPEX</span><strong>—</strong><small>Waiting for submissions</small></article><article class="card kpi-card"><span>Total CAPEX</span><strong>—</strong><small>Waiting for submissions</small></article><article class="card kpi-card"><span>Budget Progress</span><strong>0%</strong><small>Planning cycle not started</small></article><article class="card kpi-card"><span>Next Deadline</span><strong>—</strong><small>Roadmap will define deadlines</small></article></section>
-      <section class="card roadmap-preview"><div class="section-head"><div><span class="eyebrow">CURRENT USER</span><h2 id="currentUserTitle">Loading user...</h2><p id="currentUserDepartments" style="margin:4px 0 0;color:#71878b;font-size:11px"></p></div><button class="teal-btn" id="firebaseTestBtn" type="button">Test Firestore</button></div><div style="padding-top:8px;color:#71878b;font-size:11px">Access is loaded from <b>users / UID</b> in Firestore.</div></section>
+      <section class="card roadmap-preview"><div class="section-head"><div><span class="eyebrow">CURRENT USER</span><h2 id="currentUserTitle">Loading user...</h2><p id="currentUserDepartments" style="margin:4px 0 0"></p></div><button class="teal-btn" id="firebaseTestBtn" type="button">Test Firestore</button></div><div style="padding-top:8px">Access is loaded from <b>users / UID</b> in Firestore.</div></section>
       <section class="card roadmap-preview"><div class="section-head"><div><span class="eyebrow">ROADMAP</span><h2>Budget Process 2027</h2></div><button class="teal-btn">Open Roadmap</button></div><div class="roadmap-line"><div><span class="dot"></span><b>Kick-Off</b><small>Start</small></div><div><span class="dot"></span><b>Templates</b><small>Release</small></div><div><span class="dot"></span><b>Submissions</b><small>Departments</small></div><div><span class="dot"></span><b>Finance Review</b><small>Validation</small></div><div><span class="dot"></span><b>Management</b><small>Approval</small></div><div><span class="dot"></span><b>Final Budget</b><small>Freeze</small></div></div></section>
     </main>
   </div>
-  <script src="js/app.js?v=20260817-central-progress-1"></script>
-  <script type="module" src="js/firebase.js?v=20260817-central-progress-1"></script>
+  <script src="js/app.js?v=20260817-dashboard-clarity-1"></script>
+  <script type="module" src="js/firebase.js?v=20260817-dashboard-clarity-1"></script>
   <script>
     (function(){
       const status=document.getElementById('firebaseStatus'),btn=document.getElementById('firebaseTestBtn'),title=document.getElementById('currentUserTitle'),deps=document.getElementById('currentUserDepartments');
@@ -57,6 +57,6 @@
       btn.addEventListener('click',async()=>{try{btn.disabled=true;btn.textContent='Testing...';if(!window.DADFirebase)throw new Error('Firebase SDK is still loading.');const path=await window.DADFirebase.testConnection();status.textContent='Firestore connected successfully · '+path;status.style.background='#e9f9f3';status.style.color='#087a64';btn.textContent='Connected ✓'}catch(e){status.textContent='Firestore test failed · '+e.message;status.style.background='#fff0f0';status.style.color='#a63b3b';btn.textContent='Test Firestore';btn.disabled=false}});
     })();
   </script>
-  <script type="module" src="js/dashboard-submissions.js?v=20260817-central-progress-1"></script>
+  <script type="module" src="js/dashboard-submissions.js?v=20260817-dashboard-clarity-1"></script>
 </body>
 </html>
