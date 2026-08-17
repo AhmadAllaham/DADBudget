@@ -4,10 +4,10 @@ import {getFirestore,doc,getDoc,onSnapshot} from 'https://www.gstatic.com/fireba
 
 const app=getApps()[0],auth=getAuth(app),db=getFirestore(app),MAIN='PST3chwdZmaQGeG25t4ym9Vlixe2';
 const clean=v=>String(v??'').trim().toLowerCase();
-let profile=null,subUnsub=null,statusUnsub=null;
+let subUnsub=null,statusUnsub=null;
 let submissionState='',financeState='';
 
-function isAdmin(){return auth.currentUser?.uid===MAIN||profile?.role==='admin'||profile?.isMainAdmin===true}
+function isMainAdmin(){return auth.currentUser?.uid===MAIN}
 function selected(){return String(document.getElementById('deptFilter')?.value||'').trim()}
 function isApproved(){return submissionState==='approved'||financeState==='approved'}
 
@@ -29,7 +29,7 @@ function reviewButton(){
 }
 
 function apply(){
-  const locked=isApproved()&&!isAdmin();
+  const locked=isApproved()&&!isMainAdmin();
   const up=document.getElementById('opexUploadBtn'),inp=document.getElementById('opexUploadInput'),review=reviewButton(),n=note();
   if(up){up.hidden=locked;up.disabled=locked;up.style.setProperty('display',locked?'none':'','important')}
   if(inp){inp.disabled=locked;if(locked)inp.value=''}
@@ -50,7 +50,7 @@ function readSubmissionState(data={}){
 async function watch(){
   stop();submissionState='';financeState='';
   const cc=selected();
-  if(!cc||isAdmin()){apply();return}
+  if(!cc||isMainAdmin()){apply();return}
   try{
     const [a,b]=await Promise.all([
       getDoc(doc(db,'opex_budget_submissions',cc)),
@@ -70,13 +70,12 @@ async function watch(){
   },e=>console.warn('OPEX finance lock listener failed',e));
 }
 
-async function start(u){
-  try{const p=await getDoc(doc(db,'users',u.uid));profile=p.exists()?p.data():{}}catch(_){profile={}}
+async function start(){
   const sel=document.getElementById('deptFilter');
   if(sel&&!sel.dataset.hardLock){sel.dataset.hardLock='1';sel.addEventListener('change',watch)}
   await watch();
 }
 
-onAuthStateChanged(auth,u=>{if(u)start(u)});
-window.addEventListener('dad-user-ready',e=>{profile=e.detail?.profile||profile;const u=e.detail?.user||auth.currentUser;if(u)start(u)});
+onAuthStateChanged(auth,u=>{if(u)start()});
+window.addEventListener('dad-user-ready',()=>{if(auth.currentUser)start()});
 new MutationObserver(()=>apply()).observe(document.documentElement,{childList:true,subtree:true});
