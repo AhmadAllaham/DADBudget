@@ -52,3 +52,4 @@ if(pathNow()==='opex.html'){
 }
 if(pathNow()==='submission-control.html') import('./central-progress-control.js?v=20260817-manager-gate-2').catch(e=>console.error('Central progress controls failed:',e));
 if(pathNow()==='user-settings.html') import('./user-settings-auto.js?v=20260817-auto-user-1').catch(e=>console.error('Automatic user creation controls failed:',e));
+if(pathNow()!=='login.html') import('./messages-nav.js?v=20260817-messages-1').catch(e=>console.error('Messages navigation failed:',e));
