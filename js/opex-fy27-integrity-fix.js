@@ -4,9 +4,12 @@ const CATS=[['Employees Benefits','601'],['Travel Costs','602'],['Depreciation a
 const clean=v=>String(v??'').trim();
 const num=v=>{const x=Number(v||0);return Number.isFinite(x)?x:0};
 const fmt=v=>Math.abs(num(v))<.005?'—':num(v).toLocaleString(undefined,{maximumFractionDigits:0});
+const pct=(a,b)=>Math.abs(num(b))<.005?null:(num(a)-num(b))/Math.abs(num(b))*100;
 function loadModel(){try{const m=JSON.parse(localStorage.getItem(KEY)||'null');return m?.departments?m:null}catch(_){return null}}
 function fy27(item){let s=0;Object.entries(item?.newBudgetByMonth||{}).forEach(([k,v])=>{if(String(k).startsWith(String(NEW_YEAR)+'-'))s+=num(v)});return s}
+function fy26(item){return num(item?.fyBudget)}
 function cat(code){if(code==='6050015'||code==='6050016')return'Other Expenses';if(code==='6140019')return'Products related Expense';return(CATS.find(x=>x[1]===String(code).slice(0,3))||['Other Expenses'])[0]}
+function setVarianceCell(cell,value,isPct=false){if(!cell)return;cell.classList.remove('positive-var','negative-var');if(value===null){cell.textContent='—';return}cell.textContent=isPct?value.toLocaleString(undefined,{maximumFractionDigits:1})+'%':fmt(value);if(value>0)cell.classList.add('positive-var');else if(value<0)cell.classList.add('negative-var')}
 function updateOpex(){
   if((location.pathname.split('/').pop()||'').toLowerCase()!=='opex.html')return;
   const m=loadModel(),cc=document.getElementById('deptFilter')?.value,d=m?.departments?.[cc],body=document.getElementById('opexBody');if(!d||!body)return;
@@ -20,15 +23,25 @@ function updateOpex(){
 function updateSummary(){
   if((location.pathname.split('/').pop()||'').toLowerCase()!=='opex-summary.html')return;
   const m=loadModel(),body=document.getElementById('summaryBody');if(!m||!body)return;
-  let grand=0;
+  const heads=document.querySelectorAll('.summary-table thead th');
+  if(heads[8])heads[8].textContent='FY Budget 2027 vs FY Budget 2026';
+  if(heads[9])heads[9].textContent='FY Budget 2027 vs FY Budget 2026 %';
+  const periodLabel=document.getElementById('periodLabel');
+  if(periodLabel)periodLabel.textContent='YTD comparisons follow the selected period · FY Budget 2027 vs FY Budget 2026 compares the full year.';
+  let grand27=0,grand26=0;
   body.querySelectorAll('tr').forEach(row=>{
     if(row.classList.contains('total-row')||row.querySelector('.empty'))return;
     const first=clean(row.querySelector('td:first-child')?.textContent),cc=(first.match(/^\s*(\d+)\s*·/)||[])[1];if(!cc||!m.departments?.[cc])return;
-    const v=Object.values(m.departments[cc].items||{}).reduce((s,x)=>s+fy27(x),0);grand+=v;
-    const cells=row.querySelectorAll('td');if(cells[12])cells[12].textContent=fmt(v);
+    const items=Object.values(m.departments[cc].items||{}),v27=items.reduce((s,x)=>s+fy27(x),0),v26=items.reduce((s,x)=>s+fy26(x),0);grand27+=v27;grand26+=v26;
+    const cells=row.querySelectorAll('td');
+    setVarianceCell(cells[8],v27-v26,false);setVarianceCell(cells[9],pct(v27,v26),true);
+    if(cells[10])cells[10].textContent=fmt(v26);
+    if(cells[12])cells[12].textContent=fmt(v27);
   });
-  const totalRow=body.querySelector('.total-row');if(totalRow){const cells=totalRow.querySelectorAll('td');if(cells[12])cells[12].textContent=fmt(grand)}
-  const kpi=document.getElementById('kpiFy27');if(kpi)kpi.textContent=fmt(grand);
+  const totalRow=body.querySelector('.total-row');if(totalRow){const cells=totalRow.querySelectorAll('td');setVarianceCell(cells[8],grand27-grand26,false);setVarianceCell(cells[9],pct(grand27,grand26),true);if(cells[10])cells[10].textContent=fmt(grand26);if(cells[12])cells[12].textContent=fmt(grand27)}
+  const kpi27=document.getElementById('kpiFy27');if(kpi27)kpi27.textContent=fmt(grand27);
+  const kpi26=document.getElementById('kpiFy26');if(kpi26)kpi26.textContent=fmt(grand26);
+  const kpiPct=document.getElementById('kpiVarPct'),gp=pct(grand27,grand26);if(kpiPct)kpiPct.textContent=gp===null?'—':gp.toLocaleString(undefined,{maximumFractionDigits:1})+'%';
 }
 let busy=false,timer;
 function apply(){if(busy)return;busy=true;try{updateOpex();updateSummary()}finally{busy=false}}
