@@ -16,8 +16,8 @@
 <section class="card" style="padding:12px;margin-bottom:12px"><div class="toolbar"><input id="search" placeholder="Search Fund Center, department or email..."><select id="statusFilter"><option value="">All Statuses</option><option value="not_submitted">Not Submitted</option><option value="uploaded">Uploaded</option><option value="pending_manager">Pending Manager</option><option value="manager_returned">Returned by Manager</option><option value="manager_approved">Manager Approved</option><option value="under_review">Under Review</option><option value="returned">Returned by Finance</option><option value="approved">Approved</option></select><select id="uploadFilter"><option value="">All Departments</option><option value="uploaded">Uploaded Only</option><option value="not_uploaded">Not Uploaded</option></select></div><div class="status-line" id="statusLine">Loading Firestore data...</div></section>
 <section class="card table-card"><div class="table-wrap"><table class="sub-table"><thead><tr><th>Department</th><th>Assigned User</th><th>Last Upload</th><th>Revision</th><th>Current Status</th><th>Finance Status</th><th>Note</th><th>Action</th></tr></thead><tbody id="body"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody></table></div></section>
 </main></div>
-<script src="js/app.js?v=20260817-manager-finance-gate-1"></script>
-<script type="module" src="js/firebase.js?v=20260817-manager-finance-gate-1"></script>
+<script src="js/app.js?v=20260817-budget-notifications-1"></script>
+<script type="module" src="js/firebase.js?v=20260817-budget-notifications-1"></script>
 <script type="module">
 import { getApps } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
@@ -25,6 +25,7 @@ import { getFirestore, collection, getDocs, doc, getDoc, setDoc, serverTimestamp
 const app=getApps()[0],auth=getAuth(app),db=getFirestore(app),MAIN='PST3chwdZmaQGeG25t4ym9Vlixe2';
 const $=id=>document.getElementById(id);let rows=[];
 const labels={not_submitted:'Not Submitted',uploaded:'Uploaded',pending_manager:'Pending Manager Approval',manager_returned:'Returned by Manager',manager_approved:'Manager Approved',submitted:'Submitted',under_review:'Finance Review',returned:'Returned by Finance',approved:'Approved'};
+async function notifyBudgetUsers({emails=[],cc='',name='',status='',note='',revision=0}={}){const user=auth.currentUser,fromEmail=String(user?.email||'').trim().toLowerCase(),targets=[...new Set(emails.map(x=>String(x||'').trim().toLowerCase()).filter(x=>x&&x.includes('@')&&x!==fromEmail))],label=status==='approved'?'Approved by Finance':'Returned by Finance';await Promise.all(targets.map(toEmail=>{const ref=doc(collection(db,'messages'));return setDoc(ref,{kind:'notification',notificationType:'budget_workflow',status,department:cc,departmentName:name||cc,fromUid:user.uid,fromEmail,toEmail,subject:`Budget 2027 · ${label}`,body:`${name||cc} (${cc}) · ${label}${note?`\n${note}`:''}`,note,revision:Number(revision||0),targetUrl:`opex.html?department=${encodeURIComponent(cc)}`,read:false,createdAt:serverTimestamp(),clientCreatedAt:new Date().toISOString()})}))}
 const fmtDate=v=>{if(!v)return'—';const d=v?.toDate?v.toDate():new Date(v);return isNaN(d)?'—':d.toLocaleString()};
 function statusOf(r){return r?.upload?.workflowStatus||r?.status?.status||(r?.upload?'uploaded':'not_submitted')}
 function canFinance(r){return ['manager_approved','under_review','returned','approved'].includes(statusOf(r))}
@@ -51,6 +52,7 @@ async function saveRow(tr,btn){const cc=tr.dataset.cc,r=rows.find(x=>x.cc===cc);
       setDoc(doc(db,'opex_budget_submissions',cc),{workflowStatus:newStatus,workflowUpdatedAt:serverTimestamp(),financeStatus:newStatus,financeUpdatedBy:user.uid,financeUpdatedEmail:(user.email||'').toLowerCase()},{merge:true})
     ]);
     if(emails.length){const mailRef=doc(collection(db,'mail'));const subject=`Budget 2027 · ${r.name} · ${labels[newStatus]}`;const text=`Your Budget 2027 submission status for ${r.name} (${cc}) is now: ${labels[newStatus]}.${note?`\n\nNote from Finance: ${note}`:''}`;await setDoc(mailRef,{to:emails,message:{subject,text,html:`<div style="font-family:Arial,sans-serif"><h2>Budget 2027</h2><p>Your submission status for <b>${r.name}</b> (${cc}) is now:</p><p style="font-size:18px;font-weight:700">${labels[newStatus]}</p>${note?`<p><b>Finance note:</b> ${note}</p>`:''}<p>DAD Budget 2027 Planning Center</p></div>`},createdBy:user.uid,createdAt:serverTimestamp()});}
+    if(['returned','approved'].includes(newStatus))await notifyBudgetUsers({emails,cc,name:r.name,status:newStatus,note,revision:r.upload?.revision||0,source:'finance'});
     $('statusLine').textContent=`${r.name}: ${labels[newStatus]} saved${emails.length?' · email queued':''}.`;$('statusLine').className='status-line ok';await load();
   }catch(e){$('statusLine').textContent='Save failed: '+e.message;$('statusLine').className='status-line err'}finally{btn.disabled=false;btn.textContent='Save + Notify'}}
 $('search').oninput=render;$('statusFilter').onchange=render;$('uploadFilter').onchange=render;$('refreshBtn').onclick=load;
