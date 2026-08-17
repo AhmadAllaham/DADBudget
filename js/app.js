@@ -15,7 +15,7 @@
   function moduleForLink(link){
     const href=(link.getAttribute('href')||'').split('?')[0].toLowerCase(),label=String(link.textContent||'').trim().toLowerCase();
     if(href.includes('user-settings'))return'admin_only';
-    if(href.includes('data-admin'))return'data_admin';
+    if(href.includes('data-admin'))return'main_admin';
     if(href.includes('ims-sales'))return'ims';
     if(href.includes('capex'))return'capex';
     if(href.includes('travel-budget'))return'travel';
@@ -29,10 +29,10 @@
   }
   function applyCachedAccess(){
     const p=currentProfile();if(!p)return;
-    const isAdmin=p.isMainAdmin===true||p.role==='admin',mods=new Set(Array.isArray(p.modules)?p.modules:[]);
+    const isAdmin=p.isMainAdmin===true||p.role==='admin',mainAdmin=p.isMainAdmin===true,mods=new Set(Array.isArray(p.modules)?p.modules:[]);
     const nav=document.querySelector('.sidebar-nav');
     if(nav){
-      nav.querySelectorAll('a').forEach(a=>{const req=moduleForLink(a);if(!req)return;a.style.display=req==='admin_only'?(isAdmin?'':'none'):((isAdmin||mods.has(req))?'':'none')});
+      nav.querySelectorAll('a').forEach(a=>{const req=moduleForLink(a);if(!req)return;a.style.display=req==='main_admin'?(mainAdmin?'':'none'):req==='admin_only'?(isAdmin?'':'none'):((isAdmin||mods.has(req))?'':'none')});
       nav.querySelectorAll('.nav-section').forEach(s=>{if(String(s.textContent||'').trim().toUpperCase()==='ADMIN'){let el=s.nextElementSibling,show=false;while(el&&!el.classList.contains('nav-section')){if(el.tagName==='A'&&el.style.display!=='none')show=true;el=el.nextElementSibling}s.style.display=show?'':'none'}});
     }
     const allowed=Array.isArray(p.departments)?p.departments.filter(Boolean):(p.department?[p.department]:[]),all=isAdmin||allowed.includes('ALL');
