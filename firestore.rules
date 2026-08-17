@@ -1,0 +1,102 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isMainAdmin() {
+      return isSignedIn()
+        && request.auth.uid == 'PST3chwdZmaQGeG25t4ym9Vlixe2';
+    }
+
+    function hasUserProfile() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function currentUserProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasDepartment(fundCenter) {
+      return hasUserProfile()
+        && currentUserProfile().departments is list
+        && fundCenter in currentUserProfile().departments;
+    }
+
+    function myEmail() {
+      return request.auth.token.email;
+    }
+
+    match /system_status/{document} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /users/{userId} {
+      allow read, create, update, delete: if isMainAdmin();
+      allow read: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /opex_baseline_meta/{document} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isMainAdmin();
+    }
+
+    match /opex_baseline_departments/{fundCenter} {
+      allow read: if isMainAdmin() || hasDepartment(fundCenter);
+      allow create, update, delete: if isMainAdmin();
+    }
+
+    match /opex_budget_submissions/{fundCenter} {
+      allow read: if isMainAdmin() || hasDepartment(fundCenter);
+      allow create, update: if isMainAdmin() || hasDepartment(fundCenter);
+      allow delete: if false;
+    }
+
+    match /budget_submission_status/{fundCenter} {
+      allow read, create, update: if isMainAdmin();
+      allow read: if hasDepartment(fundCenter);
+      allow delete: if false;
+    }
+
+    match /messages/{messageId} {
+      allow create: if isSignedIn()
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.fromEmail == myEmail()
+        && request.resource.data.toEmail is string
+        && request.resource.data.body is string
+        && request.resource.data.subject is string;
+
+      allow read: if isSignedIn()
+        && (resource.data.fromEmail == myEmail()
+            || resource.data.toEmail == myEmail());
+
+      allow update: if isSignedIn()
+        && resource.data.toEmail == myEmail()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read','readAt']);
+
+      allow delete: if false;
+    }
+
+    match /audit_logs/{logId} {
+      allow create: if isSignedIn()
+                    && request.resource.data.uid == request.auth.uid;
+      allow read: if isMainAdmin();
+      allow update, delete: if false;
+    }
+
+    match /audit_counters/{counterId} {
+      allow read, create, update: if isSignedIn();
+      allow delete: if false;
+    }
+
+    match /mail/{mailId} {
+      allow create: if isMainAdmin();
+      allow read: if isMainAdmin();
+      allow update, delete: if false;
+    }
+  }
+}
