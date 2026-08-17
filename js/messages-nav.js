@@ -1,0 +1,9 @@
+import {getApps} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
+import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
+import {getFirestore,collection,getDocs,query,where} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
+const app=getApps()[0],auth=getAuth(app),db=getFirestore(app);
+function ensureLink(){const nav=document.querySelector('.sidebar-nav');if(!nav||nav.querySelector('a[href="messages.html"]'))return nav?.querySelector('a[href="messages.html"]');const a=document.createElement('a');a.href='messages.html';a.innerHTML='Messages <span id="messagesUnreadBadge" style="display:none;margin-left:auto;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#33e1ca;color:#073f42;font-size:9px;font-weight:1000;align-items:center;justify-content:center;box-shadow:0 0 10px rgba(51,225,202,.30)"></span>';const road=nav.querySelector('a[href="roadmap.html"]'),opex=nav.querySelector('a[href="opex.html"]');if(road)road.after(a);else if(opex)nav.insertBefore(a,opex);else nav.appendChild(a);return a}
+async function refresh(user){const link=ensureLink();if(!link||!user?.email)return;const badge=link.querySelector('#messagesUnreadBadge');try{const s=await getDocs(query(collection(db,'messages'),where('toEmail','==',String(user.email).toLowerCase())));const n=s.docs.filter(x=>x.data()?.read!==true).length;if(n){badge.textContent=n>99?'99+':String(n);badge.style.display='inline-flex'}else badge.style.display='none'}catch(_){badge.style.display='none'}}
+function install(){ensureLink();const u=auth.currentUser;if(u)refresh(u)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
+onAuthStateChanged(auth,u=>{if(u)refresh(u)});window.addEventListener('dad-user-ready',e=>refresh(e.detail?.user||auth.currentUser));window.addEventListener('focus',()=>{if(auth.currentUser)refresh(auth.currentUser)});
