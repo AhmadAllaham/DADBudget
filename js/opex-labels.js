@@ -17,4 +17,4 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 const observer=new MutationObserver(()=>apply());
 observer.observe(document.documentElement,{childList:true,subtree:true});
 
-import('./manager-workflow.js?v=20260817-submission-doc-workflow-1').catch(e=>console.error('Manager workflow failed:',e));
+import('./manager-workflow.js?v=20260817-manager-approval-final-1').catch(e=>console.error('Manager workflow failed:',e));
