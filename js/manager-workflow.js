@@ -30,7 +30,7 @@ async function sendUnderReview(btn){
     workflowUpdatedAt:serverTimestamp()
   },{merge:true});
 
-  btn.textContent='Under Review';
+  btn.textContent='Submit';
   btn.disabled=true;
   alert('Budget sent to Finance and is now Under Review.');
 }
@@ -43,14 +43,14 @@ function install(){
   });
   if(!btn||btn.dataset.financeReviewWorkflow)return;
   btn.dataset.financeReviewWorkflow='1';
-  btn.textContent='Under Review';
+  btn.textContent='Submit';
   btn.addEventListener('click',async e=>{
     e.preventDefault();e.stopImmediatePropagation();
     try{
       btn.disabled=true;btn.textContent='Sending for Review...';
       await sendUnderReview(btn);
     }catch(err){
-      btn.disabled=false;btn.textContent='Under Review';
+      btn.disabled=false;btn.textContent='Submit';
       alert('Budget review submission failed: '+(err?.message||err));
     }
   },true);
