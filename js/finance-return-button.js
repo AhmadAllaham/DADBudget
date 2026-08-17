@@ -1,8 +1,9 @@
 import {getApps} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
 import {getAuth} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
-import {getFirestore,doc,setDoc,serverTimestamp} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
+import {getFirestore,collection,doc,getDoc,setDoc,serverTimestamp} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 
 const app=getApps()[0],auth=getAuth(app),db=getFirestore(app),MAIN='PST3chwdZmaQGeG25t4ym9Vlixe2';
+async function notifyBudgetUsers({emails=[],cc='',name='',revision=0}={}){const user=auth.currentUser,fromEmail=String(user?.email||'').trim().toLowerCase(),targets=[...new Set(emails.map(x=>String(x||'').trim().toLowerCase()).filter(x=>x&&x.includes('@')&&x!==fromEmail))],label='Returned by Finance';await Promise.all(targets.map(toEmail=>{const ref=doc(collection(db,'messages'));return setDoc(ref,{kind:'notification',notificationType:'budget_workflow',status:'returned',department:cc,departmentName:name||cc,fromUid:user.uid,fromEmail,toEmail,subject:`Budget 2027 · ${label}`,body:`${name||cc} (${cc}) · ${label}`,note:'',revision:Number(revision||0),targetUrl:`opex.html?department=${encodeURIComponent(cc)}`,read:false,createdAt:serverTimestamp(),clientCreatedAt:new Date().toISOString()})}))}
 
 function installStyle(){
   if(document.getElementById('financeReturnStyle'))return;
@@ -16,6 +17,7 @@ async function returnBudget(tr,btn){
   const cc=String(tr.dataset.cc||'').trim();if(!cc)return;
   try{
     btn.disabled=true;btn.textContent='Returning...';
+    const before=await getDoc(doc(db,'opex_budget_submissions',cc)),submission=before.exists()?before.data()||{}:{};
     await Promise.all([
       setDoc(doc(db,'opex_budget_submissions',cc),{
         workflowStatus:'returned',financeStatus:'returned',workflowUpdatedAt:serverTimestamp(),financeUpdatedBy:user.uid,financeUpdatedEmail:(user.email||'').toLowerCase()
@@ -24,6 +26,7 @@ async function returnBudget(tr,btn){
         status:'returned',updatedBy:user.uid,updatedByEmail:(user.email||'').toLowerCase(),updatedAt:serverTimestamp(),clientUpdatedAt:new Date().toISOString()
       },{merge:true})
     ]);
+    await notifyBudgetUsers({emails:[submission.submittedEmail,submission.submittedByEmail],cc,name:submission.departmentName||submission.name||cc,status:'returned',note:'',revision:submission.revision||0,source:'finance'});
     btn.textContent='Returned ✓';
     setTimeout(()=>location.reload(),350);
   }catch(e){
