@@ -54,3 +54,6 @@ async function refresh(user){const link=ensureIcon();if(!link||!user?.email)retu
 function install(){applyAccessPolish();applySummaryTypography();const a=ensureIcon();if(!a){setTimeout(install,200);return}const u=auth.currentUser;if(u)refresh(u)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
 onAuthStateChanged(auth,u=>{if(u){applyAccessPolish();refresh(u)}});window.addEventListener('dad-user-ready',e=>{applyAccessPolish(e.detail?.profile||currentProfile());refresh(e.detail?.user||auth.currentUser)});window.addEventListener('focus',()=>{applyAccessPolish();if(auth.currentUser)refresh(auth.currentUser)});
+
+const page=(location.pathname.split('/').pop()||'').toLowerCase();
+if(page==='opex.html'||page==='opex-summary.html') import('./opex-fy27-integrity-fix.js?v=20260817-fy27-full-year-1').catch(e=>console.error('OPEX FY27 integrity fix failed:',e));
