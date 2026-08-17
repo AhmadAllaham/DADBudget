@@ -118,7 +118,18 @@ service cloud.firestore {
     }
 
     match /mail/{mailId} {
-      allow create: if isMainAdmin();
+      allow create: if isMainAdmin()
+                    || (isSignedIn()
+                        && request.resource.data.notificationType == 'budget_upload'
+                        && request.resource.data.createdBy == request.auth.uid
+                        && request.resource.data.createdByEmail == myEmail()
+                        && request.resource.data.to is list
+                        && request.resource.data.to.size() == 1
+                        && request.resource.data.to[0] == 'allaham@dadgroup.com'
+                        && request.resource.data.message is map
+                        && request.resource.data.message.subject is string
+                        && request.resource.data.message.text is string
+                        && request.resource.data.message.html is string);
       allow read: if isMainAdmin();
       allow update, delete: if false;
     }
