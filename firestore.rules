@@ -52,7 +52,10 @@ service cloud.firestore {
 
     match /opex_budget_submissions/{fundCenter} {
       allow read: if isMainAdmin() || hasDepartment(fundCenter);
-      allow create, update: if isMainAdmin() || hasDepartment(fundCenter);
+      allow create: if isMainAdmin() || hasDepartment(fundCenter);
+      allow update: if isMainAdmin()
+                    || (hasDepartment(fundCenter)
+                        && resource.data.workflowStatus != 'approved');
       allow delete: if false;
     }
 
