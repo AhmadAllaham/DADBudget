@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Notifications - DAD Budget 2027</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.notifications-page{padding-top:26px}.notifications-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:12px}.notifications-head h1{margin:3px 0 4px;font-size:30px;color:#123e63}.notifications-head p{margin:0;color:#667d82;font-size:11px;font-weight:750}.head-actions{display:flex;gap:8px}.read-all{height:36px;border:1px solid #b9dcd7;background:#fff;color:#42666b;border-radius:8px;padding:0 12px;font-size:9px;font-weight:1000;cursor:pointer}.notifications-card{overflow:hidden}.notifications-toolbar{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid #dfecea}.notifications-toolbar b{color:#173f46;font-size:12px}.notifications-toolbar span{color:#73888c;font-size:9px;font-weight:800}.notifications-list{max-height:690px;overflow:auto}.notification-item{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-bottom:1px solid #e8f0ef;background:#fff;cursor:pointer;transition:.16s}.notification-item:hover{background:#f4fbfa}.notification-item.unread{background:#eefaf8;border-left:4px solid #12a397}.notification-icon{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:0 0 38px;font-size:17px;background:#eaf8f4}.notification-icon.returned{background:#fff0ee}.notification-content{min-width:0;flex:1}.notification-top{display:flex;justify-content:space-between;gap:12px}.notification-top b{font-size:11px;color:#123e63}.notification-top time{font-size:8px;color:#839497;white-space:nowrap}.notification-subject{font-size:10px;font-weight:1000;color:#31565e;margin-top:4px}.notification-body{font-size:9px;color:#71868a;margin-top:4px;line-height:1.5;white-space:pre-wrap}.notification-link{display:inline-flex;margin-top:7px;color:#0b8279;font-size:8px;font-weight:1000}.empty{padding:46px 18px;text-align:center;color:#7c9094;font-size:11px;font-weight:800}.status{padding:8px 14px;font-size:9px;color:#70868b}.status.err{color:#b13e3e}.status.ok{color:#087a64}@media(max-width:700px){.notifications-head{flex-direction:column}.notification-top{flex-direction:column;gap:3px}}
+</style>
+</head>
+<body><div class="app-shell">
+<aside class="sidebar"><div class="sidebar-brand"><div class="brand-badge">B27</div><div><strong>BUDGET 2027</strong><span>PLANNING CENTER</span></div></div><nav class="sidebar-nav"><a href="index.html">Dashboard</a><a href="roadmap.html">Roadmap</a><a href="opex.html">OPEX Planning</a></nav></aside>
+<main class="main-content notifications-page">
+<div class="notifications-head"><div><span class="eyebrow">WORKFLOW UPDATES</span><h1>Notifications</h1><p>Budget approvals, returns and workflow updates in one place.</p></div><div class="head-actions"><button class="read-all" id="readAllBtn">Mark All as Read</button><button class="dark-btn" id="logoutBtn">Log out</button></div></div>
+<section class="card notifications-card"><div class="notifications-toolbar"><b>Budget Notifications</b><span id="unreadSummary">Loading...</span></div><div class="status" id="statusLine">Loading notifications...</div><div class="notifications-list" id="notificationsList"></div></section>
+</main></div>
+<script src="js/app.js?v=20260817-notifications-1"></script>
+<script type="module" src="js/firebase.js?v=20260817-notifications-1"></script>
+<script type="module">
+import {getApps} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
+import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
+import {getFirestore,collection,doc,getDocs,query,where,updateDoc,serverTimestamp} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
+const app=getApps()[0],auth=getAuth(app),db=getFirestore(app),$=id=>document.getElementById(id);let notifications=[];
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const dateOf=n=>n.createdAt?.toDate?n.createdAt.toDate():new Date(n.clientCreatedAt||0);
+const fmt=n=>{const d=dateOf(n);return isNaN(d)?'':d.toLocaleString()};
+function setStatus(t,c=''){$('statusLine').textContent=t;$('statusLine').className='status '+c}
+function render(){
+  const unread=notifications.filter(x=>x.read!==true).length;$('unreadSummary').textContent=unread?`${unread} unread`:'All caught up';$('readAllBtn').disabled=!unread;
+  if(!notifications.length){$('notificationsList').innerHTML='<div class="empty">No budget notifications yet.</div>';return}
+  $('notificationsList').innerHTML=notifications.map(n=>{const returned=String(n.status||'').includes('returned');return`<article class="notification-item ${n.read===true?'':'unread'}" data-id="${esc(n.id)}" data-url="${esc(n.targetUrl||'opex.html')}"><div class="notification-icon ${returned?'returned':''}">${returned?'↩':'✓'}</div><div class="notification-content"><div class="notification-top"><b>${esc(n.departmentName||n.department||'Budget 2027')}</b><time>${esc(fmt(n))}</time></div><div class="notification-subject">${esc(n.subject||'Budget Updated')}</div><div class="notification-body">${esc(n.body||'')}</div><span class="notification-link">Open OPEX →</span></div></article>`}).join('');
+  document.querySelectorAll('.notification-item').forEach(x=>x.onclick=()=>openNotification(x.dataset.id,x.dataset.url))
+}
+async function load(user){try{setStatus('Loading notifications...');const email=String(user.email||'').trim().toLowerCase(),s=await getDocs(query(collection(db,'messages'),where('toEmail','==',email)));notifications=s.docs.map(x=>({id:x.id,...x.data()})).filter(x=>x.kind==='notification').sort((a,b)=>dateOf(b)-dateOf(a));render();setStatus(`${notifications.length} notification${notifications.length===1?'':'s'}`,'ok')}catch(e){console.error(e);setStatus(`Notifications unavailable: ${e.code||e.message}`,'err');$('notificationsList').innerHTML='<div class="empty">Unable to load notifications.</div>'}}
+async function openNotification(id,url){const n=notifications.find(x=>x.id===id);if(n&&n.read!==true){try{await updateDoc(doc(db,'messages',id),{read:true,readAt:serverTimestamp()});n.read=true}catch(_){}}location.href=url||'opex.html'}
+$('readAllBtn').onclick=async()=>{const unread=notifications.filter(x=>x.read!==true);if(!unread.length)return;try{$('readAllBtn').disabled=true;await Promise.all(unread.map(n=>updateDoc(doc(db,'messages',n.id),{read:true,readAt:serverTimestamp()})));unread.forEach(n=>n.read=true);render()}catch(e){alert('Could not mark notifications as read: '+(e.code||e.message))}};
+onAuthStateChanged(auth,user=>{if(user)load(user)});
+</script></body></html>
