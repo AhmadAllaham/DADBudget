@@ -1,0 +1,63 @@
+/* DAD Budget 2027 - Sidebar readability + soft neon */
+.sidebar{
+  background:linear-gradient(180deg,#0b5d63 0%,#084e55 46%,#073f46 100%)!important;
+}
+.sidebar-brand{gap:11px!important;padding-bottom:22px!important}
+.brand-badge{
+  width:42px!important;height:42px!important;flex-basis:42px!important;
+  font-size:13px!important;font-weight:1000!important;
+  border-color:rgba(147,255,243,.42)!important;
+  box-shadow:0 0 12px rgba(65,239,220,.16),inset 0 0 9px rgba(83,255,235,.08)!important;
+}
+.sidebar-brand strong{
+  font-size:17px!important;font-weight:1000!important;letter-spacing:.015em!important;
+  color:#fff!important;text-shadow:0 0 6px rgba(70,255,234,.16)!important;
+}
+.sidebar-brand span{
+  font-size:10px!important;font-weight:800!important;letter-spacing:.14em!important;
+  color:rgba(224,255,251,.78)!important;text-shadow:0 0 5px rgba(70,255,234,.10)!important;
+}
+.sidebar-nav{gap:5px!important}
+.sidebar-nav .nav-section{
+  font-size:9px!important;font-weight:1000!important;letter-spacing:.16em!important;
+  color:rgba(175,255,246,.62)!important;text-shadow:0 0 5px rgba(78,255,235,.10)!important;
+  margin-top:17px!important;margin-bottom:7px!important;
+}
+.sidebar-nav>a{
+  font-size:14px!important;font-weight:900!important;line-height:1.25!important;
+  padding:11px 10px!important;color:rgba(255,255,255,.94)!important;
+  text-shadow:0 0 5px rgba(57,255,230,.09)!important;
+}
+.opex-subnav{
+  margin-left:18px!important;padding-left:11px!important;
+  border-left-color:rgba(112,255,238,.28)!important;
+}
+.opex-subnav a{
+  font-size:12px!important;font-weight:850!important;line-height:1.25!important;
+  padding:8px 10px!important;color:rgba(235,255,252,.88)!important;
+  text-shadow:0 0 4px rgba(57,255,230,.08)!important;
+}
+.sidebar-nav>a:hover,.sidebar-nav>a.active,.opex-subnav a:hover,.opex-subnav a.active{
+  color:#fff!important;
+  background:linear-gradient(90deg,rgba(34,214,196,.26),rgba(32,158,149,.08),transparent)!important;
+  text-shadow:0 0 6px rgba(63,255,232,.28),0 0 12px rgba(63,255,232,.12)!important;
+  box-shadow:inset 0 0 0 1px rgba(107,255,239,.16),0 0 10px rgba(48,232,214,.07)!important;
+}
+.sidebar-nav>a.active{
+  background:linear-gradient(90deg,rgba(27,220,199,.33),rgba(21,138,132,.10),transparent)!important;
+}
+.sidebar-toggle{
+  width:32px!important;height:32px!important;
+  border-color:rgba(119,255,240,.46)!important;
+  box-shadow:0 0 12px rgba(59,241,220,.16)!important;
+}
+.sidebar-toggle:hover{
+  text-shadow:0 0 7px rgba(86,255,237,.45)!important;
+  box-shadow:0 0 17px rgba(59,241,220,.30)!important;
+}
+.app-shell.sidebar-collapsed .sidebar-nav a{font-size:0!important}
+@media(max-width:900px){
+  .sidebar-brand strong{font-size:16px!important}
+  .sidebar-nav>a{font-size:13px!important}
+  .opex-subnav a{font-size:11px!important}
+}
