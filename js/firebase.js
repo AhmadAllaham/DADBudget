@@ -40,5 +40,8 @@ async testConnection(){const r=doc(db,'system_status','web_connection');await se
 onAuthStateChanged(auth,async user=>{const login=pathNow()==='login.html'||pathNow()==='';if(!user){clearSession();if(!login)location.replace('login.html');return}if(login)return;try{await ensureMainAdminProfile(user);const p=await getProfile(user.uid);if(!p||p.enabled===false){await signOut(auth);clearSession();location.replace('login.html');return}cacheSession(user,p);setupLogout();applyAccess(p);setupUploadAudit(p);window.dispatchEvent(new CustomEvent('dad-user-ready',{detail:{user,profile:p}}))}catch(e){console.error('Budget user session error:',e)}});
 window.dispatchEvent(new CustomEvent('dad-firebase-ready',{detail:{projectId:firebaseConfig.projectId,mainAdminUid:MAIN_ADMIN_UID}}));
 
-if(pathNow()==='opex.html') import('./opex-sync-v2.js?v=20260817-admin-submissions-2').catch(e=>console.error('OPEX sync module failed:',e));
+if(pathNow()==='opex.html'){
+  import('./opex-sync-v2.js?v=20260817-admin-submissions-2').catch(e=>console.error('OPEX sync module failed:',e));
+  import('./opex-account-name-fix.js?v=20260817-account-name-fix-1').catch(e=>console.error('OPEX account name fixer failed:',e));
+}
 if(pathNow()==='submission-control.html') import('./central-progress-control.js?v=20260817-central-progress-1').catch(e=>console.error('Central progress controls failed:',e));
