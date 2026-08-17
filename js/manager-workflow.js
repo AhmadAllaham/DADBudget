@@ -1,14 +1,16 @@
 import { getApps } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
 import { getAuth } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
-import { getFirestore, collection, getDocs, doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 
 const app=getApps()[0],auth=getAuth(app),db=getFirestore(app);
 const clean=v=>String(v??'').trim();
 
-async function findManager(cc){
-  const snap=await getDocs(collection(db,'users'));
-  const managers=snap.docs.map(x=>({id:x.id,...x.data()})).filter(u=>u.enabled!==false&&u.role==='manager'&&(u.departments||[]).map(String).includes(String(cc)));
-  return managers[0]||null;
+async function managerForDepartment(cc){
+  const snap=await getDoc(doc(db,'budget_submission_status',cc));
+  if(!snap.exists())return null;
+  const d=snap.data()||{};
+  const uid=clean(d.managerUid),email=clean(d.managerEmail).toLowerCase();
+  return uid?{uid,email}:null;
 }
 
 function currentDepartment(){
@@ -21,11 +23,11 @@ function currentDepartment(){
 async function submitForManager(btn){
   const user=auth.currentUser;if(!user)throw new Error('Sign in first.');
   const {cc,name}=currentDepartment();if(!cc)throw new Error('Select a department first.');
-  const manager=await findManager(cc);
-  if(!manager)throw new Error('No manager is assigned to this department yet. Assign a Manager role user to this Fund Center in User Settings.');
+  const manager=await managerForDepartment(cc);
+  if(!manager)throw new Error('No manager is linked to this department yet. Ask the Admin to open the Manager user in User Settings and save it once.');
   await setDoc(doc(db,'budget_submission_status',cc),{
     fundCenter:cc,departmentName:name,status:'pending_manager',workflowStatus:'pending_manager',
-    managerStatus:'pending',managerUid:manager.id,managerEmail:clean(manager.email).toLowerCase(),
+    managerStatus:'pending',managerUid:manager.uid,managerEmail:manager.email,
     submittedBy:user.uid,submittedByEmail:clean(user.email).toLowerCase(),submittedAt:serverTimestamp(),clientSubmittedAt:new Date().toISOString(),
     managerNote:'',managerApprovedAt:null,managerApprovedBy:null,updatedAt:serverTimestamp()
   },{merge:true});
