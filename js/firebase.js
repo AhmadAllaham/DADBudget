@@ -12,6 +12,9 @@ const clean=v=>String(v??'').trim();
 const isAdmin=p=>p?.isMainAdmin===true||p?.role==='admin';
 const departmentsOf=p=>Array.isArray(p?.departments)?p.departments.map(clean).filter(Boolean):(p?.department?[clean(p.department)]:[]);
 
+function ensureSidebarTheme(){if(document.querySelector('link[data-dad-sidebar-theme]'))return;const l=document.createElement('link');l.rel='stylesheet';l.href='css/sidebar-neon.css?v=20260817-1';l.dataset.dadSidebarTheme='1';document.head.appendChild(l)}
+ensureSidebarTheme();
+
 async function getProfile(uid){const s=await getDoc(doc(db,'users',uid));return s.exists()?{id:s.id,...s.data()}:null}
 async function ensureMainAdminProfile(user){if(!user||user.uid!==MAIN_ADMIN_UID)return;await setDoc(doc(db,'users',user.uid),{uid:user.uid,email:(user.email||MAIN_ADMIN_EMAIL).toLowerCase(),role:'admin',isMainAdmin:true,enabled:true,department:'ALL',departments:['ALL'],departmentLabel:'All Departments',departmentLabels:['All Departments'],modules:ALL_MODULES,updatedAt:serverTimestamp()},{merge:true})}
 function cleanUserProfile(uid,p={}){const main=uid===MAIN_ADMIN_UID,deps=main?['ALL']:[...new Set(departmentsOf(p))],labels=main?['All Departments']:(Array.isArray(p.departmentLabels)?p.departmentLabels.map(clean).filter(Boolean):(p.departmentLabel?[clean(p.departmentLabel)]:[]));return{uid,email:clean(p.email).toLowerCase(),role:main?'admin':clean(p.role||'department_user'),isMainAdmin:main,enabled:main?true:p.enabled!==false,department:main?'ALL':(deps[0]||''),departments:deps,departmentLabel:main?'All Departments':(labels[0]||'Not Restricted'),departmentLabels:labels,modules:main?ALL_MODULES:(Array.isArray(p.modules)?p.modules:[]),updatedAt:serverTimestamp()}}
