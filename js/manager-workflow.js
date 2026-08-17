@@ -6,9 +6,15 @@ const app=getApps()[0],auth=getAuth(app),db=getFirestore(app);
 const clean=v=>String(v??'').trim();
 
 async function managerForDepartment(cc){
-  const snap=await getDoc(doc(db,'budget_submission_status',cc));
-  if(!snap.exists())return null;
-  const d=snap.data()||{};
+  const submissionSnap=await getDoc(doc(db,'opex_budget_submissions',cc));
+  if(submissionSnap.exists()){
+    const d=submissionSnap.data()||{};
+    const uid=clean(d.managerUid),email=clean(d.managerEmail).toLowerCase();
+    if(uid)return{uid,email};
+  }
+  const statusSnap=await getDoc(doc(db,'budget_submission_status',cc));
+  if(!statusSnap.exists())return null;
+  const d=statusSnap.data()||{};
   const uid=clean(d.managerUid),email=clean(d.managerEmail).toLowerCase();
   return uid?{uid,email}:null;
 }
@@ -25,11 +31,13 @@ async function submitForManager(btn){
   const {cc,name}=currentDepartment();if(!cc)throw new Error('Select a department first.');
   const manager=await managerForDepartment(cc);
   if(!manager)throw new Error('No manager is linked to this department yet. Ask the Admin to open the Manager user in User Settings and save it once.');
-  await setDoc(doc(db,'budget_submission_status',cc),{
-    fundCenter:cc,departmentName:name,status:'pending_manager',workflowStatus:'pending_manager',
-    managerStatus:'pending',managerUid:manager.uid,managerEmail:manager.email,
-    submittedBy:user.uid,submittedByEmail:clean(user.email).toLowerCase(),submittedAt:serverTimestamp(),clientSubmittedAt:new Date().toISOString(),
-    managerNote:'',managerApprovedAt:null,managerApprovedBy:null,updatedAt:serverTimestamp()
+  await setDoc(doc(db,'opex_budget_submissions',cc),{
+    fundCenter:cc,name,departmentName:name,
+    workflowStatus:'pending_manager',managerStatus:'pending',
+    managerUid:manager.uid,managerEmail:manager.email,
+    submittedBy:user.uid,submittedByEmail:clean(user.email).toLowerCase(),
+    workflowSubmittedAt:serverTimestamp(),workflowClientSubmittedAt:new Date().toISOString(),
+    managerNote:'',managerApprovedAt:null,managerApprovedBy:null,workflowUpdatedAt:serverTimestamp()
   },{merge:true});
   btn.textContent='Pending Manager Approval';
   btn.disabled=true;
