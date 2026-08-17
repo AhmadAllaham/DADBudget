@@ -47,3 +47,4 @@ async function saveInputs(tr,btn){
 function scan(){styleOnce();addHeaders();document.querySelectorAll('.sub-table tbody tr[data-cc]').forEach(enhanceRow)}
 const obs=new MutationObserver(scan);function start(){scan();const body=document.querySelector('.sub-table tbody');if(body)obs.observe(body,{childList:true});else setTimeout(start,250)}
 start();
+import('./finance-return-button.js?v=20260817-return-button-core-1').catch(e=>console.error('Finance return button failed:',e));
