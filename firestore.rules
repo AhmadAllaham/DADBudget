@@ -31,6 +31,11 @@ service cloud.firestore {
       return request.auth.token.email;
     }
 
+    function submissionIsApproved() {
+      return ('workflowStatus' in resource.data)
+        && resource.data.workflowStatus == 'approved';
+    }
+
     match /system_status/{document} {
       allow read, write: if isSignedIn();
     }
@@ -55,7 +60,7 @@ service cloud.firestore {
       allow create: if isMainAdmin() || hasDepartment(fundCenter);
       allow update: if isMainAdmin()
                     || (hasDepartment(fundCenter)
-                        && resource.data.workflowStatus != 'approved');
+                        && !submissionIsApproved());
       allow delete: if false;
     }
 
