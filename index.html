@@ -5,6 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DAD Budget 2027</title>
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .main-content{font-size:15px}
+    .status-banner{font-size:14px!important;font-weight:800;line-height:1.45}
+    .page-header h1{font-size:34px!important;line-height:1.15;margin:5px 0 6px}
+    .page-header p{font-size:14px!important;line-height:1.55}
+    .page-header .eyebrow,.roadmap-preview .eyebrow,#submissionStatusSection .eyebrow{font-size:11px!important;letter-spacing:.16em;font-weight:1000}
+    .kpi-card span{font-size:11px!important;font-weight:1000}
+    .kpi-card strong{font-size:30px!important;line-height:1.1;margin-top:7px}
+    .kpi-card small{font-size:11px!important;line-height:1.45}
+    #currentUserTitle{font-size:24px!important;line-height:1.2;margin:5px 0}
+    #currentUserDepartments{font-size:12px!important;line-height:1.6!important}
+    .roadmap-preview h2,#submissionStatusSection h2{font-size:23px!important;line-height:1.2;margin:5px 0}
+    .roadmap-preview>.section-head+div{font-size:11px!important;line-height:1.55}
+    #submissionSummary{font-size:12px!important;line-height:1.55!important}
+    #submissionStatusGrid{gap:10px!important}
+    #submissionStatusGrid>div{padding:13px 14px!important;min-height:84px}
+    #submissionStatusGrid>div>div:first-child{font-size:10px!important}
+    #submissionStatusGrid>div>div:nth-child(2){font-size:14px!important;line-height:1.25;margin-top:4px!important}
+    #submissionStatusGrid span{font-size:10.5px!important}
+    #submissionStatusGrid>div>div:last-child{font-size:9px!important;line-height:1.4}
+    .roadmap-line b{font-size:12px!important}
+    .roadmap-line small{font-size:10px!important}
+    .teal-btn,.dark-btn{font-size:11px!important;font-weight:900;padding:10px 14px}
+    @media(max-width:900px){
+      .page-header h1{font-size:29px!important}
+      .kpi-card strong{font-size:27px!important}
+      #currentUserTitle,.roadmap-preview h2,#submissionStatusSection h2{font-size:21px!important}
+    }
+  </style>
 </head>
 <body>
   <div class="app-shell">
@@ -23,8 +52,8 @@
       <section class="card roadmap-preview"><div class="section-head"><div><span class="eyebrow">ROADMAP</span><h2>Budget Process 2027</h2></div><button class="teal-btn">Open Roadmap</button></div><div class="roadmap-line"><div><span class="dot"></span><b>Kick-Off</b><small>Start</small></div><div><span class="dot"></span><b>Templates</b><small>Release</small></div><div><span class="dot"></span><b>Submissions</b><small>Departments</small></div><div><span class="dot"></span><b>Finance Review</b><small>Validation</small></div><div><span class="dot"></span><b>Management</b><small>Approval</small></div><div><span class="dot"></span><b>Final Budget</b><small>Freeze</small></div></div></section>
     </main>
   </div>
-  <script src="js/app.js?v=20260817-submission-dashboard-2"></script>
-  <script type="module" src="js/firebase.js?v=20260817-submission-dashboard-2"></script>
+  <script src="js/app.js?v=20260817-submission-dashboard-3"></script>
+  <script type="module" src="js/firebase.js?v=20260817-submission-dashboard-3"></script>
   <script>
     (function(){
       const status=document.getElementById('firebaseStatus'),btn=document.getElementById('firebaseTestBtn'),title=document.getElementById('currentUserTitle'),deps=document.getElementById('currentUserDepartments');
@@ -32,6 +61,6 @@
       btn.addEventListener('click',async()=>{try{btn.disabled=true;btn.textContent='Testing...';if(!window.DADFirebase)throw new Error('Firebase SDK is still loading.');const path=await window.DADFirebase.testConnection();status.textContent='Firestore connected successfully · '+path;status.style.background='#e9f9f3';status.style.color='#087a64';btn.textContent='Connected ✓'}catch(e){status.textContent='Firestore test failed · '+e.message;status.style.background='#fff0f0';status.style.color='#a63b3b';btn.textContent='Test Firestore';btn.disabled=false}});
     })();
   </script>
-  <script type="module" src="js/dashboard-submissions.js?v=20260817-2"></script>
+  <script type="module" src="js/dashboard-submissions.js?v=20260817-3"></script>
 </body>
 </html>
