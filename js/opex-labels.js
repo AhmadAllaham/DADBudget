@@ -20,4 +20,4 @@ observer.observe(document.documentElement,{childList:true,subtree:true});
 import('./manager-workflow.js?v=20260817-manager-approval-final-1').catch(e=>console.error('Manager workflow failed:',e));
 import('./opex-template-all-rows.js?v=20260817-all-zero-rows-1').catch(e=>console.error('OPEX full template exporter failed:',e));
 import('./opex-budget-increase-alerts.js?v=20260817-budget-increase-alerts-1').catch(e=>console.error('OPEX budget increase alerts failed:',e));
-import('./opex-approval-lock.js?v=20260817-hide-upload-after-approval-2').catch(e=>console.error('OPEX approval lock failed:',e));
+import('./opex-approved-hard-lock.js?v=20260817-approved-hard-lock-1').catch(e=>console.error('OPEX approved hard lock failed:',e));
