@@ -18,3 +18,4 @@ const observer=new MutationObserver(()=>apply());
 observer.observe(document.documentElement,{childList:true,subtree:true});
 
 import('./manager-workflow.js?v=20260817-manager-approval-final-1').catch(e=>console.error('Manager workflow failed:',e));
+import('./opex-template-all-rows.js?v=20260817-all-zero-rows-1').catch(e=>console.error('OPEX full template exporter failed:',e));
