@@ -16,9 +16,12 @@
     .kpi-card small{font-size:11.5px!important;line-height:1.45;color:#16786f!important;font-weight:750}
     .roadmap-preview h2,#submissionStatusSection h2{font-size:23px!important;line-height:1.2;margin:5px 0;color:#123e63!important;font-weight:1000}
     .roadmap-preview>.section-head+div{font-size:11.5px!important;line-height:1.55;color:#4d686e!important;font-weight:700}
-    #submissionSummary{font-size:12.5px!important;line-height:1.55!important;color:#3d5d64!important;font-weight:800}
+    #submissionSummary{font-size:14px!important;line-height:1.55!important;color:#3d5d64!important;font-weight:850}
+    #submissionStatusSection{font-size:13px}
+    #submissionStatusSection .eyebrow{font-size:12px!important}
+    #submissionStatusSection .teal-btn{font-size:12px!important}
     .roadmap-line b{font-size:12.5px!important;color:#0f334f!important;font-weight:1000}
-    .roadmap-line small{font-size:10.5px!important;color:#506c72!important;font-weight:750}
+    .roadmap-line small{font-size:12px!important;color:#506c72!important;font-weight:750}
     .teal-btn,.dark-btn{font-size:11.5px!important;font-weight:1000;padding:10px 14px}
     #adminDiagnostics{display:none}
     @media(max-width:900px){.page-header h1{font-size:29px!important}.kpi-card strong{font-size:27px!important}.roadmap-preview h2,#submissionStatusSection h2{font-size:21px!important}}
@@ -30,7 +33,7 @@
       <div class="sidebar-brand"><div class="brand-badge">B27</div><div><strong>BUDGET 2027</strong><span>REPORT CENTER</span></div></div>
       <nav class="sidebar-nav">
         <a class="active" href="index.html">Dashboard</a><a href="roadmap.html">Roadmap</a><a href="opex.html">OPEX Planning</a><a href="capex.html">CAPEX Planning</a><a href="#">Projects</a><a href="ims-sales.html">IMS Sales</a><a href="#">P&amp;L</a><a href="#">Approval Center</a><a href="#">Assumptions</a><a href="#">Scenarios</a>
-        <div style="margin:15px 8px 5px;color:rgba(255,255,255,.46);font-size:8px;font-weight:900;letter-spacing:.15em">ADMIN</div><a href="data-admin.html">Data Admin</a><a href="user-settings.html">User Settings</a>
+        <div style="margin:15px 8px 5px;color:rgba(255,255,255,.46);font-size:11px;font-weight:900;letter-spacing:.15em">ADMIN</div><a href="data-admin.html">Data Admin</a><a href="user-settings.html">User Settings</a>
       </nav>
     </aside>
     <main class="main-content">
@@ -51,7 +54,7 @@
       btn.addEventListener('click',async()=>{try{btn.disabled=true;btn.textContent='Testing...';if(!window.DADFirebase)throw new Error('Firebase SDK is still loading.');const path=await window.DADFirebase.testConnection();status.textContent='Firestore connected successfully · '+path;status.style.background='#e9f9f3';status.style.color='#087a64';btn.textContent='Connected ✓'}catch(e){status.textContent='Firestore test failed · '+e.message;status.style.background='#fff0f0';status.style.color='#a63b3b';btn.textContent='Test Firestore';btn.disabled=false}});
     })();
   </script>
-  <script type="module" src="js/dashboard-submissions.js?v=20260817-budget-kpis-2"></script>
+  <script type="module" src="js/dashboard-submissions.js?v=20260817-readable-workflow-1"></script>
   <script src="js/dashboard-roadmap.js?v=20260817-1"></script>
 </body>
 </html>

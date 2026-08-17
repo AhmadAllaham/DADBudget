@@ -38,7 +38,10 @@ function mergeSubmissionIntoBaseline(baseline,submitted){
     const code=clean(sItem?.code||key);if(!code)return;
     const existing=merged.items[code]||merged.items[key];
     if(existing){
-      merged.items[code]={...existing,newBudgetByMonth:{...(sItem?.newBudgetByMonth||{})}};
+      const submittedBudget={...(sItem?.newBudgetByMonth||{})},hasSubmittedValues=Object.values(submittedBudget).some(v=>Math.abs(Number(v)||0)>.00001),isTravel=/^60200(0[1-9]|10)$/.test(code);
+      // Older department submissions may not contain the Travel sheet values.
+      // Do not let that empty payload erase Finance's controlled Travel mapping.
+      merged.items[code]={...existing,newBudgetByMonth:isTravel&&!hasSubmittedValues?{...(existing.newBudgetByMonth||{})}:submittedBudget};
       if(code!==key&&merged.items[key])delete merged.items[key];
     }else{
       merged.items[code]={code,name:clean(sItem?.name)||code,newBudgetByMonth:{...(sItem?.newBudgetByMonth||{})}};
