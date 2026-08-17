@@ -46,5 +46,6 @@ window.dispatchEvent(new CustomEvent('dad-firebase-ready',{detail:{projectId:fir
 if(pathNow()==='opex.html'){
   import('./opex-sync-v2.js?v=20260817-admin-submissions-2').catch(e=>console.error('OPEX sync module failed:',e));
   import('./opex-account-name-fix.js?v=20260817-account-name-fix-1').catch(e=>console.error('OPEX account name fixer failed:',e));
+  import('./opex-labels.js?v=20260817-budget-ytd-label-1').catch(e=>console.error('OPEX label updater failed:',e));
 }
 if(pathNow()==='submission-control.html') import('./central-progress-control.js?v=20260817-central-progress-1').catch(e=>console.error('Central progress controls failed:',e));
