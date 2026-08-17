@@ -15,6 +15,24 @@ function ensureSection(){
   s.innerHTML='<div class="section-head"><div><span class="eyebrow">SUBMISSION STATUS</span><h2>Your Budget Workflow</h2><p id="submissionSummary" style="margin:4px 0 0;color:#71878b;font-size:11px">Loading...</p></div><a id="submissionAdminLink" class="teal-btn" href="submission-control.html" style="display:none;text-decoration:none;align-items:center">Submission Control</a></div><div id="submissionStatusGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px;margin-top:12px"></div>';
   const road=document.querySelector('.roadmap-preview:last-of-type');road?.parentNode?.insertBefore(s,road);return s;
 }
+function buildDepartmentNameMap(profile={}){
+  const map={};
+  const deps=Array.isArray(profile.departments)?profile.departments.map(String):[];
+  const labels=Array.isArray(profile.departmentLabels)?profile.departmentLabels:[];
+  labels.forEach((raw,i)=>{
+    const text=String(raw||'').trim();if(!text)return;
+    let cc=deps[i]||'';
+    let name=text;
+    const m=text.match(/^\s*([^·|]+?)\s*[·|]\s*(.+)$/);
+    if(m){cc=String(m[1]||'').trim();name=String(m[2]||'').trim()}
+    if(cc&&name&&name!==cc)map[String(cc)]=name;
+  });
+  if(profile.department&&profile.departmentLabel&&!map[String(profile.department)]){
+    const text=String(profile.departmentLabel||'').trim(),m=text.match(/^\s*([^·|]+?)\s*[·|]\s*(.+)$/);
+    map[String(profile.department)]=m?String(m[2]||'').trim():text;
+  }
+  return map;
+}
 async function readAssigned(ids){
   const statuses={},uploads={};
   await Promise.all(ids.map(async cc=>{
@@ -32,12 +50,12 @@ async function load(user){
   try{
     const ps=await getDoc(doc(db,'users',user.uid));if(!ps.exists())throw new Error('User profile not found in Firestore.');
     const p=ps.data()||{},admin=user.uid===MAIN||p.role==='admin'||p.isMainAdmin===true,link=document.getElementById('submissionAdminLink');if(admin)link.style.display='inline-flex';
-    const assigned=Array.isArray(p.departments)?p.departments.map(String).filter(x=>x&&x!=='ALL'):[];let statuses={},uploads={},ids=[];
+    const assigned=Array.isArray(p.departments)?p.departments.map(String).filter(x=>x&&x!=='ALL'):[],profileNames=buildDepartmentNameMap(p);let statuses={},uploads={},ids=[];
     if(admin){({statuses,uploads}=await readAdmin());ids=[...new Set([...Object.keys(statuses),...Object.keys(uploads)])]}else{ids=[...new Set(assigned)];if(!ids.length){summary.textContent='No departments assigned.';return}({statuses,uploads}=await readAssigned(ids))}
     if(!ids.length){summary.textContent=admin?'No department submissions yet.':'No departments assigned.';return}
     let total=0,submittedCount=0;
     const cards=ids.map(cc=>{
-      const data=statuses[cc]||{},st=statusOf(data,!!uploads[cc]),name=data.departmentName||uploads[cc]?.name||cc,w=departmentProgress(data,!!uploads[cc]);total+=w;if(['submitted','under_review','approved'].includes(st))submittedCount++;
+      const data=statuses[cc]||{},st=statusOf(data,!!uploads[cc]),name=data.departmentName||uploads[cc]?.name||profileNames[cc]||cc,w=departmentProgress(data,!!uploads[cc]);total+=w;if(['submitted','under_review','approved'].includes(st))submittedCount++;
       const workflowContribution=Math.round(((workflowWeights[st]??0)/100)*WORKFLOW_SHARE);
       return `<div style="border:1px solid #d9e9e6;border-radius:10px;padding:12px 14px;background:#fbfdfd"><div style="font-size:9px;color:#74898d;font-weight:900">${cc}</div><div style="font-size:12px;font-weight:1000;color:#173f46;margin-top:2px">${name}</div><div style="margin-top:8px;display:flex;justify-content:space-between;gap:8px;align-items:center"><span style="font-size:9px;font-weight:1000;color:#087a64">${labels[st]||st}</span><span style="font-size:9px;color:#173f46;font-weight:1000">${w}%</span></div><div style="height:7px;border-radius:999px;background:#e7efee;margin-top:6px;overflow:hidden"><div style="height:100%;width:${w}%;background:#12a397"></div></div><div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px"><span style="display:inline-flex;padding:4px 6px;border-radius:999px;background:#eef7ff;color:#225c8e;font-size:8px;font-weight:1000">Department: ${workflowContribution}/${WORKFLOW_SHARE}</span>${inputTag('Salaries',data.salariesReady===true)}${inputTag('Depreciation',data.depreciationReady===true)}</div>${data.note?`<div style="font-size:8px;color:#7b8f92;margin-top:6px">${data.note}</div>`:''}${uploads[cc]?.fileName?`<div style="font-size:8px;color:#7b8f92;margin-top:4px">Latest upload: ${uploads[cc].fileName}${uploads[cc].revision?` · R${uploads[cc].revision}`:''}</div>`:''}</div>`;
     }).join('');
