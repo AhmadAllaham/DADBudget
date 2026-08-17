@@ -1,3 +1,7 @@
+import { getApps } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
+import { getFirestore, doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
+
+const app=getApps()[0],db=getFirestore(app);
 const $=id=>document.getElementById(id);
 const clean=v=>String(v??'').trim();
 const loadLocal=()=>{try{return JSON.parse(localStorage.getItem('dadBudgetUserProfiles')||'[]')||[]}catch(_){return[]}};
@@ -7,6 +11,18 @@ function selectedDepartments(){const chips=[...document.querySelectorAll('#selec
 function selectedModules(){return[...document.querySelectorAll('#permissions input:checked')].map(x=>x.value)}
 function setStatus(msg,ok=true){const s=$('statusLine');if(!s)return;s.textContent=msg;s.className='status-line '+(ok?'ok':'err')}
 function hideUidUi(){const uid=$('uid');if(uid){const field=uid.closest('.field');if(field)field.style.display='none'}document.querySelectorAll('.uid-text').forEach(x=>x.style.display='none');const th=document.querySelector('.user-table thead th:first-child');if(th)th.textContent='Email';const sub=document.querySelector('.form-card .sub');if(sub)sub.textContent='Create the login account and Firestore access profile automatically.';const note=document.querySelector('.password-box small');if(note)note.textContent='For a new user, this password becomes the Firebase login password. It is never stored in Firestore or LocalStorage. For an existing user, use Password Reset to change the login password.'}
+async function syncManagerAssignments(uid,profile,deps){
+  if(profile.role!=='manager'||profile.enabled===false)return;
+  await Promise.all(deps.map(async d=>{
+    const cc=clean(d.cc);if(!cc)return;
+    const label=clean(d.label),name=label.includes('·')?clean(label.split('·').slice(1).join('·')):label||cc;
+    await setDoc(doc(db,'budget_submission_status',cc),{
+      fundCenter:cc,departmentName:name,
+      managerUid:uid,managerEmail:clean(profile.email).toLowerCase(),managerStatus:'assigned',
+      managerAssignedAt:serverTimestamp(),managerAssignedClientAt:new Date().toISOString()
+    },{merge:true});
+  }));
+}
 async function saveUserAutomatically(){
   const email=clean($('email')?.value).toLowerCase(),password=$('passwordInput')?.value||'',uid=clean($('uid')?.value),role=$('role')?.value||'department_user',enabled=$('enabled')?.value==='true',btn=$('saveBtn');
   if(!email||!email.includes('@')){setStatus('Enter a valid email address.',false);return}
@@ -19,12 +35,12 @@ async function saveUserAutomatically(){
       if(!password||password.length<6)throw new Error('Enter a password of at least 6 characters for the new user.');
       const created=await window.DADFirebase.createUserAccount(email,password,profile);finalUid=created.uid;
     }
+    await syncManagerAssignments(finalUid,profile,deps);
     upsertLocal({...profile,uid:finalUid,cloudSynced:true,createdAt:new Date().toISOString()});
-    setStatus(uid?'User updated successfully.':'User created successfully. Login is ready immediately.');
+    setStatus(role==='manager'?'Manager saved and department approvals linked automatically.':(uid?'User updated successfully.':'User created successfully. Login is ready immediately.'));
     $('clearBtn')?.click();
     setTimeout(()=>{hideUidUi();window.dispatchEvent(new Event('resize'))},0);
-    // Refresh cloud list using the existing page loader when available.
-    window.dispatchEvent(new CustomEvent('dad-user-profile-saved',{detail:{uid:finalUid,email}}));
+    window.dispatchEvent(new CustomEvent('dad-user-profile-saved',{detail:{uid:finalUid,email,role,departments:depIds}}));
   }catch(err){
     const code=err?.code||'';
     let msg=err?.message||String(err);
