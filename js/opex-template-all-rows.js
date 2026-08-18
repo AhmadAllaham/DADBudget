@@ -24,7 +24,7 @@ async function downloadAllRows(){
   const wb=new ExcelJS.Workbook();wb.creator='DAD Budget 2027';wb.created=new Date();wb.calcProperties.fullCalcOnLoad=true;wb.calcProperties.forceFullCalc=true;
   const info=wb.addWorksheet('Instructions');[
     ['DAD BUDGET 2027 - DEPARTMENT TEMPLATE'],['Department',d.name],['Fund Center',d.cc],[],['HOW TO USE'],
-    ['1','Enter Budget 2027 only in the green Jan-Dec monthly cells. FY Budget 2027 totals calculate automatically.'],
+    ['1','Enter Budget 2027 only in the green Jan-Dec monthly cells. All reference columns are locked and FY Budget 2027 totals calculate automatically.'],
     ['2','The OPEX sheet follows the same order as the online table: Budget YTD, Actual, variance, FY Budget 2026, Remaining, then FY Budget 2027 months.'],
     ['3','All available OPEX accounts are included even when Actual YTD 2026 and FY Budget 2026 are zero.'],
     ['4','Employee Benefits G/L 6010001-6010031 are controlled by the separate HR Budget model.'],
@@ -52,6 +52,7 @@ async function downloadAllRows(){
   });
   const totalRow=op.addRow([null,null,null,'TOTAL','Total OPEX',null,null,null,null,null,...Array(12).fill(null),null,null]);for(let c=6;c<=23;c++){const letter=op.getColumn(c).letter;totalRow.getCell(c).value={formula:`SUM(${groupRows.map(r=>`${letter}${r}`).join(',')})`};totalRow.getCell(c).numFmt='#,##0;[Red]-#,##0;–'}totalRow.height=26;totalRow.eachCell({includeEmpty:true},cell=>{cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF082765'}};cell.font={bold:true,color:{argb:'FFFFFFFF'}};cell.border={top:{style:'medium',color:{argb:'FF35D8C7'}}}});
   [17,13,34,28,38,16,16,20,17,16,...Array(12).fill(13),18,25].forEach((w,i)=>op.getColumn(i+1).width=w);[1,2,3,4].forEach(c=>op.getColumn(c).hidden=true);op.views=[{state:'frozen',ySplit:2,xSplit:0}];op.autoFilter={from:{row:2,column:5},to:{row:2,column:24}};op.properties.defaultRowHeight=22;
+  await op.protect('DAD-Budget-2027',{selectLockedCells:true,selectUnlockedCells:true,formatCells:false,formatColumns:false,formatRows:false,insertColumns:false,insertRows:false,deleteColumns:false,deleteRows:false,sort:false,autoFilter:true});
   op.getCell('A1').note=`Reference period: ${range.from} to ${range.to}. Enter Budget 2027 only in the green monthly cells.`;
 
   const tr=wb.addWorksheet('Travel Budget');const headers=['Employee Number','Fund Center','Employee Name','Title','From City','Destination','Round trip flight','Reason','Month','number of nights','Travel Tickets $','Travel Hotels $','Travel Transportation $','Travel Meals $','Travel Visa $','Travel Per Diem $','Travel Insurance $','Local Per Diem $','Local Transportaion $','Other Travel Cost $'];tr.addRow(headers);for(let i=0;i<40;i++)tr.addRow([null,d.cc,null,null,null,null,null,null,null,null,...Array(10).fill(null)]);[16,22,24,20,18,18,18,28,12,16,...Array(10).fill(20)].forEach((w,i)=>tr.getColumn(i+1).width=w);tr.views=[{state:'frozen',ySplit:1}];
