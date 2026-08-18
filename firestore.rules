@@ -79,7 +79,22 @@ service cloud.firestore {
     function validManagerDecision() {
       return resource.data.workflowStatus == 'pending_manager'
         && request.resource.data.workflowStatus in ['manager_approved', 'manager_returned']
-        && request.resource.data.managerDecisionBy == request.auth.uid;
+        && request.resource.data.managerDecisionBy == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'workflowStatus',
+          'status',
+          'financeStatus',
+          'managerStatus',
+          'managerNote',
+          'managerReturnedRevision',
+          'managerApprovedAt',
+          'managerApprovedBy',
+          'managerApprovedByEmail',
+          'managerDecisionAt',
+          'managerDecisionBy',
+          'managerDecisionEmail',
+          'workflowUpdatedAt'
+        ]);
     }
 
     function myEmail() {
