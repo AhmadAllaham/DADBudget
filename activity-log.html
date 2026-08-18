@@ -17,17 +17,32 @@
 <section class="card log-card"><div class="table-wrap"><table class="audit-table"><thead><tr><th>Date / Time</th><th>User</th><th>Device / Public IP</th><th>Module</th><th>Department</th><th>Action</th><th>File</th><th>Revision</th></tr></thead><tbody id="body"><tr><td colspan="8" class="empty">Loading activity log...</td></tr></tbody></table></div><div class="footer-note">A stable Device ID is created for this browser and stored with each new activity together with the public IP. Clearing browser data or using another browser creates a new Device ID.</div></section>
 <button class="dark-btn" id="logoutBtn" style="margin-top:12px">Log out</button>
 </main></div>
-<script src="js/app.js?v=20260817-audit-device-id-1"></script>
-<script type="module" src="js/firebase.js?v=20260817-audit-device-id-1"></script>
+<script src="js/app.js?v=20260818-audit-auth-ready-1"></script>
+<script type="module" src="js/firebase.js?v=20260818-audit-auth-ready-1"></script>
 <script>
 (function(){
-const $=id=>document.getElementById(id);let logs=[];
+const $=id=>document.getElementById(id);let logs=[],loading=false;
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 function dt(x){const d=x?.createdAt?.seconds?new Date(x.createdAt.seconds*1000):new Date(x?.clientTime||0);return Number.isNaN(d.getTime())?'—':d.toLocaleString()}
 function fillSelect(id,vals){const el=$(id),current=el.value;el.innerHTML='<option value="">All '+(id==='module'?'Modules':id==='department'?'Departments':'Actions')+'</option>'+[...new Set(vals.filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b))).map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');el.value=current}
 function render(){const q=$('search').value.trim().toLowerCase(),m=$('module').value,d=$('department').value,a=$('action').value;const f=logs.filter(x=>(!m||x.module===m)&&(!d||x.department===d)&&(!a||x.action===a)&&(!q||[x.email,x.uid,x.deviceId,x.deviceInfo,x.ipAddress,x.fileName,x.department,x.departmentLabel,x.module,x.action].some(v=>String(v||'').toLowerCase().includes(q))));$('body').innerHTML=f.length?f.map(x=>`<tr><td>${esc(dt(x))}</td><td><b>${esc(x.email||'—')}</b><span class="uid">${esc(x.uid||'')}</span></td><td title="${esc(x.deviceInfo||'')}"><span class="device-id">${esc(x.deviceId||'—')}</span><span class="ip">${esc(x.ipAddress||'IP unavailable')}</span></td><td><span class="module">${esc(x.module||'—')}</span></td><td><b>${esc(x.department||'—')}</b>${x.departmentLabel?`<span class="uid">${esc(x.departmentLabel)}</span>`:''}</td><td>${esc(x.action||'—')}</td><td class="file">${esc(x.fileName||'—')}</td><td><span class="rev">R${Number(x.revision||1)}</span></td></tr>`).join(''):'<tr><td colspan="8" class="empty">No activity found for the selected filters.</td></tr>'; $('kTotal').textContent=logs.length.toLocaleString();$('kUploads').textContent=logs.filter(x=>String(x.action||'').toLowerCase().includes('upload')).length.toLocaleString();$('kUsers').textContent=new Set(logs.map(x=>x.uid).filter(Boolean)).size.toLocaleString();$('kLatest').textContent=logs[0]?dt(logs[0]):'—'}
-async function load(){try{if(!window.DADFirebase)throw new Error('Firebase is still loading.');logs=await window.DADFirebase.listAuditLogs();fillSelect('module',logs.map(x=>x.module));fillSelect('department',logs.map(x=>x.department));fillSelect('action',logs.map(x=>x.action));render()}catch(e){$('body').innerHTML=`<tr><td colspan="8" class="empty">Could not load audit log: ${esc(e.message)}</td></tr>`}}
-['search','module','department','action'].forEach(id=>$(id).addEventListener(id==='search'?'input':'change',render));$('refresh').onclick=load;if(window.DADFirebase)load();window.addEventListener('dad-firebase-ready',load);
+function showStatus(message){$('body').innerHTML=`<tr><td colspan="8" class="empty">${esc(message)}</td></tr>`}
+async function load(){
+  if(loading)return;
+  try{
+    const api=window.DADFirebase;
+    if(!api){showStatus('Firebase is still loading...');return}
+    if(!api.auth?.currentUser){showStatus('Waiting for the signed-in admin session...');return}
+    loading=true;showStatus('Loading activity log...');
+    logs=await api.listAuditLogs();
+    fillSelect('module',logs.map(x=>x.module));fillSelect('department',logs.map(x=>x.department));fillSelect('action',logs.map(x=>x.action));render();
+  }catch(e){showStatus(`Could not load audit log: ${e?.message||e}`)}finally{loading=false}
+}
+['search','module','department','action'].forEach(id=>$(id).addEventListener(id==='search'?'input':'change',render));
+$('refresh').onclick=load;
+window.addEventListener('dad-user-ready',load);
+window.addEventListener('dad-firebase-ready',()=>{if(window.DADFirebase?.auth?.currentUser)load();else showStatus('Waiting for the signed-in admin session...')});
+if(window.DADFirebase?.auth?.currentUser)load();
 })();
 </script>
 </body></html>
