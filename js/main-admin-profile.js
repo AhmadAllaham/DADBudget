@@ -3,7 +3,7 @@
   const KEY='dadBudgetUserProfiles';
   const UID='PST3chwdZmaQGeG25t4ym9Vlixe2';
   const EMAIL='allaham@dadgroup.com';
-  const MODULES=['dashboard','opex_detail','opex_summary','capex','travel','hr','ap','ims','pl','approvals','data_admin'];
+  const MODULES=['dashboard','opex_detail','opex_summary','capex','travel','hr','ap','training','ims','pl','approvals','data_admin'];
   let users=[];
   try{users=JSON.parse(localStorage.getItem(KEY)||'[]')||[]}catch(e){users=[]}
   const i=users.findIndex(u=>String(u?.email||'').trim().toLowerCase()===EMAIL||String(u?.uid||'')===UID);

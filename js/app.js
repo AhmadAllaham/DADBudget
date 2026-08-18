@@ -19,6 +19,7 @@
     if(href.includes('ims-sales'))return'ims';
     if(href.includes('capex'))return'capex';
     if(href.includes('opex-summary'))return'opex_summary';
+    if(href.includes('training-expense'))return'training';
     if(href.includes('travel-budget'))return'travel';
     if(href.includes('hr-budget'))return'hr';
     if(href.includes('ap-budget'))return'ap';
@@ -71,9 +72,10 @@
       const parent=sub.previousElementSibling;
       if(parent&&parent.tagName==='A'){
         if(!sub.querySelector('a[href="opex.html"]')){const detail=document.createElement('a');detail.href='opex.html';detail.textContent='OPEX Detail';sub.prepend(detail)}
+        if(!sub.querySelector('a[href="training-expense.html"]')){const training=document.createElement('a');training.href='training-expense.html';training.textContent='Training Expense';sub.append(training)}
         parent.classList.add('opex-parent-toggle');
         if(!parent.querySelector('.opex-nav-caret')){const c=document.createElement('span');c.className='opex-nav-caret';c.textContent='▾';parent.appendChild(c)}
-        const path=(location.pathname.split('/').pop()||'').toLowerCase(),opexPage=['opex.html','opex-summary.html','hr-budget.html','ap-budget.html','travel-budget.html'].includes(path);
+        const path=(location.pathname.split('/').pop()||'').toLowerCase(),opexPage=['opex.html','opex-summary.html','hr-budget.html','ap-budget.html','travel-budget.html','training-expense.html'].includes(path);
         const stored=localStorage.getItem('dadBudgetOPEXNavOpen');
         const open=stored===null?opexPage:stored==='true';
         sub.classList.toggle('opex-subnav-open',open);parent.classList.toggle('opex-parent-open',open);
