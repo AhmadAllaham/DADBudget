@@ -97,6 +97,42 @@ service cloud.firestore {
         ]);
     }
 
+    function validManagerOpexRevision() {
+      return resource.data.workflowStatus == 'pending_manager'
+        && request.resource.data.workflowStatus == 'pending_manager'
+        && request.resource.data.managerEditedBy == request.auth.uid
+        && request.resource.data.revision == resource.data.revision + 1
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'encoding',
+          'payload',
+          'travelBudgetByGl',
+          'fileName',
+          'revision',
+          'managerEditedAt',
+          'managerEditedBy',
+          'managerEditedByEmail',
+          'workflowUpdatedAt'
+        ]);
+    }
+
+    function validManagerCapexRevision() {
+      return resource.data.workflowStatus == 'pending_manager'
+        && request.resource.data.workflowStatus == 'pending_manager'
+        && request.resource.data.status == 'pending_manager'
+        && request.resource.data.managerEditedBy == request.auth.uid
+        && request.resource.data.revision == resource.data.revision + 1
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'rows',
+          'total',
+          'fileName',
+          'revision',
+          'managerEditedAt',
+          'managerEditedBy',
+          'managerEditedByEmail',
+          'workflowUpdatedAt'
+        ]);
+    }
+
     function myEmail() {
       return request.auth.token.email;
     }
@@ -133,7 +169,8 @@ service cloud.firestore {
                         && validDepartmentNextState(fundCenter));
       allow update: if isMainAdmin()
                     || (isAssignedManager(fundCenter)
-                        && validManagerDecision())
+                        && (validManagerDecision()
+                            || validManagerOpexRevision()))
                     || (hasDepartment(fundCenter)
                         && departmentSubmissionIsOpen()
                         && request.resource.data.submittedBy == request.auth.uid
@@ -151,7 +188,8 @@ service cloud.firestore {
                         && validDepartmentNextState(fundCenter));
       allow update: if isMainAdmin()
                     || (isAssignedManager(fundCenter)
-                        && validManagerDecision()
+                        && (validManagerDecision()
+                            || validManagerCapexRevision())
                         && request.resource.data.status == request.resource.data.workflowStatus)
                     || (hasDepartment(fundCenter)
                         && resource.data.workflowStatus in ['returned', 'manager_returned']
