@@ -14,6 +14,7 @@
   function currentProfile(){try{return JSON.parse(localStorage.getItem('dadBudgetCurrentProfile')||'null')}catch(e){return null}}
   function moduleForLink(link){
     const href=(link.getAttribute('href')||'').split('?')[0].toLowerCase(),label=String(link.textContent||'').trim().toLowerCase();
+    if(href.includes('executive-command-center'))return'executive';
     if(href.includes('user-settings'))return'admin_only';
     if(href.includes('data-admin'))return'main_admin';
     if(href.includes('ims-sales'))return'ims';

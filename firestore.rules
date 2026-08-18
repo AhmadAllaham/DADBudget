@@ -27,6 +27,14 @@ service cloud.firestore {
         && fundCenter in currentUserProfile().departments;
     }
 
+    function isExecutiveViewer() {
+      return hasUserProfile()
+        && currentUserProfile().enabled != false
+        && (currentUserProfile().role == 'executive_viewer'
+            || (currentUserProfile().modules is list
+                && 'executive' in currentUserProfile().modules));
+    }
+
     function myEmail() {
       return request.auth.token.email;
     }
@@ -51,12 +59,12 @@ service cloud.firestore {
     }
 
     match /opex_baseline_departments/{fundCenter} {
-      allow read: if isMainAdmin() || hasDepartment(fundCenter);
+      allow read: if isMainAdmin() || isExecutiveViewer() || hasDepartment(fundCenter);
       allow create, update, delete: if isMainAdmin();
     }
 
     match /opex_budget_submissions/{fundCenter} {
-      allow read: if isMainAdmin() || hasDepartment(fundCenter);
+      allow read: if isMainAdmin() || isExecutiveViewer() || hasDepartment(fundCenter);
       allow create: if isMainAdmin() || hasDepartment(fundCenter);
       allow update: if isMainAdmin()
                     || (hasDepartment(fundCenter)
@@ -65,7 +73,7 @@ service cloud.firestore {
     }
 
     match /capex_budget_submissions/{fundCenter} {
-      allow read: if isMainAdmin() || hasDepartment(fundCenter);
+      allow read: if isMainAdmin() || isExecutiveViewer() || hasDepartment(fundCenter);
       allow create: if isMainAdmin()
                     || (hasDepartment(fundCenter)
                         && request.resource.data.workflowStatus == 'uploaded'
@@ -82,7 +90,7 @@ service cloud.firestore {
 
     match /budget_submission_status/{fundCenter} {
       allow read, create, update: if isMainAdmin();
-      allow read: if hasDepartment(fundCenter);
+      allow read: if isExecutiveViewer() || hasDepartment(fundCenter);
       allow delete: if false;
     }
 
