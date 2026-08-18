@@ -34,7 +34,7 @@ function label(f,t){const fy=+f.slice(0,4),ty=+t.slice(0,4),fm=+f.slice(5,7),tm=
 function calc(d,r){let ly=0,b=0,a=0,fy=0,n=0,hasLy=false;Object.values(d.items||{}).forEach(x=>{b+=sum(x.budgetByMonth,r.f,r.t);a+=sum(x.actualByMonth,r.f,r.t)+(Object.keys(x.actualByMonth||{}).length?0:num(x.actualUnperiodized));fy+=num(x.fyBudget);n+=sum(x.newBudgetByMonth,r.f,r.t,1);const h=x.hasLY&&(Object.keys(x.lyByMonth||{}).length||Math.abs(num(x.lyUnperiodized))>.005);if(h){hasLy=true;ly+=sum(x.lyByMonth,r.f,r.t,-1)+(Object.keys(x.lyByMonth||{}).length?0:num(x.lyUnperiodized))}});return{ly,b,a,fy,n,hasLy}}
 function combineTotals(departments,r){return departments.map(d=>calc(d,r)).reduce((total,t)=>({ly:total.ly+t.ly,b:total.b+t.b,a:total.a+t.a,fy:total.fy+t.fy,n:total.n+t.n,hasLy:total.hasLy||t.hasLy}),{ly:0,b:0,a:0,fy:0,n:0,hasLy:false})}
 function varCell(v,p=false){if(v===null)return'<td class="variance">—</td>';const cls=v>0?'positive-var':v<0?'negative-var':'';return`<td class="variance ${cls}">${p?v.toLocaleString(undefined,{maximumFractionDigits:1})+'%':fmt(v)}</td>`}
-const model=loadModel(),statusMap=statuses(),body=document.getElementById('summaryBody'),search=document.getElementById('searchDept'),from=document.getElementById('dateFrom'),to=document.getElementById('dateTo');
+let model=loadModel(),statusMap=statuses();const body=document.getElementById('summaryBody'),search=document.getElementById('searchDept'),from=document.getElementById('dateFrom'),to=document.getElementById('dateTo');
 from.value=localStorage.getItem('dadBudgetOPEXDateFrom')||'2026-01';to.value=localStorage.getItem('dadBudgetOPEXDateTo')||'2026-06';
 function render(){
   if(!model){body.innerHTML='<tr><td class="empty" colspan="14">Upload the OPEX baseline first.</td></tr>';return}
@@ -50,7 +50,9 @@ function render(){
   const rowHtml=rows.map(({d,t,members})=>{const ly=t.hasLy?t.ly:null,uploaded=members.filter(x=>statusMap[x.cc]).length,submission=members.length>1?`${uploaded} / ${members.length} Uploaded`:`<span class="status ${uploaded?'uploaded':'not-uploaded'}">${uploaded?'Uploaded':'Not Uploaded'}</span>`;return`<tr><td>${d.cc} · ${d.name}</td><td>${fmt(t.b)}</td><td>${fmt(t.a)}</td>${varCell(t.b-t.a)}<td class="fy26">${fmt(t.fy)}</td><td>${fmt(t.fy-t.a)}</td><td class="fy27">${fmt(t.n)}</td><td>${ly===null?'—':fmt(ly)}</td>${varCell(t.n-t.b)}${varCell(pct(t.n,t.b),true)}${varCell(pct(t.b,t.a),true)}${varCell(ly===null?null:t.a-ly)}${varCell(ly===null?null:pct(t.a,ly),true)}<td>${submission}</td></tr>`}).join('');
   const gly=G.hasLy?G.ly:null,totalMembers=rows.flatMap(x=>x.members),totalUploaded=totalMembers.filter(x=>statusMap[x.cc]).length;body.innerHTML=rowHtml+`<tr class="total-row"><td>TOTAL OPEX</td><td>${fmt(G.b)}</td><td>${fmt(G.a)}</td>${varCell(G.b-G.a)}<td>${fmt(G.fy)}</td><td>${fmt(G.fy-G.a)}</td><td>${fmt(G.n)}</td><td>${gly===null?'—':fmt(gly)}</td>${varCell(G.n-G.b)}${varCell(pct(G.n,G.b),true)}${varCell(pct(G.b,G.a),true)}${varCell(gly===null?null:G.a-gly)}${varCell(gly===null?null:pct(G.a,gly),true)}<td>${totalUploaded} / ${totalMembers.length} Uploaded</td></tr>`;localStorage.setItem('dadBudgetOPEXDateFrom',from.value);localStorage.setItem('dadBudgetOPEXDateTo',to.value)
 }
-search.addEventListener('input',render);from.addEventListener('change',render);to.addEventListener('change',render);render();
+search.addEventListener('input',render);from.addEventListener('change',render);to.addEventListener('change',render);window.addEventListener('dad-opex-summary-cloud',e=>{if(e.detail?.model){model=e.detail.model;statusMap=e.detail.statuses||{};render()}});render();
 })();
 </script>
+<script type="module" src="js/firebase.js?v=20260818-approved-admin-only-1"></script>
+<script type="module" src="js/opex-summary-cloud.js?v=20260818-approved-admin-only-1"></script>
 </body></html>
