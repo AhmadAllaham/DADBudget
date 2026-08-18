@@ -14,5 +14,29 @@
   const groupFor=value=>byValue[String(value||'').trim()]||null;
   const idsFor=value=>groupFor(value)?.ids.slice()||[];
   const includes=(value,fundCenter)=>idsFor(value).includes(String(fundCenter||'').trim());
-  window.DADDepartmentGroups={groups,all:Object.values(groups),groupFor,idsFor,includes};
+  function bindSearch(select,input){
+    if(!select||!input||input.dataset.departmentSearchBound==='1')return;
+    input.dataset.departmentSearchBound='1';
+    const apply=()=>{
+      const query=String(input.value||'').trim().toLowerCase();
+      [...select.options].forEach(option=>{
+        option.hidden=!!query&&!String(option.textContent||'').toLowerCase().includes(query);
+      });
+      [...select.querySelectorAll('optgroup')].forEach(group=>{
+        group.hidden=[...group.querySelectorAll('option')].every(option=>option.hidden);
+      });
+    };
+    input.addEventListener('input',apply);
+    input.addEventListener('keydown',event=>{
+      if(event.key!=='Enter')return;
+      const first=[...select.options].find(option=>!option.hidden&&!option.disabled);
+      if(!first)return;
+      select.value=first.value;
+      select.dispatchEvent(new Event('change',{bubbles:true}));
+      event.preventDefault();
+    });
+    new MutationObserver(apply).observe(select,{childList:true,subtree:true});
+    apply();
+  }
+  window.DADDepartmentGroups={groups,all:Object.values(groups),groupFor,idsFor,includes,bindSearch};
 })();
