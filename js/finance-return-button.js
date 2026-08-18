@@ -3,7 +3,7 @@ import {getAuth} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.
 import {getFirestore,collection,doc,getDoc,setDoc,serverTimestamp} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 
 const app=getApps()[0],auth=getAuth(app),db=getFirestore(app),MAIN='PST3chwdZmaQGeG25t4ym9Vlixe2';
-async function notifyBudgetUsers({emails=[],cc='',name='',revision=0}={}){const user=auth.currentUser,fromEmail=String(user?.email||'').trim().toLowerCase(),targets=[...new Set(emails.map(x=>String(x||'').trim().toLowerCase()).filter(x=>x&&x.includes('@')&&x!==fromEmail))],label='Returned by Finance';await Promise.all(targets.map(toEmail=>{const ref=doc(collection(db,'messages'));return setDoc(ref,{kind:'notification',notificationType:'budget_workflow',status:'returned',department:cc,departmentName:name||cc,fromUid:user.uid,fromEmail,toEmail,subject:`Budget 2027 · ${label}`,body:`${name||cc} (${cc}) · ${label}`,note:'',revision:Number(revision||0),targetUrl:`opex.html?department=${encodeURIComponent(cc)}`,read:false,createdAt:serverTimestamp(),clientCreatedAt:new Date().toISOString()})}))}
+async function notifyBudgetUsers({emails=[],cc='',name='',revision=0,module='OPEX'}={}){const user=auth.currentUser,fromEmail=String(user?.email||'').trim().toLowerCase(),targets=[...new Set(emails.map(x=>String(x||'').trim().toLowerCase()).filter(x=>x&&x.includes('@')&&x!==fromEmail))],label='Returned by Finance',page=module==='CAPEX'?'capex.html':'opex.html';await Promise.all(targets.map(toEmail=>{const ref=doc(collection(db,'messages'));return setDoc(ref,{kind:'notification',notificationType:'budget_workflow',status:'returned',module,department:cc,departmentName:name||cc,fromUid:user.uid,fromEmail,toEmail,subject:`Budget 2027 · ${module} · ${label}`,body:`${name||cc} (${cc}) · ${module} · ${label}`,note:'',revision:Number(revision||0),targetUrl:`${page}?department=${encodeURIComponent(cc)}`,read:false,createdAt:serverTimestamp(),clientCreatedAt:new Date().toISOString()})}))}
 
 function installStyle(){
   if(document.getElementById('financeReturnStyle'))return;
@@ -14,19 +14,14 @@ function installStyle(){
 
 async function returnBudget(tr,btn){
   const user=auth.currentUser;if(!user||user.uid!==MAIN){alert('Main Admin only');return}
-  const cc=String(tr.dataset.cc||'').trim();if(!cc)return;
+  const cc=String(tr.dataset.cc||'').trim(),module=String(tr.dataset.module||'OPEX').toUpperCase(),collectionName=module==='CAPEX'?'capex_budget_submissions':'opex_budget_submissions';if(!cc)return;
   try{
     btn.disabled=true;btn.textContent='Returning...';
-    const before=await getDoc(doc(db,'opex_budget_submissions',cc)),submission=before.exists()?before.data()||{}:{};
-    await Promise.all([
-      setDoc(doc(db,'opex_budget_submissions',cc),{
+    const before=await getDoc(doc(db,collectionName,cc)),submission=before.exists()?before.data()||{}:{};
+    await setDoc(doc(db,collectionName,cc),{
         workflowStatus:'returned',financeStatus:'returned',workflowUpdatedAt:serverTimestamp(),financeUpdatedBy:user.uid,financeUpdatedEmail:(user.email||'').toLowerCase()
-      },{merge:true}),
-      setDoc(doc(db,'budget_submission_status',cc),{
-        status:'returned',updatedBy:user.uid,updatedByEmail:(user.email||'').toLowerCase(),updatedAt:serverTimestamp(),clientUpdatedAt:new Date().toISOString()
-      },{merge:true})
-    ]);
-    await notifyBudgetUsers({emails:[submission.submittedEmail,submission.submittedByEmail],cc,name:submission.departmentName||submission.name||cc,status:'returned',note:'',revision:submission.revision||0,source:'finance'});
+      },{merge:true});
+    await notifyBudgetUsers({emails:[submission.submittedEmail,submission.submittedByEmail],cc,name:submission.departmentName||submission.name||cc,revision:submission.revision||0,module});
     btn.textContent='Returned ✓';
     setTimeout(()=>location.reload(),350);
   }catch(e){

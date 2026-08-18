@@ -35,6 +35,53 @@ service cloud.firestore {
                 && 'executive' in currentUserProfile().modules));
     }
 
+    function isManager() {
+      return hasUserProfile()
+        && currentUserProfile().enabled != false
+        && currentUserProfile().role == 'manager';
+    }
+
+    function isAssignedManager(fundCenter) {
+      return isManager()
+        && hasDepartment(fundCenter)
+        && ('managerUid' in resource.data)
+        && resource.data.managerUid == request.auth.uid;
+    }
+
+    function hasConfiguredManager(fundCenter) {
+      return exists(/databases/$(database)/documents/budget_submission_status/$(fundCenter))
+        && get(/databases/$(database)/documents/budget_submission_status/$(fundCenter)).data.managerUid is string
+        && get(/databases/$(database)/documents/budget_submission_status/$(fundCenter)).data.managerUid != '';
+    }
+
+    function configuredManagerUid(fundCenter) {
+      return get(/databases/$(database)/documents/budget_submission_status/$(fundCenter)).data.managerUid;
+    }
+
+    function validDepartmentNextState(fundCenter) {
+      return request.resource.data.workflowStatus == 'uploaded'
+        || (request.resource.data.workflowStatus == 'pending_manager'
+            && hasConfiguredManager(fundCenter)
+            && request.resource.data.managerUid == configuredManagerUid(fundCenter)
+            && configuredManagerUid(fundCenter) != request.auth.uid)
+        || (request.resource.data.workflowStatus == 'under_review'
+            && (!hasConfiguredManager(fundCenter)
+                || configuredManagerUid(fundCenter) == request.auth.uid));
+    }
+
+    function departmentSubmissionIsOpen() {
+      return !('workflowStatus' in resource.data)
+        || resource.data.workflowStatus == 'uploaded'
+        || resource.data.workflowStatus == 'manager_returned'
+        || resource.data.workflowStatus == 'returned';
+    }
+
+    function validManagerDecision() {
+      return resource.data.workflowStatus == 'pending_manager'
+        && request.resource.data.workflowStatus in ['manager_approved', 'manager_returned']
+        && request.resource.data.managerDecisionBy == request.auth.uid;
+    }
+
     function myEmail() {
       return request.auth.token.email;
     }
@@ -65,10 +112,17 @@ service cloud.firestore {
 
     match /opex_budget_submissions/{fundCenter} {
       allow read: if isMainAdmin() || isExecutiveViewer() || hasDepartment(fundCenter);
-      allow create: if isMainAdmin() || hasDepartment(fundCenter);
-      allow update: if isMainAdmin()
+      allow create: if isMainAdmin()
                     || (hasDepartment(fundCenter)
-                        && !submissionIsApproved());
+                        && request.resource.data.submittedBy == request.auth.uid
+                        && validDepartmentNextState(fundCenter));
+      allow update: if isMainAdmin()
+                    || (isAssignedManager(fundCenter)
+                        && validManagerDecision())
+                    || (hasDepartment(fundCenter)
+                        && departmentSubmissionIsOpen()
+                        && request.resource.data.submittedBy == request.auth.uid
+                        && validDepartmentNextState(fundCenter));
       allow delete: if false;
     }
 
@@ -76,15 +130,20 @@ service cloud.firestore {
       allow read: if isMainAdmin() || isExecutiveViewer() || hasDepartment(fundCenter);
       allow create: if isMainAdmin()
                     || (hasDepartment(fundCenter)
-                        && request.resource.data.workflowStatus == 'uploaded'
-                        && request.resource.data.status == 'uploaded'
-                        && request.resource.data.submittedBy == request.auth.uid);
+                        && request.resource.data.submittedBy == request.auth.uid
+                        && request.resource.data.status == request.resource.data.workflowStatus
+                        && request.resource.data.workflowStatus != 'uploaded'
+                        && validDepartmentNextState(fundCenter));
       allow update: if isMainAdmin()
+                    || (isAssignedManager(fundCenter)
+                        && validManagerDecision()
+                        && request.resource.data.status == request.resource.data.workflowStatus)
                     || (hasDepartment(fundCenter)
-                        && resource.data.workflowStatus == 'returned'
-                        && request.resource.data.workflowStatus == 'uploaded'
-                        && request.resource.data.status == 'uploaded'
-                        && request.resource.data.submittedBy == request.auth.uid);
+                        && resource.data.workflowStatus in ['returned', 'manager_returned']
+                        && request.resource.data.submittedBy == request.auth.uid
+                        && request.resource.data.status == request.resource.data.workflowStatus
+                        && request.resource.data.workflowStatus != 'uploaded'
+                        && validDepartmentNextState(fundCenter));
       allow delete: if false;
     }
 

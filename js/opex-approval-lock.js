@@ -39,7 +39,7 @@ function watch(cc){
   stopWatch();subStatus='';financeStatus='';cc=clean(cc);
   if(!cc||isAdmin()){applyState();return}
   subUnsub=onSnapshot(doc(db,'opex_budget_submissions',cc),s=>{subStatus=s.exists()?clean(s.data()?.workflowStatus):'';applyState()},()=>{subStatus='';applyState()});
-  statusUnsub=onSnapshot(doc(db,'budget_submission_status',cc),s=>{financeStatus=s.exists()?clean(s.data()?.status):'';applyState()},()=>{financeStatus='';applyState()});
+  statusUnsub=onSnapshot(doc(db,'budget_submission_status',cc),()=>{financeStatus='';applyState()},()=>{financeStatus='';applyState()});
 }
 function selected(){return clean(document.getElementById('deptFilter')?.value)}
 function installGuards(){

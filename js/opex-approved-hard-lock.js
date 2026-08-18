@@ -62,13 +62,10 @@ async function watch(){
   const cc=selected();watchedCc=cc;apply();
   if(!cc||isMainAdmin()){stateLoaded=true;apply();return}
   try{
-    const [a,b]=await Promise.all([
-      getDoc(doc(db,'opex_budget_submissions',cc)),
-      getDoc(doc(db,'budget_submission_status',cc))
-    ]);
+    const a=await getDoc(doc(db,'opex_budget_submissions',cc));
     if(watchedCc!==cc)return;
     submissionState=a.exists()?readState(a.data()||{}):'';
-    financeState=b.exists()?readState(b.data()||{}):'';
+    financeState='';
   }catch(e){console.warn('OPEX workflow lock state read failed',e)}
   stateLoaded=true;apply();
   subUnsub=onSnapshot(doc(db,'opex_budget_submissions',cc),s=>{
@@ -78,7 +75,7 @@ async function watch(){
   },e=>console.warn('OPEX submission lock listener failed',e));
   statusUnsub=onSnapshot(doc(db,'budget_submission_status',cc),s=>{
     if(watchedCc!==cc)return;
-    financeState=s.exists()?readState(s.data()||{}):'';
+    financeState='';
     stateLoaded=true;apply();
   },e=>console.warn('OPEX finance lock listener failed',e));
 }
