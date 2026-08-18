@@ -18,6 +18,6 @@ const observer=new MutationObserver(()=>apply());
 observer.observe(document.documentElement,{childList:true,subtree:true});
 
 import('./manager-workflow.js?v=20260817-submit-label-1').catch(e=>console.error('OPEX review workflow failed:',e));
-import('./opex-template-all-rows.js?v=20260817-all-zero-rows-1').catch(e=>console.error('OPEX full template exporter failed:',e));
+import('./opex-template-all-rows.js?v=20260818-table-shaped-monthly-1').catch(e=>console.error('OPEX full template exporter failed:',e));
 import('./opex-budget-increase-alerts.js?v=20260817-budget-increase-alerts-1').catch(e=>console.error('OPEX budget increase alerts failed:',e));
 import('./opex-approved-hard-lock.js?v=20260817-pending-manager-lock-6').catch(e=>console.error('OPEX workflow hard lock failed:',e));
