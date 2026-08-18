@@ -72,5 +72,7 @@ function watchBaseline(user,profile,admin){if(admin||baselineUnsub)return;baseli
 
 async function run(user){try{const ps=await getDoc(doc(db,'users',user.uid));if(!ps.exists())return;const profile=ps.data()||{},admin=user.uid===MAIN_ADMIN_UID||profile.role==='admin'||profile.isMainAdmin===true;if(admin){const model=localModel();if(model&&!model.cloudAdminView)await publishBaseline(user,profile);await loadAdminView(profile)}else await loadShared(user,profile);watchBaseline(user,profile,admin);const input=document.getElementById('opexUploadInput');if(input&&!input.dataset.cloudSubmissionV4){input.dataset.cloudSubmissionV4='1';input.addEventListener('change',()=>{const f=input.files?.[0];if(f)waitAndSaveUpload(user,profile,f)},true)}}catch(e){const sel=document.getElementById('deptFilter');if(sel){sel.innerHTML=`<option value="">Cloud error: ${e.code||e.message}</option>`;sel.disabled=true}setStatus(`Cloud error: ${e.code||e.message}`,true)}}
 
-onAuthStateChanged(auth,user=>{if(user)run(user)});
-window.addEventListener('dad-user-ready',e=>{const u=e.detail?.user||auth.currentUser;if(u)run(u)});
+let bootedUid='';
+function startOnce(user){if(!user||bootedUid===user.uid)return;bootedUid=user.uid;run(user)}
+onAuthStateChanged(auth,startOnce);
+window.addEventListener('dad-user-ready',e=>startOnce(e.detail?.user||auth.currentUser));

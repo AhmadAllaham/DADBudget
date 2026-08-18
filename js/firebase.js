@@ -63,7 +63,7 @@ onAuthStateChanged(auth,async user=>{const login=pathNow()==='login.html'||pathN
 window.dispatchEvent(new CustomEvent('dad-firebase-ready',{detail:{projectId:firebaseConfig.projectId,mainAdminUid:MAIN_ADMIN_UID}}));
 
 if(pathNow()==='opex.html'){
-  import('./opex-sync-v2.js?v=20260818-admin-chunk-load-4').catch(e=>console.error('OPEX sync module failed:',e));
+  import('./opex-sync-v2.js?v=20260818-single-load-5').catch(e=>console.error('OPEX sync module failed:',e));
   import('./opex-account-name-fix.js?v=20260817-account-name-fix-1').catch(e=>console.error('OPEX account name fixer failed:',e));
   import('./opex-labels.js?v=20260817-submit-label-1').catch(e=>console.error('OPEX label updater failed:',e));
 }
