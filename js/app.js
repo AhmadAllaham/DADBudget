@@ -1,5 +1,11 @@
 // DAD Budget 2027 - shared frontend logic
 (function(){
+  const THEME_KEY='dadBudgetColorTheme';
+  function ensureTheme(){
+    if(!document.querySelector('link[data-dad-dark-theme]')){const link=document.createElement('link');link.rel='stylesheet';link.href='css/dark-mode.css?v=20260818-neon-dark-1';link.dataset.dadDarkTheme='1';document.head.appendChild(link)}
+    let theme='light';try{theme=localStorage.getItem(THEME_KEY)==='dark'?'dark':'light'}catch(_){}document.documentElement.dataset.theme=theme;
+  }
+  ensureTheme();
   const BASE='dadBudgetIMSSales', META=BASE+'Meta', PREFIX=BASE+'Chunk_', CHUNK_SIZE=250;
   const REDUCTION_KEY='dadBudgetReductionRates', EXCEPTION_KEY='dadBudgetCommissionExceptions';
   const FTE_COST_KEY='dadBudgetFTECost', FTE_DIST_KEY='dadBudgetFTEDistribution';

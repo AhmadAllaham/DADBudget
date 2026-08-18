@@ -3,6 +3,14 @@ import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/12.
 import {getFirestore,collection,onSnapshot,query,where} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 const app=getApps()[0],auth=getAuth(app),db=getFirestore(app);
 let inboxUnsub=null,watchedEmail='';
+const THEME_KEY='dadBudgetColorTheme';
+
+function currentTheme(){return document.documentElement.dataset.theme==='dark'?'dark':'light'}
+function applyTheme(theme){const next=theme==='dark'?'dark':'light';document.documentElement.dataset.theme=next;try{localStorage.setItem(THEME_KEY,next)}catch(_){}const button=document.getElementById('themeHeaderToggle');if(button){const dark=next==='dark';button.title=dark?'Switch to Light Mode':'Switch to Dark Mode';button.setAttribute('aria-label',button.title);button.querySelector('.theme-icon').textContent=dark?'☀':'☾';button.querySelector('.theme-label').textContent=dark?'Light Mode':'Dark Mode'}}
+function ensureThemeToggle(){
+  let button=document.getElementById('themeHeaderToggle');if(button){applyTheme(currentTheme());return button}
+  button=document.createElement('button');button.id='themeHeaderToggle';button.type='button';button.innerHTML='<span class="theme-icon" aria-hidden="true">☾</span><span class="theme-label">Dark Mode</span>';button.style.cssText='position:fixed;top:18px;right:114px;z-index:9999;width:96px;height:38px;border-radius:11px;border:1px solid rgba(18,163,151,.32);background:rgba(255,255,255,.96);color:#0a6f68;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 9px;font-size:10px;font-weight:1000;cursor:pointer;box-shadow:0 0 14px rgba(31,220,198,.14),0 5px 16px rgba(15,72,75,.08);transition:.18s ease;backdrop-filter:blur(8px)';button.onclick=()=>applyTheme(currentTheme()==='dark'?'light':'dark');button.onmouseenter=()=>{button.style.transform='translateY(-1px) scale(1.02)'};button.onmouseleave=()=>{button.style.transform='translateY(0) scale(1)'};document.body.appendChild(button);applyTheme(currentTheme());return button
+}
 
 function currentProfile(){try{return JSON.parse(localStorage.getItem('dadBudgetCurrentProfile')||'null')}catch(_){return null}}
 function applyAccessPolish(profile=currentProfile()){
@@ -46,6 +54,7 @@ function styleBadge(badge,color='#2ee0c8'){
 function ensureIcons(){
   removeSidebarLinks();applyAccessPolish();applySummaryTypography();
   if(!document.body)return null;
+  ensureThemeToggle();
   let messages=document.getElementById('messagesHeaderIcon');
   if(!messages){
     messages=document.createElement('a');messages.id='messagesHeaderIcon';messages.href='messages.html';messages.title='Messages';messages.setAttribute('aria-label','Messages');
