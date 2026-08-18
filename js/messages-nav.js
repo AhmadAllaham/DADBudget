@@ -92,4 +92,4 @@ onAuthStateChanged(auth,u=>{if(u){applyAccessPolish();watchInbox(u)}});window.ad
 
 const page=(location.pathname.split('/').pop()||'').toLowerCase();
 if(page==='opex.html'||page==='opex-summary.html') import('./opex-fy27-integrity-fix.js?v=20260818-fy27-full-year-2').catch(e=>console.error('OPEX FY27 integrity fix failed:',e));
-if(page==='submission-control.html') import('./finance-return-button.js?v=20260817-notifications-3').catch(e=>console.error('Finance return button failed:',e));
+if(page==='submission-control.html') import('./finance-return-button.js?v=20260818-finance-manager-return-1').catch(e=>console.error('Finance return button failed:',e));
