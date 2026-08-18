@@ -63,20 +63,22 @@ function render(m){const d=dept.value==='ALL'?allDepartments(m):m.departments[de
 const renderDepartment=render;let allRenderToken=0;
 function finishAllRender(groups,r,token,selection,labelName){if(token!==allRenderToken||dept.value!==selection)return;const pl=label(r.f,r.t),npl=label(r.f,r.t,1);let html='',tb=0,ta=0,tf=0,tn=0,tly=0,hasLy=false;CATS.forEach(([c])=>{const g=groups[c];tb+=g.b;ta+=g.a;tf+=g.fy;tn+=g.n;if(g.hasLy){tly+=g.ly;hasLy=true}const z=Math.abs(g.b)+Math.abs(g.a)+Math.abs(g.fy)+Math.abs(g.n)+(g.hasLy?Math.abs(g.ly):0)<.005;html+=`<tr class="group-row" data-zero="${z?1:0}"><td>${c}</td>${cell(g.b,'budget-cell')}${cell(g.a,'actual-cell')}${budgetActualCell(g.b-g.a,'vb-num-cell')}${cell(g.fy,'fy-col fy-cell')}${cell(g.fy-g.a,'remaining-col remaining-cell')}${cell(g.n,'new-budget-col new-budget-cell')}<td class="ly-cell">${g.hasLy?fmt(g.ly):'—'}</td>${varCell(g.n-g.b,'b27b26-num-cell col-hidden')}${varCell(pct(g.n,g.b),'b27b26-pct-cell col-hidden',true)}${budgetActualCell(pct(g.b,g.a),'vb-pct-cell col-hidden',true)}${varCell(g.hasLy?g.a-g.ly:null,'vly-num-cell col-hidden')}${varCell(g.hasLy?pct(g.a,g.ly):null,'vly-pct-cell col-hidden',true)}</tr>`});html+=`<tr class="total-row"><td>Total OPEX</td>${cell(tb,'budget-cell')}${cell(ta,'actual-cell')}${budgetActualCell(tb-ta,'vb-num-cell')}${cell(tf,'fy-cell')}${cell(tf-ta,'remaining-cell')}${cell(tn,'new-budget-cell')}<td class="ly-cell">${hasLy?fmt(tly):'—'}</td>${varCell(tn-tb,'b27b26-num-cell col-hidden')}${varCell(pct(tn,tb),'b27b26-pct-cell col-hidden',true)}${budgetActualCell(pct(tb,ta),'vb-pct-cell col-hidden',true)}${varCell(hasLy?ta-tly:null,'vly-num-cell col-hidden')}${varCell(hasLy?pct(ta,tly):null,'vly-pct-cell col-hidden',true)}</tr>`;$('periodChip').textContent=pl;$('sheetTitle').textContent=labelName;$('sheetSub').textContent=selection+' · '+pl+' · FY Budget 2027 '+npl;['lyPeriodLabel','budgetPeriodLabel','actualPeriodLabel'].forEach(id=>$(id).textContent=pl);$('newBudgetPeriodLabel').textContent=npl;body.innerHTML=html;$('kpiLy').textContent=hasLy?fmt(tly):'—';$('kpiBudget').textContent=fmt(tb);$('kpiActual').textContent=fmt(ta);$('kpiFy').textContent=fmt(tf);$('kpiNewBudget').textContent=fmt(tn);totalsOnly=true;applyModes();applyCols();$('summaryToggle').disabled=true;$('summaryToggle').textContent=labelName+' Totals'}
 function renderGroupDetailsChunked(m,selection,group){
-  const token=++allRenderToken,combined={cc:selection,name:group.label,items:{}},items=[];
-  Object.values(m.departments||{}).filter(d=>group.ids.includes(String(d.cc))).forEach(d=>items.push(...Object.values(d.items||{})));
-  body.innerHTML=`<tr><td class="empty-row" colspan="13">Loading ${group.label} details in chunks...</td></tr>`;
+  const token=++allRenderToken,combined={cc:selection,name:group.label,items:{}},departments=Object.values(m.departments||{}).filter(d=>d&&group.ids.includes(String(d.cc)));
+  body.innerHTML=`<tr><td class="empty-row" colspan="13">Preparing ${group.label} details · 0 / ${departments.length} departments</td></tr>`;
   $('sheetTitle').textContent=group.label;$('summaryToggle').disabled=true;
   let index=0;
   function next(){
     if(token!==allRenderToken||dept.value!==selection)return;
-    const end=Math.min(index+250,items.length);
+    const end=Math.min(index+4,departments.length);
     for(;index<end;index++){
-      const source=items[index],item=ensureItem(combined,String(source.code),source.name);
-      ['budgetByMonth','actualByMonth','lyByMonth','newBudgetByMonth'].forEach(key=>Object.entries(source[key]||{}).forEach(([month,value])=>add(item[key],month,num(value))));
-      item.fyBudget+=num(source.fyBudget);item.actualUnperiodized+=num(source.actualUnperiodized);item.lyUnperiodized+=num(source.lyUnperiodized);item.hasLY=item.hasLY||source.hasLY;
+      Object.values(departments[index]?.items||{}).forEach(source=>{
+        const code=String(source?.code||'').trim();if(!code)return;
+        const item=ensureItem(combined,code,source.name);
+        ['budgetByMonth','actualByMonth','lyByMonth','newBudgetByMonth'].forEach(key=>Object.entries(source[key]||{}).forEach(([month,value])=>add(item[key],month,num(value))));
+        item.fyBudget+=num(source.fyBudget);item.actualUnperiodized+=num(source.actualUnperiodized);item.lyUnperiodized+=num(source.lyUnperiodized);item.hasLY=item.hasLY||source.hasLY;
+      });
     }
-    if(index<items.length){setTimeout(next,0);return}
+    if(index<departments.length){body.innerHTML=`<tr><td class="empty-row" colspan="13">Preparing ${group.label} details · ${index} / ${departments.length} departments</td></tr>`;setTimeout(next,0);return}
     totalsOnly=true;$('summaryToggle').disabled=false;renderDepartment({departments:{[selection]:combined}});
   }
   next();
