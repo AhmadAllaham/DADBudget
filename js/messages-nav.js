@@ -82,5 +82,5 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 onAuthStateChanged(auth,u=>{if(u){applyAccessPolish();watchInbox(u)}});window.addEventListener('dad-user-ready',e=>{applyAccessPolish(e.detail?.profile||currentProfile());watchInbox(e.detail?.user||auth.currentUser)});window.addEventListener('focus',()=>{applyAccessPolish();if(auth.currentUser)watchInbox(auth.currentUser)});
 
 const page=(location.pathname.split('/').pop()||'').toLowerCase();
-if(page==='opex.html'||page==='opex-summary.html') import('./opex-fy27-integrity-fix.js?v=20260817-fy27-vs-fy26-2').catch(e=>console.error('OPEX FY27 integrity fix failed:',e));
+if(page==='opex.html'||page==='opex-summary.html') import('./opex-fy27-integrity-fix.js?v=20260818-summary-column-order-1').catch(e=>console.error('OPEX FY27 integrity fix failed:',e));
 if(page==='submission-control.html') import('./finance-return-button.js?v=20260817-notifications-3').catch(e=>console.error('Finance return button failed:',e));

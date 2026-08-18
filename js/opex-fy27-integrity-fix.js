@@ -35,10 +35,10 @@ function updateSummary(){
     const items=Object.values(m.departments[cc].items||{}),v27=items.reduce((s,x)=>s+fy27(x),0),v26=items.reduce((s,x)=>s+fy26(x),0);grand27+=v27;grand26+=v26;
     const cells=row.querySelectorAll('td');
     setVarianceCell(cells[8],v27-v26,false);setVarianceCell(cells[9],pct(v27,v26),true);
-    if(cells[10])cells[10].textContent=fmt(v26);
-    if(cells[12])cells[12].textContent=fmt(v27);
+    if(cells[4])cells[4].textContent=fmt(v26);
+    if(cells[6])cells[6].textContent=fmt(v27);
   });
-  const totalRow=body.querySelector('.total-row');if(totalRow){const cells=totalRow.querySelectorAll('td');setVarianceCell(cells[8],grand27-grand26,false);setVarianceCell(cells[9],pct(grand27,grand26),true);if(cells[10])cells[10].textContent=fmt(grand26);if(cells[12])cells[12].textContent=fmt(grand27)}
+  const totalRow=body.querySelector('.total-row');if(totalRow){const cells=totalRow.querySelectorAll('td');setVarianceCell(cells[8],grand27-grand26,false);setVarianceCell(cells[9],pct(grand27,grand26),true);if(cells[4])cells[4].textContent=fmt(grand26);if(cells[6])cells[6].textContent=fmt(grand27)}
   const kpi27=document.getElementById('kpiFy27');if(kpi27)kpi27.textContent=fmt(grand27);
   const kpi26=document.getElementById('kpiFy26');if(kpi26)kpi26.textContent=fmt(grand26);
   const kpiPct=document.getElementById('kpiVarPct'),gp=pct(grand27,grand26);if(kpiPct)kpiPct.textContent=gp===null?'—':gp.toLocaleString(undefined,{maximumFractionDigits:1})+'%';
