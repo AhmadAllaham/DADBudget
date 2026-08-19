@@ -37,3 +37,70 @@
   }
   window.DADDepartmentGroups={groups,all:Object.values(groups),groupFor,idsFor,includes,bindSearch};
 })();
+
+(function(){
+  if(!/user-settings\.html$/i.test((location.pathname||'').split('?')[0]))return;
+  const EMAIL_FUNCTION_URL='https://us-central1-budget-8c575.cloudfunctions.net/adminSetUserEmail';
+
+  window.addEventListener('DOMContentLoaded',()=>{
+    const saveBtn=document.getElementById('saveBtn');
+    const emailInput=document.getElementById('email');
+    const uidInput=document.getElementById('uid');
+    const statusLine=document.getElementById('statusLine');
+    if(!saveBtn||!emailInput||!uidInput||saveBtn.dataset.authEmailSyncBound==='1')return;
+
+    saveBtn.dataset.authEmailSyncBound='1';
+    const originalSave=saveBtn.onclick;
+    let editingExistingUser=false;
+
+    document.addEventListener('click',event=>{
+      const editButton=event.target.closest?.('[data-edit]');
+      if(!editButton)return;
+      setTimeout(()=>{editingExistingUser=!!uidInput.value.trim()},0);
+    },true);
+
+    const setStatus=(message,isError=false)=>{
+      if(!statusLine)return;
+      statusLine.textContent=message;
+      statusLine.className=isError?'status-line err':'status-line ok';
+    };
+
+    saveBtn.onclick=async function(event){
+      const uid=uidInput.value.trim();
+      const email=emailInput.value.trim().toLowerCase();
+
+      if(editingExistingUser&&uid&&email){
+        try{
+          saveBtn.disabled=true;
+          saveBtn.textContent='Syncing login email...';
+          const currentUser=window.DADFirebase?.auth?.currentUser;
+          if(!currentUser)throw new Error('Sign in as Main Admin first.');
+          const token=await currentUser.getIdToken(true);
+          const response=await fetch(EMAIL_FUNCTION_URL,{
+            method:'POST',
+            headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+            body:JSON.stringify({uid,email})
+          });
+          let result={};
+          try{result=await response.json()}catch(_){}
+          if(!response.ok||result.ok!==true){
+            const code=result.error||('HTTP '+response.status);
+            if(code==='main-admin-required')throw new Error('Only the Main Admin can change a login email.');
+            if(code==='email-already-exists')throw new Error('This email is already used by another Firebase Authentication account.');
+            if(code==='user-not-found')throw new Error('Firebase Authentication user was not found.');
+            throw new Error(code);
+          }
+          if(result.changed) setStatus('Login email synced in Firebase Authentication. Saving user profile...');
+        }catch(err){
+          saveBtn.disabled=false;
+          saveBtn.textContent='Update in Firebase';
+          setStatus('Email update failed: '+err.message,true);
+          return;
+        }
+      }
+
+      saveBtn.disabled=false;
+      if(typeof originalSave==='function')return originalSave.call(saveBtn,event);
+    };
+  });
+})();
