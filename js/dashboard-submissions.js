@@ -62,5 +62,6 @@ async function load(user){
     const kpi=[...document.querySelectorAll('.kpi-card')].find(x=>x.querySelector('span')?.textContent.trim()==='Budget Progress');if(kpi){kpi.querySelector('strong').textContent=progress+'%';kpi.querySelector('small').textContent=`${submittedCount} / ${ids.length} passed manager stage · central inputs included`}
   }catch(e){console.error('Dashboard submission status failed',e);summary.textContent=`Workflow load failed: ${e.code||e.message||'Unknown error'}`;grid.innerHTML=''}
 }
-let lastUid='';function run(user){if(!user)return;lastUid=user.uid;load(user)}
+let lastUid='',lastRunAt=0,loadPromise=null;
+function run(user){if(!user)return;const now=Date.now();if(loadPromise||(lastUid===user.uid&&now-lastRunAt<5000))return;lastUid=user.uid;lastRunAt=now;loadPromise=Promise.resolve(load(user)).finally(()=>{loadPromise=null})}
 onAuthStateChanged(auth,user=>{if(user)run(user)});window.addEventListener('dad-user-ready',e=>{const u=e.detail?.user||auth.currentUser;if(u)run(u)});
