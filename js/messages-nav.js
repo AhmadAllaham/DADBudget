@@ -75,10 +75,10 @@ function watchInbox(user){
   if(!icons||!email)return;
   if(inboxUnsub&&watchedEmail===email)return;
   if(inboxUnsub)inboxUnsub();watchedEmail=email;
-  const qy=query(collection(db,'messages'),where('toEmail','==',email));
+  const qy=query(collection(db,'messages'),where('toEmail','==',email),where('read','==',false));
   inboxUnsub=onSnapshot(qy,s=>{
     let messages=0,notifications=0;
-    s.docs.forEach(x=>{const d=x.data()||{};if(d.read===true)return;if(d.kind==='notification')notifications++;else messages++});
+    s.docs.forEach(x=>{const d=x.data()||{};if(d.kind==='notification')notifications++;else messages++});
     showCount(icons.messages.querySelector('#messagesUnreadBadge'),messages);
     showCount(icons.notifications.querySelector('#notificationsUnreadBadge'),notifications);
   },()=>{
