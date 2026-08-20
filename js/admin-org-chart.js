@@ -3,7 +3,7 @@ import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/12.
 import {getFirestore,collection,getDocs,doc,getDoc,setDoc} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 
 const app=getApps()[0],auth=getAuth(app),db=getFirestore(app),$=id=>document.getElementById(id),clean=v=>String(v??'').trim();
-const MODULES={dashboard:'Dashboard',opex:'OPEX Planning',opex_detail:'OPEX Detail',opex_summary:'OPEX Summary',hr:'HR Budget',ap:'A&P Budget',travel:'Travel Budget',training:'Training Expense',capex:'CAPEX',ims:'IMS Sales',pl:'P&L',approvals:'Approval Center',data_admin:'Data Admin'};
+const MODULES={dashboard:'Dashboard',opex:'OPEX Planning',opex_detail:'OPEX Detail',opex_summary:'OPEX Summary',hr:'HR Budget',ap:'A&P Budget',travel:'Travel Budget',training:'Training Expense',capex:'CAPEX',capex_it:'CAPEX · IT Consolidation',ims:'IMS Sales',pl:'P&L',approvals:'Approval Center',data_admin:'Data Admin'};
 const STATES={not_submitted:'Not Submitted',uploaded:'Uploaded',pending_manager:'Waiting Manager Approval',manager_approved:'Manager Approved',under_review:'Finance Review',submitted:'Submitted',approved:'Approved',returned:'Returned',manager_returned:'Returned by Manager'};
 const PRIMARY_DEPARTMENT_OVERRIDES={'maen.jardaneh@dadgroup.com':'1000100104'};
 let model={users:[],managers:[],admins:[],statuses:{},opex:{},capex:{},departmentNames:{}},selectedKey='';

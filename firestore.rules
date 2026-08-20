@@ -35,6 +35,17 @@ service cloud.firestore {
                 && 'executive' in currentUserProfile().modules));
     }
 
+    function hasModule(moduleName) {
+      return hasUserProfile()
+        && currentUserProfile().enabled != false
+        && currentUserProfile().modules is list
+        && moduleName in currentUserProfile().modules;
+    }
+
+    function isCapexItViewer() {
+      return hasModule('capex_it');
+    }
+
     function isManager() {
       return hasUserProfile()
         && currentUserProfile().enabled != false
@@ -56,6 +67,34 @@ service cloud.firestore {
 
     function configuredManagerUid(fundCenter) {
       return get(/databases/$(database)/documents/budget_submission_status/$(fundCenter)).data.managerUid;
+    }
+
+    function isConfiguredManagerFor(fundCenter) {
+      return isSignedIn()
+        && hasConfiguredManager(fundCenter)
+        && configuredManagerUid(fundCenter) == request.auth.uid;
+    }
+
+    function validCapexItMirror(fundCenter) {
+      return request.resource.data.keys().hasOnly([
+          'cc',
+          'departmentName',
+          'rows',
+          'total',
+          'sourceFile',
+          'sourceRevision',
+          'updatedBy',
+          'updatedByEmail',
+          'updatedAt'
+        ])
+        && request.resource.data.cc == fundCenter
+        && request.resource.data.departmentName is string
+        && request.resource.data.rows is list
+        && request.resource.data.total is number
+        && request.resource.data.sourceFile is string
+        && request.resource.data.sourceRevision is int
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedByEmail == request.auth.token.email;
     }
 
     function validDepartmentNextState(fundCenter) {
@@ -157,7 +196,10 @@ service cloud.firestore {
     }
 
     match /opex_baseline_departments/{fundCenter} {
-      allow read: if isMainAdmin() || isExecutiveViewer() || hasDepartment(fundCenter);
+      allow read: if isMainAdmin()
+                  || isExecutiveViewer()
+                  || isCapexItViewer()
+                  || hasDepartment(fundCenter);
       allow create, update, delete: if isMainAdmin();
     }
 
@@ -197,6 +239,22 @@ service cloud.firestore {
                         && request.resource.data.status == request.resource.data.workflowStatus
                         && request.resource.data.workflowStatus != 'uploaded'
                         && validDepartmentNextState(fundCenter));
+      allow delete: if false;
+    }
+
+    // IT receives only the CAPEX rows copied from the two IT categories.
+    // The original Fund Center remains the owner of every request.
+    match /capex_it_requests/{fundCenter} {
+      allow read: if isMainAdmin()
+                  || isExecutiveViewer()
+                  || isCapexItViewer()
+                  || hasDepartment(fundCenter);
+
+      allow create, update: if validCapexItMirror(fundCenter)
+                            && (isMainAdmin()
+                                || hasDepartment(fundCenter)
+                                || isConfiguredManagerFor(fundCenter));
+
       allow delete: if false;
     }
 
