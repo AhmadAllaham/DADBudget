@@ -38,11 +38,12 @@
   }
   function applyCachedAccess(){
     const p=currentProfile();if(!p)return;
-    const isAdmin=p.isMainAdmin===true||p.role==='admin',mainAdmin=p.isMainAdmin===true,mods=new Set(Array.isArray(p.modules)?p.modules:[]),allowedModule=req=>mods.has(req)||(req==='capex'&&mods.has('capex_it'))||(mods.has('opex')&&(req==='opex_detail'||req==='opex_summary'));
+    const isAdmin=p.isMainAdmin===true||p.role==='admin',mainAdmin=p.isMainAdmin===true,mods=new Set(Array.isArray(p.modules)?p.modules:[]),departmentAccess=(Array.isArray(p.departments)?p.departments:[p.department]).some(x=>x&&x!=='ALL'),allowedModule=req=>mods.has(req)||(req==='capex'&&mods.has('capex_it'))||(req==='hr'&&(mods.has('hr_it')||departmentAccess))||(mods.has('opex')&&(req==='opex_detail'||req==='opex_summary'));
     const nav=document.querySelector('.sidebar-nav');
     if(nav){
       nav.querySelectorAll('a').forEach(a=>{const req=moduleForLink(a);if(!req)return;const allowed=req==='main_admin'?mainAdmin:req==='admin_only'?isAdmin:(isAdmin||allowedModule(req));if(allowed)a.style.removeProperty('display');else a.style.setProperty('display','none','important')});
       const opexSub=nav.querySelector('.opex-subnav'),opexParent=opexSub?.previousElementSibling;if(opexSub&&opexParent?.tagName==='A'){const anyChild=[...opexSub.querySelectorAll('a')].some(a=>getComputedStyle(a).display!=='none');if(isAdmin||allowedModule('opex_detail')||anyChild)opexParent.style.removeProperty('display');else opexParent.style.setProperty('display','none','important');opexParent.href=(isAdmin||allowedModule('opex_detail'))?'opex.html':'#'}
+      const hrSub=nav.querySelector('.hr-subnav'),hrParent=hrSub?.previousElementSibling;if(hrSub&&hrParent?.tagName==='A'){const anyChild=[...hrSub.querySelectorAll('a')].some(a=>getComputedStyle(a).display!=='none');if(isAdmin||anyChild)hrParent.style.removeProperty('display');else hrParent.style.setProperty('display','none','important')}
       nav.querySelectorAll('.nav-section').forEach(s=>{if(String(s.textContent||'').trim().toUpperCase()==='ADMIN'){let el=s.nextElementSibling,show=false;while(el&&!el.classList.contains('nav-section')){if(el.tagName==='A'&&el.style.display!=='none')show=true;el=el.nextElementSibling}s.style.display=show?'':'none'}});
     }
     const allowed=Array.isArray(p.departments)?p.departments.filter(Boolean):(p.department?[p.department]:[]),itCapex=(location.pathname.split('/').pop()||'').toLowerCase()==='capex.html'&&mods.has('capex_it'),all=isAdmin||itCapex||allowed.includes('ALL');
@@ -74,6 +75,9 @@
       });
     }
     if(nav&&!nav.querySelector('a[href="data-admin.html"]')){const s=document.createElement('div');s.className='nav-section';s.textContent='ADMIN';const a=document.createElement('a');a.href='data-admin.html';a.textContent='Data Admin';nav.append(s,a)}
+    if(nav&&!nav.querySelector('.hr-subnav')){
+      const headcount=nav.querySelector('a[href="hr-budget.html"]')||document.createElement('a'),parent=document.createElement('a'),subnav=document.createElement('div'),capex=nav.querySelector('a[href="capex.html"]');headcount.href='hr-budget.html';headcount.textContent='Headcount';parent.href='#';parent.textContent='HR Planning';subnav.className='hr-subnav';subnav.appendChild(headcount);if(capex){nav.insertBefore(parent,capex);nav.insertBefore(subnav,capex)}else nav.append(parent,subnav)
+    }
     const sub=side.querySelector('.opex-subnav');
     if(sub){
       const parent=sub.previousElementSibling;
@@ -82,12 +86,24 @@
         if(!sub.querySelector('a[href="training-expense.html"]')){const training=document.createElement('a');training.href='training-expense.html';training.textContent='Training Expense';sub.append(training)}
         parent.classList.add('opex-parent-toggle');
         if(!parent.querySelector('.opex-nav-caret')){const c=document.createElement('span');c.className='opex-nav-caret';c.textContent='▾';parent.appendChild(c)}
-        const path=(location.pathname.split('/').pop()||'').toLowerCase(),opexPage=['opex.html','opex-summary.html','hr-budget.html','ap-budget.html','travel-budget.html','training-expense.html'].includes(path);
+        const path=(location.pathname.split('/').pop()||'').toLowerCase(),opexPage=['opex.html','opex-summary.html','ap-budget.html','travel-budget.html','training-expense.html'].includes(path);
         const stored=localStorage.getItem('dadBudgetOPEXNavOpen');
         const open=stored===null?opexPage:stored==='true';
         sub.classList.toggle('opex-subnav-open',open);parent.classList.toggle('opex-parent-open',open);
         parent.addEventListener('click',e=>{const href=parent.getAttribute('href');if(href&&href!=='#')return;e.preventDefault();const next=!sub.classList.contains('opex-subnav-open');sub.classList.toggle('opex-subnav-open',next);parent.classList.toggle('opex-parent-open',next);localStorage.setItem('dadBudgetOPEXNavOpen',next?'true':'false')});
         const st=document.createElement('style');st.textContent='.opex-parent-toggle{display:flex!important;align-items:center;justify-content:space-between}.opex-nav-caret{font-size:10px;transition:transform .18s ease}.opex-parent-open .opex-nav-caret{transform:rotate(180deg)}.opex-subnav{display:none!important}.opex-subnav.opex-subnav-open{display:block!important}';document.head.appendChild(st);
+      }
+    }
+    const hrSub=side.querySelector('.hr-subnav');
+    if(hrSub){
+      const parent=hrSub.previousElementSibling;
+      if(parent&&parent.tagName==='A'){
+        parent.href='#';parent.classList.add('hr-parent-toggle');
+        if(!parent.querySelector('.hr-nav-caret')){const c=document.createElement('span');c.className='hr-nav-caret';c.textContent='▾';parent.appendChild(c)}
+        const path=(location.pathname.split('/').pop()||'').toLowerCase(),hrPage=path==='hr-budget.html',stored=localStorage.getItem('dadBudgetHRNavOpen'),open=stored===null?hrPage:stored==='true';
+        hrSub.classList.toggle('hr-subnav-open',open);parent.classList.toggle('hr-parent-open',open);
+        parent.addEventListener('click',e=>{e.preventDefault();const next=!hrSub.classList.contains('hr-subnav-open');hrSub.classList.toggle('hr-subnav-open',next);parent.classList.toggle('hr-parent-open',next);localStorage.setItem('dadBudgetHRNavOpen',next?'true':'false')});
+        const st=document.createElement('style');st.textContent='.hr-parent-toggle{display:flex!important;align-items:center;justify-content:space-between}.hr-nav-caret{font-size:10px;transition:transform .18s ease}.hr-parent-open .hr-nav-caret{transform:rotate(180deg)}.hr-subnav{display:none!important;margin:-3px 10px 6px 22px;padding-left:10px;border-left:1px solid rgba(255,255,255,.18)}.hr-subnav.hr-subnav-open{display:block!important}.hr-subnav a{display:block;padding:8px 10px;margin:2px 0;font-size:12px;border-radius:7px;color:rgba(255,255,255,.76)}';document.head.appendChild(st);
       }
     }
     let b=side.querySelector('.sidebar-toggle');if(!b){b=document.createElement('button');b.type='button';b.className='sidebar-toggle';b.title='Open / Close Sidebar';b.textContent='‹';side.appendChild(b)}

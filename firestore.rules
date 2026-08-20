@@ -46,6 +46,14 @@ service cloud.firestore {
       return hasModule('capex_it');
     }
 
+    function isHrPlanner() {
+      return hasModule('hr');
+    }
+
+    function isHrItViewer() {
+      return hasModule('hr_it');
+    }
+
     function isManager() {
       return hasUserProfile()
         && currentUserProfile().enabled != false
@@ -93,6 +101,39 @@ service cloud.firestore {
         && request.resource.data.total is number
         && request.resource.data.sourceFile is string
         && request.resource.data.sourceRevision is int
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedByEmail == request.auth.token.email;
+    }
+
+    function validHrHeadcount(fundCenter) {
+      return request.resource.data.keys().hasOnly([
+          'cc',
+          'departmentName',
+          'currentEmployees',
+          'newHeadcount',
+          'replacement',
+          'paidTrainees',
+          'unpaidTrainees',
+          'details',
+          'sourceFile',
+          'updatedBy',
+          'updatedByEmail',
+          'updatedAt'
+        ])
+        && request.resource.data.cc == fundCenter
+        && request.resource.data.departmentName is string
+        && request.resource.data.currentEmployees is int
+        && request.resource.data.currentEmployees >= 0
+        && request.resource.data.newHeadcount is int
+        && request.resource.data.newHeadcount >= 0
+        && request.resource.data.replacement is int
+        && request.resource.data.replacement >= 0
+        && request.resource.data.paidTrainees is int
+        && request.resource.data.paidTrainees >= 0
+        && request.resource.data.unpaidTrainees is int
+        && request.resource.data.unpaidTrainees >= 0
+        && request.resource.data.details is list
+        && request.resource.data.sourceFile is string
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedByEmail == request.auth.token.email;
     }
@@ -199,8 +240,28 @@ service cloud.firestore {
       allow read: if isMainAdmin()
                   || isExecutiveViewer()
                   || isCapexItViewer()
+                  || isHrPlanner()
+                  || isHrItViewer()
                   || hasDepartment(fundCenter);
       allow create, update, delete: if isMainAdmin();
+    }
+
+    // =========================
+    // HR HEADCOUNT
+    // =========================
+
+    match /hr_headcount/{fundCenter} {
+      allow read: if isMainAdmin()
+                  || isExecutiveViewer()
+                  || isHrPlanner()
+                  || isHrItViewer()
+                  || hasDepartment(fundCenter);
+
+      allow create, update: if validHrHeadcount(fundCenter)
+                            && (isMainAdmin()
+                                || isHrPlanner());
+
+      allow delete: if false;
     }
 
     match /opex_budget_submissions/{fundCenter} {
