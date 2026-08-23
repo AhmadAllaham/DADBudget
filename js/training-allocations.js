@@ -2,7 +2,7 @@
 'use strict';
 // Load the canonical Fund Center -> Department mapping synchronously before
 // the template/runtime scripts build the Training directory.
-document.write('<script src="js/training-canonical-department-names.js?v=20260823-canonical-2"><\\/script>');
+document.write('<script src="js/training-canonical-department-names.js?v=20260823-canonical-3"></'+'script>');
 
 function activate(which){
   const training=which==='training';
