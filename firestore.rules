@@ -240,7 +240,11 @@ service cloud.firestore {
         && request.resource.data.revision == resource.data.revision + 1
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'rows',
+          'payments',
           'total',
+          'paymentTotal',
+          'payment2027Total',
+          'paymentScheduleVersion',
           'fileName',
           'revision',
           'managerEditedAt',
