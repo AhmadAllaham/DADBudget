@@ -44,7 +44,7 @@ async function downloadTemplate(){const m=loadOpex(),cc=dept.value;if(window.DAD
 $('downloadTemplate').onclick=downloadTemplate;window.DADCapexPage={loadRows,saveRows,render,setStatus:(text,error=false)=>{status.textContent=text;status.classList.toggle('error',error);status.classList.toggle('ready',!error)},rebuildDepartments:(list,includeGroups=false)=>{const selected=dept.value;dept.innerHTML='<option value="">All Departments</option>';if(includeGroups)(window.DADDepartmentGroups?.all||[]).forEach(group=>{const present=group.ids.filter(cc=>list.some(d=>String(d.cc)===cc)).length;if(!present)return;const o=document.createElement('option');o.value=group.value;o.textContent=`${group.label} · ${present} Fund Centers`;dept.appendChild(o)});list.forEach(d=>{const o=document.createElement('option');o.value=d.cc;o.textContent=d.cc+' · '+d.name;dept.appendChild(o)});dept.value=list.some(d=>d.cc===selected)||!!window.DADDepartmentGroups?.groupFor(selected)?selected:(list.length===1?list[0].cc:'');render()}};render();
 })();
 </script>
-<script src="js/capex-payment-schedule.js?v=20260823-capex-payments-1"></script>
+<script src="js/capex-payment-schedule.js?v=20260823-capex-payment-mirror-2"></script>
 <script type="module">
 import {getApps} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
 import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
