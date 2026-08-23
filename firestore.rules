@@ -177,6 +177,43 @@ service cloud.firestore {
         && request.resource.data.updatedByEmail == request.auth.token.email;
     }
 
+    function isLndPlanner() {
+      return isSignedIn()
+        && currentUserProfile().role == 'manager'
+        && hasDepartment('1000300118');
+    }
+
+    function validTrainingAllocation(fundCenter) {
+      return request.resource.data.keys().hasOnly([
+          'cc',
+          'departmentName',
+          'sourceCc',
+          'fiscalYear',
+          'trainingAccount',
+          'trainingAnnual',
+          'trainingByMonth',
+          'travelRows',
+          'travelByGl',
+          'updatedBy',
+          'updatedByEmail',
+          'updatedAt',
+          'clientUpdatedAt'
+        ])
+        && request.resource.data.cc == fundCenter
+        && request.resource.data.departmentName is string
+        && request.resource.data.sourceCc == '1000300118'
+        && request.resource.data.fiscalYear == 2027
+        && request.resource.data.trainingAccount == '6010020'
+        && request.resource.data.trainingAnnual is number
+        && request.resource.data.trainingAnnual >= 0
+        && request.resource.data.trainingByMonth is map
+        && request.resource.data.travelRows is list
+        && request.resource.data.travelByGl is map
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedByEmail == request.auth.token.email
+        && request.resource.data.clientUpdatedAt is string;
+    }
+
     function validHrHeadcount(fundCenter) {
       return request.resource.data.keys().hasOnly([
           'cc',
@@ -403,6 +440,21 @@ service cloud.firestore {
       allow create, update: if validItOpexAllocation(fundCenter)
                             && (isMainAdmin()
                                 || isCapexItViewer());
+
+      allow delete: if false;
+    }
+
+    // L&D distributes Training (6010020) and training-related Travel
+    // to beneficiary departments without granting L&D access to edit
+    // the departments' own OPEX submissions.
+    match /opex_training_allocations/{fundCenter} {
+      allow read: if isMainAdmin()
+                  || isExecutiveViewer()
+                  || isLndPlanner()
+                  || hasDepartment(fundCenter);
+
+      allow create, update: if validTrainingAllocation(fundCenter)
+                            && (isMainAdmin() || isLndPlanner());
 
       allow delete: if false;
     }
