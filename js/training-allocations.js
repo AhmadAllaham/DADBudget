@@ -6,7 +6,7 @@ const $=id=>document.getElementById(id),clean=v=>String(v??'').trim(),num=v=>{co
 const profile=()=>{try{return JSON.parse(localStorage.getItem('dadBudgetCurrentProfile')||'null')}catch(_){return null}};
 const depsOf=p=>Array.isArray(p?.departments)?p.departments.map(clean).filter(Boolean):(p?.department?[clean(p.department)]:[]);
 const canEdit=p=>p?.isMainAdmin===true||p?.role==='admin'||(p?.role==='manager'&&depsOf(p).includes(SOURCE_CC));
-let directory=[],allocations=new Map(),travelRows=[],editing=true,fs=null,api=null;
+let directory=[],allocations=new Map(),travelRows=[],editing=true,fs=null,api=null,loading=false,loaded=false;
 function annualMonths(total){const cents=Math.round(num(total)*100),base=Math.trunc(cents/12),used=base*11,out={};for(let m=1;m<=12;m++)out[`${YEAR}-${String(m).padStart(2,'0')}`]=(m===12?cents-used:base)/100;return out}
 function status(message,error=false){const el=$('allocationStatus');el.textContent=message;el.classList.toggle('error',error);el.classList.toggle('ready',!error)}
 function option(value,label){const o=document.createElement('option');o.value=value;o.textContent=label;return o}
@@ -49,6 +49,7 @@ function addTravel(){
  travelRows.push({cc,month,gl,amount,note});$('travelAmount').value='';$('travelNote').value='';renderTravel();
 }
 async function load(){
+ if(loading||loaded)return;loading=true;
  try{
   api=window.DADFirebase;if(!api?.db||!api.auth?.currentUser){status('Waiting for secure connection...');setTimeout(load,500);return}
   fs=await import('https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js');const p=profile()||{},meta=await fs.getDoc(fs.doc(api.db,'opex_baseline_meta','current')),raw=Array.isArray(meta.data()?.departmentDirectory)?meta.data().departmentDirectory:[];
@@ -58,8 +59,8 @@ async function load(){
   travelRows=[...allocations.values()].flatMap(value=>Array.isArray(value.travelRows)?value.travelRows:[]);
   const depSelect=$('travelDepartment');directory.forEach(d=>depSelect.appendChild(option(d.cc,`${d.cc} · ${d.name}`)));MONTHS.forEach(m=>$('travelMonth').appendChild(option(m,m+' 2027')));TRAVEL.forEach(([gl,name])=>$('travelGl').appendChild(option(gl,`${gl} · ${name}`)));
   if(!editing){$('saveAllocations').disabled=true;$('addTravel').disabled=true;status('Read-only view · L&D Manager controls these allocations.')}else status('Ready · changes update each target department OPEX after saving.');
-  renderTraining();renderTravel();
- }catch(error){console.error(error);status('Unable to load allocations: '+(error.code||error.message),true)}
+  renderTraining();renderTravel();loaded=true;
+ }catch(error){console.error(error);status('Unable to load allocations: '+(error.code||error.message),true)}finally{loading=false}
 }
 $('trainingTab').onclick=()=>setMode('training');$('travelTab').onclick=()=>setMode('travel');$('trainingSearch').oninput=renderTraining;$('travelSearch').oninput=renderTravel;$('addTravel').onclick=addTravel;$('saveAllocations').onclick=saveAll;document.addEventListener('input',event=>{if(event.target.matches('[data-training-cc]'))updateKpis()});setMode('training');
 window.addEventListener('dad-user-ready',load,{once:true});window.addEventListener('dad-firebase-ready',()=>{if(window.DADFirebase?.auth?.currentUser)load()},{once:true});setTimeout(()=>{if(window.DADFirebase?.auth?.currentUser)load()},700);
