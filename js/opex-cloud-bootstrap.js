@@ -37,18 +37,32 @@ function saveCloudModel(model){
 async function publishAdmin(user,profile){
   const model=localBaseline();
   if(!model?.departments){setDeptMessage('Admin: upload OPEX baseline first',true);return false}
-  const deps=Object.values(model.departments||{});
-  // Keep meta intentionally small. Large account master data caused Firestore document-size failures.
-  await setDoc(doc(db,'opex_baseline_meta','current'),{
-    fileName:model.fileName||'OPEX Baseline',
-    mappingInfo:model.mappingInfo||{},
-    departmentCount:deps.length,
-    publishedBy:user.uid,
-    publishedEmail:(user.email||'').toLowerCase(),
-    clientPublishedAt:new Date().toISOString(),
-    publishedAt:serverTimestamp(),
-    schemaVersion:2
-  },{merge:false});
+  const deps=Object.values(model.departments||{}).filter(d=>clean(d?.cc)&&clean(d?.cc)!=='16');
+  const directory=deps.map(d=>{const cc=clean(d?.cc),name=clean(d?.name||d?.departmentName||cc)||cc;return{cc,name}}).sort((a,b)=>a.name.localeCompare(b.name)||a.cc.localeCompare(b.cc));
+  // Keep the metadata light, but always publish the complete Fund Center directory.
+  await Promise.all([
+    setDoc(doc(db,'opex_baseline_meta','current'),{
+      fileName:model.fileName||'OPEX Baseline',
+      mappingInfo:model.mappingInfo||{},
+      departmentCount:directory.length,
+      departmentDirectory:directory,
+      publishedBy:user.uid,
+      publishedEmail:(user.email||'').toLowerCase(),
+      clientPublishedAt:new Date().toISOString(),
+      publishedAt:serverTimestamp(),
+      schemaVersion:3
+    },{merge:false}),
+    setDoc(doc(db,'system_status','department_directory_fy2027'),{
+      fiscalYear:2027,
+      departmentCount:directory.length,
+      directory,
+      source:'opex_baseline',
+      updatedBy:user.uid,
+      updatedByEmail:(user.email||'').toLowerCase(),
+      clientUpdatedAt:new Date().toISOString(),
+      updatedAt:serverTimestamp()
+    },{merge:false})
+  ]);
   for(const d of deps){
     const cc=clean(d?.cc);if(!cc)continue;
     const payload={...d,cc};
@@ -56,7 +70,7 @@ async function publishAdmin(user,profile){
     if(bytes>900000)throw new Error(`Department ${cc} is too large (${Math.round(bytes/1024)} KB)`);
     await setDoc(doc(db,'opex_baseline_departments',cc),{...payload,cloudUpdatedAt:serverTimestamp()},{merge:false});
   }
-  window.dispatchEvent(new CustomEvent('dad-opex-cloud-published',{detail:{departments:deps.length}}));
+  window.dispatchEvent(new CustomEvent('dad-opex-cloud-published',{detail:{departments:directory.length}}));
   return true;
 }
 async function loadForUser(user,profile){
@@ -77,6 +91,7 @@ async function loadForUser(user,profile){
   const model={
     fileName:meta.fileName||'Cloud OPEX Baseline',
     mappingInfo:meta.mappingInfo||{},
+    departmentDirectory:Array.isArray(meta.departmentDirectory)?meta.departmentDirectory:[],
     departments,
     accountMaster:buildAccountMaster(departments),
     cloud:true,
