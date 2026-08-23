@@ -22,26 +22,9 @@ function updateOpex(){
 }
 function updateSummary(){
   if((location.pathname.split('/').pop()||'').toLowerCase()!=='opex-summary.html')return;
-  const m=loadModel(),body=document.getElementById('summaryBody');if(!m||!body)return;
-  const heads=document.querySelectorAll('.summary-table thead th');
-  if(heads[8])heads[8].textContent='FY Budget 2027 vs FY Budget 2026';
-  if(heads[9])heads[9].textContent='FY Budget 2027 vs FY Budget 2026 %';
-  const periodLabel=document.getElementById('periodLabel');
-  if(periodLabel)periodLabel.textContent='YTD comparisons follow the selected period · FY Budget 2027 vs FY Budget 2026 compares the full year.';
-  let grand27=0,grand26=0;
-  body.querySelectorAll('tr').forEach(row=>{
-    if(row.classList.contains('total-row')||row.querySelector('.empty'))return;
-    const first=clean(row.querySelector('td:first-child')?.textContent),cc=(first.match(/^\s*(\d+)\s*·/)||[])[1];if(!cc||!m.departments?.[cc])return;
-    const items=Object.values(m.departments[cc].items||{}),v27=items.reduce((s,x)=>s+fy27(x),0),v26=items.reduce((s,x)=>s+fy26(x),0);grand27+=v27;grand26+=v26;
-    const cells=row.querySelectorAll('td');
-    setVarianceCell(cells[8],v27-v26,false);setVarianceCell(cells[9],pct(v27,v26),true);
-    if(cells[4])cells[4].textContent=fmt(v26);
-    if(cells[6])cells[6].textContent=fmt(v27);
-  });
-  const totalRow=body.querySelector('.total-row');if(totalRow){const cells=totalRow.querySelectorAll('td');setVarianceCell(cells[8],grand27-grand26,false);setVarianceCell(cells[9],pct(grand27,grand26),true);if(cells[4])cells[4].textContent=fmt(grand26);if(cells[6])cells[6].textContent=fmt(grand27)}
-  const kpi27=document.getElementById('kpiFy27');if(kpi27)kpi27.textContent=fmt(grand27);
-  const kpi26=document.getElementById('kpiFy26');if(kpi26)kpi26.textContent=fmt(grand26);
-  const kpiPct=document.getElementById('kpiVarPct'),gp=pct(grand27,grand26);if(kpiPct)kpiPct.textContent=gp===null?'—':gp.toLocaleString(undefined,{maximumFractionDigits:1})+'%';
+  // The Summary page now calculates and renders its columns directly.
+  // Do not rewrite cells by numeric index here: the column order is configurable,
+  // and the legacy index mapping overwrote "Vs Budget" with FY Budget 2026.
 }
 let busy=false,timer;
 function apply(){if(busy)return;busy=true;try{updateOpex();updateSummary()}finally{busy=false}}
