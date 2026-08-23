@@ -70,4 +70,4 @@ if(pathNow()==='opex.html'){
 if(pathNow()==='submission-control.html') import('./central-progress-control.js?v=20260818-manager-chain-1').catch(e=>console.error('Central progress controls failed:',e));
 if(pathNow()==='user-settings.html') import('./user-settings-auto.js?v=20260817-auto-user-1').catch(e=>console.error('Automatic user creation controls failed:',e));
 if(pathNow()!=='login.html') import('./messages-nav.js?v=20260823-summary-variance-1').catch(e=>console.error('Messages and notifications navigation failed:',e));
-if(pathNow()==='opex.html'||pathNow()==='capex.html') import('./admin-budget-exports.js?v=20260823-capex-monthly-payments-2').catch(e=>console.error('Admin budget exports failed:',e));
+if(pathNow()==='opex.html'||pathNow()==='capex.html') import('./admin-budget-exports.js?v=20260823-capex-payment-2028-1').catch(e=>console.error('Admin budget exports failed:',e));
