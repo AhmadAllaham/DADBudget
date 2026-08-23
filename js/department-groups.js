@@ -8,12 +8,15 @@
     '1000140107','1000140108','1000140109','1000140110','1000140111','1000140113','1000140114','1000140115','1000140116'
   ];
   const groups={
-    PRODUCTION:{key:'PRODUCTION',value:'GROUP:PRODUCTION',label:'Production',ids:productionIds}
+    PRODUCTION:{key:'PRODUCTION',value:'GROUP:PRODUCTION',label:'Production',ids:productionIds,adminOnly:true},
+    RD_ANALYTICAL:{key:'RD_ANALYTICAL',value:'GROUP:RD_ANALYTICAL',label:'R&D + Analytical Research',ids:['1000401101','1000401105'],allowedEmails:['manar.alasaad@dadgroup.com']}
   };
   const byValue=Object.fromEntries(Object.values(groups).map(group=>[group.value,group]));
   const groupFor=value=>byValue[String(value||'').trim()]||null;
   const idsFor=value=>groupFor(value)?.ids.slice()||[];
   const includes=(value,fundCenter)=>idsFor(value).includes(String(fundCenter||'').trim());
+  const cachedProfile=()=>{try{return JSON.parse(localStorage.getItem('dadBudgetCurrentProfile')||'null')}catch(_){return null}};
+  function visibleGroups(profile=cachedProfile()){const admin=profile?.isMainAdmin===true||profile?.role==='admin',email=String(profile?.email||'').trim().toLowerCase();return Object.values(groups).filter(group=>admin||(!group.adminOnly&&(!group.allowedEmails||group.allowedEmails.map(x=>String(x).toLowerCase()).includes(email))))}
   function bindSearch(select,input){
     if(!select||!input||input.dataset.departmentSearchBound==='1')return;
     input.dataset.departmentSearchBound='1';
@@ -35,7 +38,7 @@
     });
     select.addEventListener('change',()=>{sync();close()});document.addEventListener('click',event=>{if(!host.contains(event.target))close()});new MutationObserver(rebuild).observe(select,{childList:true,subtree:true,attributes:true,attributeFilter:['disabled']});rebuild();
   }
-  window.DADDepartmentGroups={groups,all:Object.values(groups),groupFor,idsFor,includes,bindSearch};
+  window.DADDepartmentGroups={groups,all:Object.values(groups),visibleGroups,groupFor,idsFor,includes,bindSearch};
 })();
 
 (function(){
