@@ -5,7 +5,7 @@ import { getFirestore, collection, getDocs, doc, getDoc } from 'https://www.gsta
 const app=getApps()[0],auth=getAuth(app),db=getFirestore(app),$=id=>document.getElementById(id);
 const num=v=>Number.isFinite(Number(v))?Number(v):0,clean=v=>String(v??'').trim();
 const money=v=>num(v).toLocaleString(undefined,{maximumFractionDigits:0});
-const statusLabels={not_submitted:'Not Submitted',uploaded:'Uploaded',pending_manager:'Pending Manager',manager_returned:'Manager Returned',manager_approved:'Manager Approved',submitted:'Submitted',under_review:'Finance Review',returned:'Finance Returned',approved:'Approved'};
+const statusLabels={not_submitted:'Not Submitted',uploaded:'Uploaded',pending_it:'Pending IT',pending_manager:'Pending Manager',manager_returned:'Manager Returned',manager_approved:'Manager Approved',submitted:'Submitted',under_review:'Finance Review',returned:'Returned',approved:'Approved'};
 let departments=[],sectors=[];
 
 function bytesFromBase64(value){const raw=atob(value||''),out=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);return out}

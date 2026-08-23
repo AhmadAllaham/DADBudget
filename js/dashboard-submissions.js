@@ -3,8 +3,8 @@ import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/
 import { getFirestore, collection, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 
 const app=getApps()[0],auth=getAuth(app),db=getFirestore(app),MAIN='PST3chwdZmaQGeG25t4ym9Vlixe2';
-const workflowWeights={not_submitted:0,uploaded:25,pending_manager:40,manager_returned:35,manager_approved:55,submitted:55,under_review:75,returned:50,approved:100};
-const labels={not_submitted:'Not Submitted',uploaded:'Uploaded',pending_manager:'Pending Manager Approval',manager_returned:'Returned by Manager',manager_approved:'Manager Approved',submitted:'Submitted',under_review:'Finance Review',returned:'Returned by Finance',approved:'Approved'};
+const workflowWeights={not_submitted:0,uploaded:25,pending_it:32,pending_manager:40,manager_returned:35,manager_approved:55,submitted:55,under_review:75,returned:50,approved:100};
+const labels={not_submitted:'Not Submitted',uploaded:'Uploaded',pending_it:'Pending IT Approval',pending_manager:'Pending Manager Approval',manager_returned:'Returned by Manager',manager_approved:'Manager Approved',submitted:'Submitted',under_review:'Finance Review',returned:'Returned',approved:'Approved'};
 const WORKFLOW_SHARE=70,SALARIES_SHARE=15,DEPRECIATION_SHARE=15;
 const num=v=>Number.isFinite(Number(v))?Number(v):0,fmtMoney=v=>num(v).toLocaleString(undefined,{maximumFractionDigits:0});
 function base64ToBytes(s){const b=atob(s||''),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a}

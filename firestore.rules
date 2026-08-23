@@ -93,6 +93,14 @@ service cloud.firestore {
           'paymentTotal',
           'sourceFile',
           'sourceRevision',
+          'workflowStatus',
+          'itStatus',
+          'itNote',
+          'itRevision',
+          'itFileName',
+          'managerUid',
+          'managerEmail',
+          'submittedEmail',
           'updatedBy',
           'updatedByEmail',
           'updatedAt'
@@ -105,6 +113,22 @@ service cloud.firestore {
         && request.resource.data.paymentTotal is number
         && request.resource.data.sourceFile is string
         && request.resource.data.sourceRevision is int
+        && (!('workflowStatus' in request.resource.data)
+            || request.resource.data.workflowStatus is string)
+        && (!('itStatus' in request.resource.data)
+            || request.resource.data.itStatus is string)
+        && (!('itNote' in request.resource.data)
+            || request.resource.data.itNote is string)
+        && (!('itRevision' in request.resource.data)
+            || request.resource.data.itRevision is int)
+        && (!('itFileName' in request.resource.data)
+            || request.resource.data.itFileName is string)
+        && (!('managerUid' in request.resource.data)
+            || request.resource.data.managerUid is string)
+        && (!('managerEmail' in request.resource.data)
+            || request.resource.data.managerEmail is string)
+        && (!('submittedEmail' in request.resource.data)
+            || request.resource.data.submittedEmail is string)
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedByEmail == request.auth.token.email;
     }
@@ -188,6 +212,9 @@ service cloud.firestore {
 
     function validDepartmentNextState(fundCenter) {
       return request.resource.data.workflowStatus == 'uploaded'
+        || (request.resource.data.workflowStatus == 'pending_it'
+            && request.resource.data.itReviewRequired == true
+            && request.resource.data.itStatus == 'pending')
         || (request.resource.data.workflowStatus == 'pending_manager'
             && hasConfiguredManager(fundCenter)
             && request.resource.data.managerUid == configuredManagerUid(fundCenter)
@@ -274,6 +301,46 @@ service cloud.firestore {
           'managerEditedBy',
           'managerEditedByEmail',
           'workflowUpdatedAt'
+        ]);
+    }
+
+    function validItCapexDecision(fundCenter) {
+      return resource.data.workflowStatus == 'pending_it'
+        && resource.data.itStatus == 'pending'
+        && request.resource.data.status == request.resource.data.workflowStatus
+        && request.resource.data.itReviewedBy == request.auth.uid
+        && request.resource.data.itReviewedByEmail == request.auth.token.email
+        && (
+          (request.resource.data.workflowStatus == 'returned'
+            && request.resource.data.itStatus == 'returned')
+          || (request.resource.data.workflowStatus == 'pending_manager'
+            && request.resource.data.itStatus == 'approved'
+            && hasConfiguredManager(fundCenter))
+          || (request.resource.data.workflowStatus == 'under_review'
+            && request.resource.data.itStatus == 'approved'
+            && !hasConfiguredManager(fundCenter))
+        )
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'rows',
+          'payments',
+          'total',
+          'paymentTotal',
+          'payment2027Total',
+          'fileName',
+          'revision',
+          'workflowStatus',
+          'status',
+          'financeStatus',
+          'managerStatus',
+          'itStatus',
+          'itNote',
+          'itRevision',
+          'itReviewedAt',
+          'itReviewedBy',
+          'itReviewedByEmail',
+          'workflowUpdatedAt',
+          'returnedAt',
+          'returnNote'
         ]);
     }
 
@@ -377,7 +444,10 @@ service cloud.firestore {
     }
 
     match /capex_budget_submissions/{fundCenter} {
-      allow read: if isMainAdmin() || isExecutiveViewer() || hasDepartment(fundCenter);
+      allow read: if isMainAdmin()
+                  || isExecutiveViewer()
+                  || isCapexItViewer()
+                  || hasDepartment(fundCenter);
       allow create: if isMainAdmin()
                     || (hasDepartment(fundCenter)
                         && request.resource.data.submittedBy == request.auth.uid
@@ -385,6 +455,8 @@ service cloud.firestore {
                         && request.resource.data.workflowStatus != 'uploaded'
                         && validDepartmentNextState(fundCenter));
       allow update: if isMainAdmin()
+                    || (isCapexItViewer()
+                        && validItCapexDecision(fundCenter))
                     || (isAssignedManager(fundCenter)
                         && (validManagerDecision()
                             || validManagerCapexRevision())
@@ -408,6 +480,7 @@ service cloud.firestore {
 
       allow create, update: if validCapexItMirror(fundCenter)
                             && (isMainAdmin()
+                                || isCapexItViewer()
                                 || hasDepartment(fundCenter)
                                 || isConfiguredManagerFor(fundCenter));
 
