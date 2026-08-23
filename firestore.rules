@@ -177,6 +177,34 @@ service cloud.firestore {
         && request.resource.data.updatedByEmail == request.auth.token.email;
     }
 
+    function isBusinessDevelopmentPlanner() {
+      return isSignedIn()
+        && ('departmentLabel' in currentUserProfile())
+        && currentUserProfile().departmentLabel is string
+        && currentUserProfile().departmentLabel.matches('.*Business Development.*');
+    }
+
+    function validLicensingBudget() {
+      return request.resource.data.keys().hasOnly([
+          'fiscalYear',
+          'currency',
+          'rows',
+          'total',
+          'updatedBy',
+          'updatedByEmail',
+          'updatedAt',
+          'clientUpdatedAt'
+        ])
+        && request.resource.data.fiscalYear == 2027
+        && request.resource.data.currency == 'JOD'
+        && request.resource.data.rows is list
+        && request.resource.data.total is number
+        && request.resource.data.total >= 0
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedByEmail == request.auth.token.email
+        && request.resource.data.clientUpdatedAt is string;
+    }
+
     function isLndPlanner() {
       return isSignedIn()
         && currentUserProfile().role == 'manager'
@@ -441,6 +469,14 @@ service cloud.firestore {
                             && (isMainAdmin()
                                 || isCapexItViewer());
 
+      allow delete: if false;
+    }
+
+    // Licensing Budget 2027 is owned by Business Development.
+    match /licensing_budget/{planId} {
+      allow read: if isMainAdmin() || isBusinessDevelopmentPlanner();
+      allow create, update: if validLicensingBudget()
+                            && (isMainAdmin() || isBusinessDevelopmentPlanner());
       allow delete: if false;
     }
 
