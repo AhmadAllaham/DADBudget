@@ -88,7 +88,9 @@ service cloud.firestore {
           'cc',
           'departmentName',
           'rows',
+          'payments',
           'total',
+          'paymentTotal',
           'sourceFile',
           'sourceRevision',
           'updatedBy',
@@ -98,11 +100,34 @@ service cloud.firestore {
         && request.resource.data.cc == fundCenter
         && request.resource.data.departmentName is string
         && request.resource.data.rows is list
+        && request.resource.data.payments is list
         && request.resource.data.total is number
+        && request.resource.data.paymentTotal is number
         && request.resource.data.sourceFile is string
         && request.resource.data.sourceRevision is int
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedByEmail == request.auth.token.email;
+    }
+
+    function validItBudgetPlan() {
+      return request.resource.data.keys().hasOnly([
+          'fiscalYear',
+          'sheets',
+          'revision',
+          'sourceFile',
+          'updatedBy',
+          'updatedByEmail',
+          'updatedAt',
+          'clientUpdatedAt'
+        ])
+        && request.resource.data.fiscalYear == 2027
+        && request.resource.data.sheets is map
+        && request.resource.data.revision is int
+        && request.resource.data.revision > 0
+        && request.resource.data.sourceFile is string
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedByEmail == request.auth.token.email
+        && request.resource.data.clientUpdatedAt is string;
     }
 
     function validHrHeadcount(fundCenter) {
@@ -315,6 +340,22 @@ service cloud.firestore {
                             && (isMainAdmin()
                                 || hasDepartment(fundCenter)
                                 || isConfiguredManagerFor(fundCenter));
+
+      allow delete: if false;
+    }
+
+    // =========================
+    // IT OPERATING BUDGET 2027
+    // =========================
+
+    match /it_budget_plans/{planId} {
+      allow read: if isMainAdmin()
+                  || isExecutiveViewer()
+                  || isCapexItViewer();
+
+      allow create, update: if validItBudgetPlan()
+                            && (isMainAdmin()
+                                || isCapexItViewer());
 
       allow delete: if false;
     }
