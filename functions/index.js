@@ -1,26 +1,138 @@
 const { onRequest } = require('firebase-functions/v2/https');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 
 initializeApp();
 
 const MAIN_ADMIN_UID = 'PST3chwdZmaQGeG25t4ym9Vlixe2';
+const LND_CC = '1000300118';
 
-async function requireMainAdmin(req, res) {
+async function decodeBearer(req, res) {
   const authHeader = String(req.headers.authorization || '');
   const match = authHeader.match(/^Bearer\s+(.+)$/i);
   if (!match) {
     res.status(401).json({ ok: false, error: 'authentication-required' });
     return null;
   }
+  try {
+    return await getAuth().verifyIdToken(match[1], true);
+  } catch (err) {
+    res.status(401).json({ ok: false, error: String(err?.code || 'invalid-token') });
+    return null;
+  }
+}
 
-  const decoded = await getAuth().verifyIdToken(match[1], true);
+async function requireMainAdmin(req, res) {
+  const decoded = await decodeBearer(req, res);
+  if (!decoded) return null;
   if (decoded.uid !== MAIN_ADMIN_UID) {
     res.status(403).json({ ok: false, error: 'main-admin-required' });
     return null;
   }
   return decoded;
 }
+
+async function requireTrainingDirectoryAccess(req, res) {
+  const decoded = await decodeBearer(req, res);
+  if (!decoded) return null;
+  if (decoded.uid === MAIN_ADMIN_UID) return decoded;
+
+  const db = getFirestore();
+  const snap = await db.collection('users').doc(decoded.uid).get();
+  if (!snap.exists) {
+    res.status(403).json({ ok: false, error: 'user-profile-required' });
+    return null;
+  }
+  const profile = snap.data() || {};
+  const departments = Array.isArray(profile.departments)
+    ? profile.departments.map(x => String(x || '').trim())
+    : (profile.department ? [String(profile.department).trim()] : []);
+  const modules = Array.isArray(profile.modules) ? profile.modules.map(x => String(x || '').trim()) : [];
+  const allowed = profile.enabled !== false && (
+    profile.isMainAdmin === true ||
+    profile.role === 'admin' ||
+    modules.includes('training') ||
+    (profile.role === 'manager' && departments.includes(LND_CC))
+  );
+  if (!allowed) {
+    res.status(403).json({ ok: false, error: 'training-access-required' });
+    return null;
+  }
+  return decoded;
+}
+
+exports.trainingDepartmentDirectory = onRequest(
+  {
+    region: 'us-central1',
+    cors: true,
+    timeoutSeconds: 30,
+    memory: '256MiB'
+  },
+  async (req, res) => {
+    if (req.method !== 'GET' && req.method !== 'POST') {
+      res.set('Allow', 'GET, POST');
+      return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    }
+
+    try {
+      const decoded = await requireTrainingDirectoryAccess(req, res);
+      if (!decoded) return;
+
+      const db = getFirestore();
+      const [baselineSnap, metaSnap] = await Promise.all([
+        db.collection('opex_baseline_departments').get(),
+        db.collection('opex_baseline_meta').doc('current').get()
+      ]);
+
+      const map = new Map();
+      const add = (cc, name) => {
+        cc = String(cc || '').trim();
+        if (!cc || cc === '16' || cc === 'ALL' || cc.startsWith('GROUP:')) return;
+        name = String(name || cc).trim() || cc;
+        const current = map.get(cc);
+        if (!current || current.name === current.cc || (/^\d+$/.test(current.name) && name !== cc)) {
+          map.set(cc, { cc, name });
+        }
+      };
+
+      baselineSnap.docs.forEach(docSnap => {
+        const data = docSnap.data() || {};
+        add(docSnap.id, data.name || data.departmentName || docSnap.id);
+      });
+      const meta = metaSnap.exists ? (metaSnap.data() || {}) : {};
+      (Array.isArray(meta.departmentDirectory) ? meta.departmentDirectory : []).forEach(x => add(x?.cc, x?.name));
+      (Array.isArray(meta.departments) ? meta.departments : []).forEach(x => {
+        if (x && typeof x === 'object') add(x.cc, x.name);
+        else add(x, x);
+      });
+
+      const directory = [...map.values()].sort((a, b) =>
+        a.name.localeCompare(b.name) || a.cc.localeCompare(b.cc, undefined, { numeric: true })
+      );
+
+      if (!directory.length) {
+        return res.status(404).json({ ok: false, error: 'department-directory-empty' });
+      }
+
+      await db.collection('system_status').doc('department_directory_fy2027').set({
+        fiscalYear: 2027,
+        departmentCount: directory.length,
+        directory,
+        source: 'secure-training-directory-function',
+        updatedBy: decoded.uid,
+        updatedByEmail: String(decoded.email || '').toLowerCase(),
+        updatedAt: FieldValue.serverTimestamp(),
+        clientUpdatedAt: new Date().toISOString()
+      }, { merge: false });
+
+      return res.status(200).json({ ok: true, count: directory.length, directory });
+    } catch (err) {
+      console.error('trainingDepartmentDirectory failed', err);
+      return res.status(500).json({ ok: false, error: String(err?.code || err?.message || 'internal') });
+    }
+  }
+);
 
 exports.adminSetUserPassword = onRequest(
   {
