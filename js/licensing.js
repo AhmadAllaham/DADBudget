@@ -10,6 +10,7 @@ const fmt=v=>Math.abs(num(v))<.005?'—':num(v).toLocaleString(undefined,{maximu
 const profile=()=>{try{return JSON.parse(localStorage.getItem('dadBudgetCurrentProfile')||'null')}catch(_){return null}};
 function isAllowed(p){const labels=[p?.departmentLabel,...(Array.isArray(p?.departmentLabels)?p.departmentLabels:[])].map(clean).join(' ').toUpperCase();return p?.isMainAdmin===true||p?.role==='admin'||labels.includes('BUSINESS DEVELOPMENT')}
 let rows=DEFAULT_ROWS.map(x=>({...x})),api=null,fs=null,loaded=false;
+const licensingRef=()=>fs.doc(api.db,'system_status','licensing_budget_fy2027');
 function total(){return rows.reduce((sum,row)=>sum+num(row.unitValue),0)}
 function status(message,error=false){const el=$('licensingStatus');el.textContent=message;el.classList.toggle('error',error);el.classList.toggle('ready',!error)}
 function escapeAttr(value){return clean(value).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}
@@ -23,7 +24,7 @@ function render(){
 }
 async function save(){
  const button=$('saveLicensing');button.disabled=true;status('Saving Licensing Budget...');
- try{const user=api.auth.currentUser,p=profile()||{},payloadRows=rows.map(row=>({department:clean(row.department),projectName:clean(row.projectName),unitValue:row.unitValue===null?0:num(row.unitValue)}));await fs.setDoc(fs.doc(api.db,'licensing_budget','fy2027'),{fiscalYear:YEAR,currency:'JOD',rows:payloadRows,total:total(),updatedBy:user.uid,updatedByEmail:clean(user.email||p.email).toLowerCase(),updatedAt:fs.serverTimestamp(),clientUpdatedAt:new Date().toISOString()},{merge:false});status(`Licensing Budget saved · ${rows.length} projects · ${fmt(total())} JOD`)}catch(error){console.error(error);status('Save failed: '+(error.code||error.message),true);alert('Licensing save failed: '+(error.message||error))}finally{button.disabled=false}
+ try{const user=api.auth.currentUser,p=profile()||{},payloadRows=rows.map(row=>({department:clean(row.department),projectName:clean(row.projectName),unitValue:row.unitValue===null?0:num(row.unitValue)}));await fs.setDoc(licensingRef(),{fiscalYear:YEAR,currency:'JOD',rows:payloadRows,total:total(),updatedBy:user.uid,updatedByEmail:clean(user.email||p.email).toLowerCase(),updatedAt:fs.serverTimestamp(),clientUpdatedAt:new Date().toISOString()},{merge:false});status(`Licensing Budget saved · ${rows.length} projects · ${fmt(total())} JOD`)}catch(error){console.error(error);status('Save failed: '+(error.code||error.message),true);alert('Licensing save failed: '+(error.message||error))}finally{button.disabled=false}
 }
 function add(){rows.push({department:'Corporate strategic (Licensing)',projectName:'',unitValue:null});render()}
 async function download(){
@@ -36,7 +37,7 @@ async function upload(file){
 }
 async function load(){
  if(loaded)return;api=window.DADFirebase;if(!api?.db||!api.auth?.currentUser){setTimeout(load,500);return}loaded=true;
- try{if(!isAllowed(profile()||{})){location.replace('index.html');return}fs=await import('https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js');const snapshot=await fs.getDoc(fs.doc(api.db,'licensing_budget','fy2027'));if(snapshot.exists()&&Array.isArray(snapshot.data()?.rows))rows=snapshot.data().rows.map(row=>({...row,unitValue:num(row.unitValue)||null}));render();status(snapshot.exists()?'Latest Licensing Budget loaded.':'Blank Licensing template loaded. Enter Unit Value in JOD.')}catch(error){loaded=false;status('Unable to load Licensing Budget: '+(error.code||error.message),true)}
+ try{if(!isAllowed(profile()||{})){location.replace('index.html');return}fs=await import('https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js');const snapshot=await fs.getDoc(licensingRef());if(snapshot.exists()&&Array.isArray(snapshot.data()?.rows))rows=snapshot.data().rows.map(row=>({...row,unitValue:num(row.unitValue)||null}));render();status(snapshot.exists()?'Latest Licensing Budget loaded.':'Blank Licensing template loaded. Enter Unit Value in JOD.')}catch(error){loaded=false;status('Unable to load Licensing Budget: '+(error.code||error.message),true)}
 }
 $('saveLicensing').onclick=save;$('addProject').onclick=add;$('downloadLicensing').onclick=download;$('uploadLicensing').onclick=()=>$('licensingFile').click();$('licensingFile').onchange=()=>{const file=$('licensingFile').files?.[0];if(file)upload(file)};window.addEventListener('dad-user-ready',load,{once:true});setTimeout(()=>{if(window.DADFirebase?.auth?.currentUser)load()},700);
 })();
