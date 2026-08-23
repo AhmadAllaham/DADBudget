@@ -1,21 +1,22 @@
 (function(){
 'use strict';
-const YEAR=2027,DIR_DOC='department_directory_fy2027',M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],T=[['6020001','Travel Tickets'],['6020002','Travel Hotels'],['6020003','Travel Transportation'],['6020004','Travel Meals'],['6020005','Travel Visa'],['6020006','Travel Per Diem'],['6020007','Travel Insurance'],['6020008','Local Per Diem'],['6020009','Local Transportation'],['6020010','Other Travel Cost']],$=id=>document.getElementById(id),c=v=>String(v??'').trim(),n=v=>Number(v)||0;
+const YEAR=2027,DIR_DOC='department_directory_fy2027',DIRECTORY_URL='https://us-central1-budget-8c575.cloudfunctions.net/trainingDepartmentDirectory',M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],T=[['6020001','Travel Tickets'],['6020002','Travel Hotels'],['6020003','Travel Transportation'],['6020004','Travel Meals'],['6020005','Travel Visa'],['6020006','Travel Per Diem'],['6020007','Travel Insurance'],['6020008','Local Per Diem'],['6020009','Local Transportation'],['6020010','Other Travel Cost']],$=id=>document.getElementById(id),c=v=>String(v??'').trim(),n=v=>Number(v)||0;
 function profile(){try{return JSON.parse(localStorage.getItem('dadBudgetCurrentProfile')||'null')||{}}catch(_){return{}}}
 function add(map,cc,name){cc=c(cc);if(!cc||cc==='16'||cc==='ALL'||cc.startsWith('GROUP:'))return;name=c(name||cc);const old=map.get(cc);if(!old||old.name===old.cc||(/^\d+$/.test(old.name)&&name!==cc))map.set(cc,{cc,name})}
 function addLocalDirectory(map){const keys=Object.keys(localStorage).filter(k=>/^dadBudgetOPEXBaselineV\d+$/i.test(k)).sort((a,b)=>Number((b.match(/\d+$/)||[0])[0])-Number((a.match(/\d+$/)||[0])[0]));for(const key of keys){try{const model=JSON.parse(localStorage.getItem(key)||'null');if(!model)continue;(model.departmentDirectory||[]).forEach(x=>add(map,x?.cc,x?.name));Object.values(model.departments||{}).forEach(x=>add(map,x?.cc,x?.name));if(Object.keys(model.departments||{}).length)break}catch(_){}}}
 function addKnownGroupFundCenters(map){const groups=window.DADDepartmentGroups?.groups||{};Object.values(groups).forEach(group=>(group?.ids||[]).forEach(cc=>add(map,cc,cc)))}
-function userDepartmentName(user,index,cc){const labels=Array.isArray(user?.departmentLabels)?user.departmentLabels:[],raw=c(labels[index]||(index===0?user?.departmentLabel:''));if(!raw)return cc;const stripped=raw.replace(/^\s*\d+\s*[·|\-:]\s*/,'').trim();return stripped||cc}
+function userDepartmentName(user,index,cc){const labels=Array.isArray(user?.departmentLabels)?user.departmentLabels:[],raw=c(labels[index]||(index===0?user?.departmentLabel:''));if(!raw)return cc;return raw.replace(/^\s*\d+\s*[·|\-:]\s*/,'').trim()||cc}
+async function addSecureDirectory(a,map){try{const token=await a.auth.currentUser.getIdToken(),r=await fetch(DIRECTORY_URL,{method:'GET',headers:{Authorization:`Bearer ${token}`}}),payload=await r.json().catch(()=>({}));if(!r.ok||payload.ok!==true||!Array.isArray(payload.directory))throw Error(payload.error||`HTTP ${r.status}`);payload.directory.forEach(x=>add(map,x?.cc,x?.name));return payload.directory.length}catch(e){console.warn('Secure Training template directory unavailable',e);return 0}}
 async function data(){
  const a=window.DADFirebase;if(!a?.db||!a.auth?.currentUser)throw Error('Secure cloud connection is not ready.');
  const f=await import('https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js'),metaRef=f.doc(a.db,'opex_baseline_meta','current'),dirRef=f.doc(a.db,'system_status',DIR_DOC),[m,s,d]=await Promise.all([f.getDoc(metaRef),f.getDocs(f.collection(a.db,'system_status')),f.getDoc(dirRef)]),map=new Map(),alloc=new Map();
  if(!m.exists())throw Error('Finance OPEX baseline is not published yet.');
- const md=m.data()||{},expected=Math.max(Number(md.departmentCount||0),Array.isArray(md.departments)?md.departments.length:0,Number(d.exists()?d.data()?.departmentCount||0:0));
- (md.departmentDirectory||[]).forEach(x=>add(map,x?.cc,x?.name));
- (md.departments||[]).forEach(x=>typeof x==='object'?add(map,x?.cc,x?.name):add(map,x,x));
+ const md=m.data()||{};
+ (md.departmentDirectory||[]).forEach(x=>add(map,x?.cc,x?.name));(md.departments||[]).forEach(x=>typeof x==='object'?add(map,x?.cc,x?.name):add(map,x,x));
  if(d.exists())(d.data()?.directory||[]).forEach(x=>add(map,x?.cc,x?.name));
+ (window.DADTrainingCompleteDirectory||[]).forEach(x=>add(map,x?.cc,x?.name));
  s.docs.filter(x=>c(x.id).startsWith('training_allocation_')).forEach(x=>{const cc=c(x.id).replace(/^training_allocation_/,'');alloc.set(cc,x.data()||{});add(map,cc,x.data()?.departmentName)});
- addLocalDirectory(map);addKnownGroupFundCenters(map);
+ addLocalDirectory(map);addKnownGroupFundCenters(map);await addSecureDirectory(a,map);
  const p=profile(),admin=a.auth.currentUser.uid===a.mainAdminUid||p?.isMainAdmin===true||p?.role==='admin';
  if(admin){
   try{const all=await f.getDocs(f.collection(a.db,'opex_baseline_departments'));all.docs.forEach(x=>add(map,x.id,x.data()?.name||x.data()?.departmentName||x.id))}catch(e){console.warn('Training directory baseline read failed',e)}
@@ -23,8 +24,8 @@ async function data(){
  }
  const dir=[...map.values()].sort((x,y)=>x.name.localeCompare(y.name)||x.cc.localeCompare(y.cc,undefined,{numeric:true}));
  if(!dir.length)throw Error('No departments were found in the Finance OPEX directory.');
- if(admin){try{await f.setDoc(dirRef,{fiscalYear:YEAR,departmentCount:dir.length,directory:dir,source:'OPEX baseline + user access directory + configured Fund Centers',expectedBaselineCount:expected,updatedBy:a.auth.currentUser.uid,updatedByEmail:c(a.auth.currentUser.email).toLowerCase(),updatedAt:f.serverTimestamp(),clientUpdatedAt:new Date().toISOString()},{merge:false});await f.setDoc(metaRef,{departmentDirectory:dir,departmentCount:Math.max(expected,dir.length),directoryUpdatedAt:f.serverTimestamp()},{merge:true})}catch(e){console.warn('Complete Training directory could not be shared',e)}}
- if(expected&&dir.length<expected)throw Error(`Complete department directory is not available yet (${dir.length} of at least ${expected} Fund Centers). Please open/download once using the Main Admin account.`);
+ // Never write Training's directory back into Finance OPEX metadata.
+ if(admin){try{await f.setDoc(dirRef,{fiscalYear:YEAR,departmentCount:dir.length,directory:dir,source:'Training safe shared directory',updatedBy:a.auth.currentUser.uid,updatedByEmail:c(a.auth.currentUser.email).toLowerCase(),updatedAt:f.serverTimestamp(),clientUpdatedAt:new Date().toISOString()},{merge:false})}catch(e){console.warn('Training safe directory could not be shared',e)}}
  return{dir,alloc}
 }
 function head(s,last){s.getRow(1).height=28;s.getRow(1).font={bold:true,color:{argb:'FFFFFFFF'}};s.getRow(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0A2C61'}};s.getRow(1).alignment={vertical:'middle',horizontal:'center',wrapText:true};s.autoFilter={from:{row:1,column:1},to:{row:1,column:last}};s.views=[{state:'frozen',ySplit:1}]}
