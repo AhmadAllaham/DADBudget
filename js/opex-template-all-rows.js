@@ -84,5 +84,7 @@ async function downloadAllRows(){
   for(let c=10;c<=19;c++){const cell=tr.getRow(1).getCell(c);cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF9DD7F5'}};cell.font={bold:true,color:{argb:'FF0A2C61'}};cell.alignment={vertical:'middle',horizontal:'center'}}
   const buf=await wb.xlsx.writeBuffer(),blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`Budget_2027_${String(d.name).replace(/[^A-Za-z0-9]+/g,'_')}_${d.cc}.xlsx`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-function install(){const b=document.getElementById('masterTemplateBtn');if(!b)return setTimeout(install,250);b.onclick=downloadAllRows;b.dataset.allRowsTemplate='1'}
+let autoDownloadStarted=false;
+function tryAutoDownload(){if(autoDownloadStarted||new URLSearchParams(location.search).get('downloadTemplate')!=='travel')return;const selected=document.getElementById('deptFilter')?.value,model=loadModel();if(!model?.departments?.[selected])return setTimeout(tryAutoDownload,400);autoDownloadStarted=true;downloadAllRows()}
+function install(){const b=document.getElementById('masterTemplateBtn');if(!b)return setTimeout(install,250);b.onclick=downloadAllRows;b.dataset.allRowsTemplate='1';tryAutoDownload()}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();window.addEventListener('load',()=>setTimeout(install,0));
