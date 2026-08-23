@@ -220,6 +220,18 @@ service cloud.firestore {
         ]);
     }
 
+    function validManagerOpexUtilityPayload() {
+      return resource.data.workflowStatus == 'pending_manager'
+        && request.resource.data.workflowStatus == 'pending_manager'
+        && request.resource.data.revision == resource.data.revision
+        && request.resource.data.managerEditedBy == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'encoding',
+          'payload',
+          'workflowUpdatedAt'
+        ]);
+    }
+
     function validManagerCapexRevision() {
       return resource.data.workflowStatus == 'pending_manager'
         && request.resource.data.workflowStatus == 'pending_manager'
@@ -271,6 +283,22 @@ service cloud.firestore {
       allow create, update, delete: if isMainAdmin();
     }
 
+    // Utilities Budget 2027 is entered only by Engineering (100100301).
+    // Finance publishes the approved allocation separately for each target
+    // Fund Center. Departments can read only their own allocated values.
+    match /opex_utilities_allocations/{fundCenter} {
+      allow read: if isMainAdmin()
+                  || isExecutiveViewer()
+                  || hasDepartment(fundCenter);
+
+      allow create, update: if isMainAdmin()
+                            && request.resource.data.cc == fundCenter
+                            && request.resource.data.sourceCc == '100100301'
+                            && request.resource.data.items is map;
+
+      allow delete: if false;
+    }
+
     // =========================
     // HR HEADCOUNT
     // =========================
@@ -298,7 +326,8 @@ service cloud.firestore {
       allow update: if isMainAdmin()
                     || (isAssignedManager(fundCenter)
                         && (validManagerDecision()
-                            || validManagerOpexRevision()))
+                            || validManagerOpexRevision()
+                            || validManagerOpexUtilityPayload()))
                     || (hasDepartment(fundCenter)
                         && departmentSubmissionIsOpen()
                         && request.resource.data.submittedBy == request.auth.uid
