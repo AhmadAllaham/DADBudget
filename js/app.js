@@ -24,7 +24,7 @@
     if(href.includes('user-settings'))return'admin_only';
     if(href.includes('data-admin'))return'main_admin';
     if(href.includes('ims-sales'))return'ims';
-    if(href.includes('it-planning'))return'capex_it';
+    if(href.includes('it-planning')||href.includes('projects')||label==='projects')return'capex_it';
     if(href.includes('capex'))return'capex';
     if(href.includes('opex-summary'))return'opex_summary';
     if(href.includes('training-expense'))return'training';
@@ -73,10 +73,12 @@
         const label=String(link.textContent||'').trim().toUpperCase();
         if(label.startsWith('OPEX PLANNING'))link.href='opex.html';
         if(label.startsWith('CAPEX PLANNING'))link.href='capex.html';
+        if(label==='PROJECTS')link.href='projects.html';
       });
     }
     if(nav&&!nav.querySelector('a[href="data-admin.html"]')){const s=document.createElement('div');s.className='nav-section';s.textContent='ADMIN';const a=document.createElement('a');a.href='data-admin.html';a.textContent='Data Admin';nav.append(s,a)}
     if(nav&&!nav.querySelector('a[href="it-planning.html"]')){const capex=nav.querySelector('a[href="capex.html"]'),a=document.createElement('a');a.href='it-planning.html';a.textContent='IT Planning';if(capex)capex.after(a);else nav.appendChild(a)}
+    if(nav&&!nav.querySelector('a[href="projects.html"]')){const it=nav.querySelector('a[href="it-planning.html"]'),a=document.createElement('a');a.href='projects.html';a.textContent='Projects';if(it)it.after(a);else nav.appendChild(a)}
     if(nav&&!nav.querySelector('.hr-subnav')){
       const headcount=nav.querySelector('a[href="hr-budget.html"]')||document.createElement('a'),parent=document.createElement('a'),subnav=document.createElement('div'),capex=nav.querySelector('a[href="capex.html"]');headcount.href='hr-budget.html';headcount.textContent='Headcount';parent.href='#';parent.textContent='HR Planning';subnav.className='hr-subnav';subnav.appendChild(headcount);if(capex){nav.insertBefore(parent,capex);nav.insertBefore(subnav,capex)}else nav.append(parent,subnav)
     }

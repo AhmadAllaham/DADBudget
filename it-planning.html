@@ -10,13 +10,13 @@
 </style>
 </head>
 <body><div class="app-shell">
-<aside class="sidebar"><div class="sidebar-brand"><div class="brand-badge">B27</div><div><strong>BUDGET 2027</strong><span>PLANNING CENTER</span></div></div><nav class="sidebar-nav"><div class="nav-section">PLANNING</div><a href="index.html">Dashboard</a><a href="ims-sales.html">IMS Sales</a><a href="opex.html">OPEX Planning</a><a href="capex.html">CAPEX Planning</a><a class="active" href="it-planning.html">IT Planning</a><a href="#">Projects</a><a href="#">P&amp;L</a><div class="nav-section">WORKFLOW</div><a href="roadmap.html">Roadmap</a><a href="manager-approval.html">Approval Center</a><a href="#">Assumptions</a><div class="nav-section">ADMIN</div><a href="data-admin.html">Data Admin</a></nav></aside>
+<aside class="sidebar"><div class="sidebar-brand"><div class="brand-badge">B27</div><div><strong>BUDGET 2027</strong><span>PLANNING CENTER</span></div></div><nav class="sidebar-nav"><div class="nav-section">PLANNING</div><a href="index.html">Dashboard</a><a href="ims-sales.html">IMS Sales</a><a href="opex.html">OPEX Planning</a><a href="capex.html">CAPEX Planning</a><a class="active" href="it-planning.html">IT Planning</a><a href="projects.html">Projects</a><a href="#">P&amp;L</a><div class="nav-section">WORKFLOW</div><a href="roadmap.html">Roadmap</a><a href="manager-approval.html">Approval Center</a><a href="#">Assumptions</a><div class="nav-section">ADMIN</div><a href="data-admin.html">Data Admin</a></nav></aside>
 <main class="main-content it-page">
 <div class="page-head"><span class="eyebrow">IT BUDGET 2027</span><h1>IT Planning</h1><p>IT department CAPEX, department technology requests and operating IT budgets in one page.</p></div>
 <div class="head-actions"><a class="btn open-capex" href="capex.html">Open My IT CAPEX</a><button class="btn" id="downloadTemplate">Download IT Template</button><button class="btn primary" id="uploadBtn">Upload IT Workbook</button><input id="uploadInput" type="file" accept=".xlsx,.xls" hidden></div>
 <section class="kpis"><article class="card kpi"><span>Department IT Requests</span><strong id="requestTotal">—</strong></article><article class="card kpi"><span>IT Operating Budget</span><strong id="operatingTotal">—</strong></article><article class="card kpi"><span>Active Lines</span><strong id="lineCount">0</strong></article><article class="card kpi"><span>Workbook Revision</span><strong id="revision">—</strong></article></section>
 <section class="card workspace"><div class="toolbar"><div><h2 id="viewTitle">Department CAPEX Requests</h2><p id="viewSubtitle">Computers & Printers and Computer Software requested by all departments.</p></div><span class="status" id="status">Waiting for secure IT session...</span></div>
-<div class="tabs" id="tabs"><button class="tab active" data-tab="requests">Department Requests</button><button class="tab" data-tab="licences">Licences Exp</button><button class="tab" data-tab="subscriptions">Subscriptions &amp; Magazines</button><button class="tab" data-tab="consultation">General Consultation</button><button class="tab" data-tab="internet">Internet</button><button class="tab" data-tab="project">Project</button></div>
+<div class="tabs" id="tabs"><button class="tab active" data-tab="requests">Department Requests</button><button class="tab" data-tab="licences">Licences Exp</button><button class="tab" data-tab="subscriptions">Subscriptions &amp; Magazines</button><button class="tab" data-tab="consultation">General Consultation</button><button class="tab" data-tab="internet">Internet</button></div>
 <div class="filters"><input id="searchBox" type="search" placeholder="Search description, department or Fund Center..."></div>
 <div class="table-wrap"><table class="it-table"><thead id="tableHead"></thead><tbody id="tableBody"><tr><td class="empty">Loading...</td></tr></tbody></table></div>
 <div class="note">The regular CAPEX upload remains under <b>CAPEX Planning</b> and is limited to the IT user's assigned department. This page separately consolidates department IT requests and the IT operating workbook.</div></section>
@@ -24,7 +24,7 @@
 </main></div>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-<script src="js/app.js?v=20260823-it-planning-1"></script>
-<script type="module" src="js/firebase.js?v=20260823-it-planning-1"></script>
-<script type="module" src="js/it-planning.js?v=20260823-it-planning-1"></script>
+<script src="js/app.js?v=20260823-projects-1"></script>
+<script type="module" src="js/firebase.js?v=20260823-projects-1"></script>
+<script type="module" src="js/it-planning.js?v=20260823-projects-1"></script>
 </body></html>
