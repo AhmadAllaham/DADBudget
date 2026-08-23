@@ -47,10 +47,12 @@
   <script src="js/roadmap-data.js?v=20260817-1"></script>
   <script src="js/app.js?v=20260820-hr-section-2"></script>
   <script type="module" src="js/firebase.js?v=20260823-licensing-admin-3"></script>
+  <script src="js/main-admin-department-directory-repair.js?v=20260823-directory-repair-1"></script>
   <script>
     (function(){
       const status=document.getElementById('firebaseStatus'),btn=document.getElementById('firebaseTestBtn'),title=document.getElementById('currentUserTitle'),deps=document.getElementById('currentUserDepartments'),diag=document.getElementById('adminDiagnostics');
       window.addEventListener('dad-user-ready',e=>{const p=e.detail?.profile||{};const isAdmin=p.isMainAdmin===true||p.role==='admin';status.textContent=`Signed in: ${p.email||''} · ${p.role||''}`;status.style.background='#e9f9f3';status.style.color='#087a64';diag.style.display=isAdmin?'':'none';if(isAdmin){title.textContent=p.email||'Authenticated user';const ds=Array.isArray(p.departmentLabels)&&p.departmentLabels.length?p.departmentLabels:(p.departmentLabel?[p.departmentLabel]:[]);deps.textContent=`Role: ${p.role||'—'} · Departments: ${ds.join(' | ')||'Not Restricted'}`;}});
+      window.addEventListener('dad-department-directory-repaired',e=>{if(status){status.textContent=`Department directory refreshed · ${e.detail?.count||0} Fund Centers · names synchronized from Finance OPEX`;status.style.background='#e9f9f3';status.style.color='#087a64'}});
       btn.addEventListener('click',async()=>{try{btn.disabled=true;btn.textContent='Testing...';if(!window.DADFirebase)throw new Error('Firebase SDK is still loading.');const path=await window.DADFirebase.testConnection();status.textContent='Firestore connected successfully · '+path;status.style.background='#e9f9f3';status.style.color='#087a64';btn.textContent='Connected ✓'}catch(e){status.textContent='Firestore test failed · '+e.message;status.style.background='#fff0f0';status.style.color='#a63b3b';btn.textContent='Test Firestore';btn.disabled=false}});
     })();
   </script>
