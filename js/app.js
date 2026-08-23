@@ -24,6 +24,7 @@
     if(href.includes('user-settings'))return'admin_only';
     if(href.includes('data-admin'))return'main_admin';
     if(href.includes('ims-sales'))return'ims';
+    if(href.includes('it-planning'))return'capex_it';
     if(href.includes('capex'))return'capex';
     if(href.includes('opex-summary'))return'opex_summary';
     if(href.includes('training-expense'))return'training';
@@ -46,7 +47,7 @@
       const hrSub=nav.querySelector('.hr-subnav'),hrParent=hrSub?.previousElementSibling;if(hrSub&&hrParent?.tagName==='A'){const anyChild=[...hrSub.querySelectorAll('a')].some(a=>getComputedStyle(a).display!=='none');if(isAdmin||anyChild)hrParent.style.removeProperty('display');else hrParent.style.setProperty('display','none','important')}
       nav.querySelectorAll('.nav-section').forEach(s=>{if(String(s.textContent||'').trim().toUpperCase()==='ADMIN'){let el=s.nextElementSibling,show=false;while(el&&!el.classList.contains('nav-section')){if(el.tagName==='A'&&el.style.display!=='none')show=true;el=el.nextElementSibling}s.style.display=show?'':'none'}});
     }
-    const allowed=Array.isArray(p.departments)?p.departments.filter(Boolean):(p.department?[p.department]:[]),itCapex=(location.pathname.split('/').pop()||'').toLowerCase()==='capex.html'&&mods.has('capex_it'),all=isAdmin||itCapex||allowed.includes('ALL');
+    const allowed=Array.isArray(p.departments)?p.departments.filter(Boolean):(p.department?[p.department]:[]),all=isAdmin||allowed.includes('ALL');
     const restrictDepartmentSelect=()=>{
       const sel=document.getElementById('deptFilter');if(!sel||all||!allowed.length)return;
       const allowedSet=new Set(allowed.map(String));
@@ -75,6 +76,7 @@
       });
     }
     if(nav&&!nav.querySelector('a[href="data-admin.html"]')){const s=document.createElement('div');s.className='nav-section';s.textContent='ADMIN';const a=document.createElement('a');a.href='data-admin.html';a.textContent='Data Admin';nav.append(s,a)}
+    if(nav&&!nav.querySelector('a[href="it-planning.html"]')){const capex=nav.querySelector('a[href="capex.html"]'),a=document.createElement('a');a.href='it-planning.html';a.textContent='IT Planning';if(capex)capex.after(a);else nav.appendChild(a)}
     if(nav&&!nav.querySelector('.hr-subnav')){
       const headcount=nav.querySelector('a[href="hr-budget.html"]')||document.createElement('a'),parent=document.createElement('a'),subnav=document.createElement('div'),capex=nav.querySelector('a[href="capex.html"]');headcount.href='hr-budget.html';headcount.textContent='Headcount';parent.href='#';parent.textContent='HR Planning';subnav.className='hr-subnav';subnav.appendChild(headcount);if(capex){nav.insertBefore(parent,capex);nav.insertBefore(subnav,capex)}else nav.append(parent,subnav)
     }
