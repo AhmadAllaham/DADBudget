@@ -46,7 +46,6 @@ function styleTemplate(workbook,sheet){
   ['5','Uploaded Travel values automatically update Travel G/L 6020001–6020010 in OPEX.']
  ].forEach(row=>info.addRow(row));
  info.getColumn(1).width=18;info.getColumn(2).width=100;info.getRow(1).font={bold:true,size:16,color:{argb:'FF0A2C61'}};
- workbook.worksheets.splice(workbook.worksheets.indexOf(info),1);workbook.worksheets.unshift(info);
 }
 async function download(){
  try{
