@@ -130,6 +130,29 @@ service cloud.firestore {
         && request.resource.data.clientUpdatedAt is string;
     }
 
+    function validItOpexAllocation(fundCenter) {
+      return request.resource.data.keys().hasOnly([
+          'cc',
+          'departmentName',
+          'fiscalYear',
+          'revision',
+          'sourceFile',
+          'items',
+          'updatedBy',
+          'updatedByEmail',
+          'updatedAt'
+        ])
+        && request.resource.data.cc == fundCenter
+        && request.resource.data.departmentName is string
+        && request.resource.data.fiscalYear == 2027
+        && request.resource.data.revision is int
+        && request.resource.data.revision > 0
+        && request.resource.data.sourceFile is string
+        && request.resource.data.items is map
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedByEmail == request.auth.token.email;
+    }
+
     function validHrHeadcount(fundCenter) {
       return request.resource.data.keys().hasOnly([
           'cc',
@@ -299,6 +322,20 @@ service cloud.firestore {
                             && request.resource.data.cc == fundCenter
                             && request.resource.data.sourceCc == '100100301'
                             && request.resource.data.items is map;
+
+      allow delete: if false;
+    }
+
+    // IT publishes one isolated OPEX allocation document per Fund Center.
+    // A department can read only its own assigned values.
+    match /opex_it_allocations/{fundCenter} {
+      allow read: if isMainAdmin()
+                  || isExecutiveViewer()
+                  || hasDepartment(fundCenter);
+
+      allow create, update: if validItOpexAllocation(fundCenter)
+                            && (isMainAdmin()
+                                || isCapexItViewer());
 
       allow delete: if false;
     }

@@ -3,6 +3,8 @@ const ENGINEERING_CC='100100301';
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const COUNTRIES=['Jordan','Saudi Arabia','United Arab Emirates','Qatar','Bahrain','Kuwait','Oman','Iraq','Algeria','Egypt','Lebanon','Palestine','Yemen','Morocco','Tunisia','Libya','Sudan','Syria','Turkey','United States','United Kingdom','France','Germany','Italy','Spain','Switzerland','Netherlands','Belgium','Austria','Greece','Cyprus','India','Pakistan','Bangladesh','Sri Lanka','China','Japan','South Korea','Singapore','Malaysia','Indonesia','Philippines','Thailand','Australia','New Zealand','Canada','Brazil','South Africa','Kenya','Nigeria','Ghana','Ethiopia'];
 const n=v=>{const x=Number(v||0);return Number.isFinite(x)?x:0};
+const IT_CONTROLLED_NAMES=new Set(['Internet and Connectivity Charges','IT Consultation','Subscriptions, Books and Magazines','Software Licenses'].map(v=>String(v).toUpperCase().replace(/[^A-Z0-9]/g,'')));
+const itControlledName=value=>IT_CONTROLLED_NAMES.has(String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,''));
 function loadModel(){try{const m=JSON.parse(localStorage.getItem(KEY)||'null');if(m?.departments)return m}catch(_){}const keys=Object.keys(localStorage).filter(k=>/^dadBudgetOPEXBaselineV\d+$/i.test(k)).sort((a,b)=>Number((b.match(/\d+$/)||[0])[0])-Number((a.match(/\d+$/)||[0])[0]));for(const k of keys){try{const m=JSON.parse(localStorage.getItem(k)||'null');if(m?.departments)return m}catch(_){}}return null}
 function controlled(code){const c=String(code||'').trim(),x=Number(c);return c.startsWith('608')||(x>=6010001&&x<=6010031)||(x>=6020001&&x<=6020010)||(x>=6030010&&x<=6030180&&x%10===0)}
 function category(code){const c=String(code||''),p=c.slice(0,3),m={'601':'Employees Benefits','602':'Travel Costs','603':'Depreciation and Amortization','604':'Maintenance cost','605':'A&P, Marketing Activities','606':'IT and Connectivity Expenses','607':'Professional & Consultation Expenses','608':'Utilities Expenses','609':'Insurance Expenses','610':'Logistic Expenses','611':'Governmental and Taxes Expenses','612':'Vehicles Expenses','613':'Products related Expense','614':'Other Expenses'};if(c==='6050015'||c==='6050016')return'Other Expenses';if(c==='6140019')return'Products related Expense';return m[p]||'Other Expenses'}
@@ -15,7 +17,7 @@ function allAccounts(m,d){
   Object.values(m.accountMaster||{}).forEach(a=>{const code=String(a?.code||'').trim();if(code)merged.set(code,{code,name:String(a?.name||code).trim()||code})});
   Object.values(d.items||{}).forEach(a=>{const code=String(a?.code||'').trim();if(!code)return;const prev=merged.get(code)||{};merged.set(code,{code,name:String(a?.name||prev.name||code).trim()||code})});
   return [...merged.values()]
-    .filter(a=>/^6(01|02|03|04|05|06|07|08|09|10|11|12|13|14)/.test(String(a.code))&&!controlled(a.code))
+    .filter(a=>/^6(01|02|03|04|05|06|07|08|09|10|11|12|13|14)/.test(String(a.code))&&!controlled(a.code)&&!itControlledName(a.name))
     .sort((a,b)=>String(a.code).localeCompare(String(b.code)));
 }
 function utilityAccounts(m,d){const out=new Map();Object.values(m.accountMaster||{}).forEach(a=>{const code=String(a?.code||'').trim();if(code.startsWith('608'))out.set(code,{code,name:String(a?.name||code).trim()||code})});Object.values(d.items||{}).forEach(a=>{const code=String(a?.code||'').trim();if(code.startsWith('608')&&!out.has(code))out.set(code,{code,name:String(a?.name||code).trim()||code})});return[...out.values()].sort((a,b)=>a.code.localeCompare(b.code))}
@@ -34,8 +36,9 @@ async function downloadAllRows(){
     ['6','Depreciation and Amortization G/L 6030010-6030180 are controlled by a separate model.'],
     ['7','Professional & Consultation G/L 607 accounts are controlled by the Professional Consultation sheet. Details are mandatory for every entered amount.'],
     ['8','Utilities G/L 608 accounts are controlled only by Engineering Fund Center 100100301 and are read-only for all other departments.'],
-    ['9','Travel Budget dropdowns are provided for Department, Title, Country, Month and Number of Nights.'],
-    ['10','Upload this same workbook once after completion.']
+    ['9','Internet, IT Consultation, Subscriptions / Magazines and Software Licenses are allocated centrally by IT and are not editable in this department template.'],
+    ['10','Travel Budget dropdowns are provided for Department, Title, Country, Month and Number of Nights.'],
+    ['11','Upload this same workbook once after completion.']
   ].forEach(r=>info.addRow(r));info.getColumn(1).width=18;info.getColumn(2).width=90;
 
   const op=wb.addWorksheet('OPEX Budget 2027'),range=selectedRange(),numberFormat='#,##0;[Red]-#,##0;–';

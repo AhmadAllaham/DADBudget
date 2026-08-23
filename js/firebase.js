@@ -63,11 +63,11 @@ onAuthStateChanged(auth,async user=>{const login=pathNow()==='login.html'||pathN
 window.dispatchEvent(new CustomEvent('dad-firebase-ready',{detail:{projectId:firebaseConfig.projectId,mainAdminUid:MAIN_ADMIN_UID}}));
 
 if(pathNow()==='opex.html'){
-  import('./opex-sync-v2.js?v=20260823-engineering-utilities-1').catch(e=>console.error('OPEX sync module failed:',e));
+  import('./opex-sync-v2.js?v=20260823-it-opex-mapping-1').catch(e=>console.error('OPEX sync module failed:',e));
   import('./opex-account-name-fix.js?v=20260817-account-name-fix-1').catch(e=>console.error('OPEX account name fixer failed:',e));
-  import('./opex-labels.js?v=20260823-engineering-utilities-1').catch(e=>console.error('OPEX label updater failed:',e));
+  import('./opex-labels.js?v=20260823-it-opex-mapping-1').catch(e=>console.error('OPEX label updater failed:',e));
 }
 if(pathNow()==='submission-control.html') import('./central-progress-control.js?v=20260818-manager-chain-1').catch(e=>console.error('Central progress controls failed:',e));
 if(pathNow()==='user-settings.html') import('./user-settings-auto.js?v=20260817-auto-user-1').catch(e=>console.error('Automatic user creation controls failed:',e));
 if(pathNow()!=='login.html') import('./messages-nav.js?v=20260823-summary-variance-1').catch(e=>console.error('Messages and notifications navigation failed:',e));
-if(pathNow()==='opex.html'||pathNow()==='capex.html') import('./admin-budget-exports.js?v=20260823-capex-payments-1').catch(e=>console.error('Admin budget exports failed:',e));
+if(pathNow()==='opex.html'||pathNow()==='capex.html') import('./admin-budget-exports.js?v=20260823-capex-monthly-payments-2').catch(e=>console.error('Admin budget exports failed:',e));
