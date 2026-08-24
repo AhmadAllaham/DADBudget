@@ -107,3 +107,9 @@
     };
   });
 })();
+
+(function(){
+  if(!/opex\.html$/i.test((location.pathname||'').split('?')[0]))return;
+  if(document.querySelector('script[data-hr-salary-opex-sync]'))return;
+  const script=document.createElement('script');script.type='module';script.src='js/hr-salary-opex-sync.js?v=20260824-hr-salary-1';script.dataset.hrSalaryOpexSync='1';document.head.appendChild(script);
+})();
