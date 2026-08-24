@@ -57,8 +57,7 @@
 })();
 
 (function(){
-  const page=(location.pathname||'').split('?')[0];
-  if(!/(?:opex|capex)\.html$/i.test(page))return;
+  if(!/(?:opex|capex)\.html$/i.test((location.pathname||'').split('?')[0]))return;
   if(document.querySelector('script[data-admin-direct-approval]'))return;
-  const script=document.createElement('script');script.type='module';script.src='js/admin-direct-approval.js?v=20260824-admin-auto-approve-1';script.dataset.adminDirectApproval='1';document.head.appendChild(script);
+  const script=document.createElement('script');script.type='module';script.src='js/admin-direct-approval.js?v=20260824-admin-approved-2';script.dataset.adminDirectApproval='1';document.head.appendChild(script);
 })();
