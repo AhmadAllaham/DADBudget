@@ -59,5 +59,5 @@
 (function(){
   if(!/(?:opex|capex)\.html$/i.test((location.pathname||'').split('?')[0]))return;
   if(document.querySelector('script[data-admin-direct-approval]'))return;
-  const script=document.createElement('script');script.type='module';script.src='js/admin-direct-approval.js?v=20260824-admin-approved-3';script.dataset.adminDirectApproval='1';document.head.appendChild(script);
+  const script=document.createElement('script');script.type='module';script.src='js/admin-direct-approval.js?v=20260824-admin-approved-4';script.dataset.adminDirectApproval='1';document.head.appendChild(script);
 })();
