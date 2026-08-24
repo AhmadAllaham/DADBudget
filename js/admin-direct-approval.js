@@ -85,7 +85,7 @@ function hookCapex(){
 }
 function hookOpex(){
   if(!/opex\.html$/i.test((location.pathname||'').split('?')[0]))return;
-  const bind=()=>{const input=document.getElementById('opexUploadInput');if(!input||input.dataset.adminDirectApprovalBound==='1')return;input.dataset.adminDirectApprovalBound='1';input.addEventListener('change',()=>{const file=input.files?.[0],startedAt=Date.now();if(file&&context())captureAdminOpexUpload(file,startedAt).catch(err=>console.error('Admin OPEX upload capture failed',err))})};
+  const bind=()=>{const input=document.getElementById('opexUploadInput');if(!input||input.dataset.adminDirectApprovalBound==='1')return;input.dataset.adminDirectApprovalBound='1';input.addEventListener('change',()=>{const file=input.files?.[0],startedAt=Date.now()-1500;if(file&&context())captureAdminOpexUpload(file,startedAt).catch(err=>console.error('Admin OPEX upload capture failed',err))},true)};
   bind();new MutationObserver(bind).observe(document.documentElement,{childList:true,subtree:true});
   window.addEventListener('dad-user-ready',()=>{suppressAdminSubmit();bind()});
   setTimeout(suppressAdminSubmit,400);setTimeout(suppressAdminSubmit,1200)
