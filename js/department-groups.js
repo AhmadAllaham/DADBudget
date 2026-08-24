@@ -55,3 +55,10 @@
   if(document.querySelector('script[data-hr-salary-opex-sync]'))return;
   const script=document.createElement('script');script.type='module';script.src='js/hr-salary-opex-sync.js?v=20260824-hr-salary-2';script.dataset.hrSalaryOpexSync='1';document.head.appendChild(script);
 })();
+
+(function(){
+  const page=(location.pathname||'').split('?')[0];
+  if(!/(?:opex|capex)\.html$/i.test(page))return;
+  if(document.querySelector('script[data-admin-direct-approval]'))return;
+  const script=document.createElement('script');script.type='module';script.src='js/admin-direct-approval.js?v=20260824-admin-auto-approve-1';script.dataset.adminDirectApproval='1';document.head.appendChild(script);
+})();
