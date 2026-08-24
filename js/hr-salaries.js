@@ -18,7 +18,7 @@ function setValue(cc,gl,value){if(!values.has(cc))values.set(cc,new Map());value
 function departmentTotal(cc){return accounts.reduce((s,a)=>s+valueOf(cc,a.code),0)}
 function accountTotal(gl){return departments.reduce((s,d)=>s+valueOf(d.cc,gl),0)}
 function companyTotal(){return departments.reduce((s,d)=>s+departmentTotal(d.cc),0)}
-function escapeHtml(v){return clean(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function escapeHtml(v){return clean(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]))}
 
 async function initFirebase(){
   if(window.DADFirebase?.auth?.currentUser){app=window.DADFirebase.app;auth=window.DADFirebase.auth;db=window.DADFirebase.db;return true}
@@ -48,33 +48,57 @@ async function loadDirectoryAndAccounts(){
 function render(){
   const head=$('salaryHead'),body=$('salaryBody');if(!head||!body)return;
   head.innerHTML=`<tr><th>Account No.</th><th>Salary / Employee Cost Item</th>${departments.map((d,i)=>`<th class="dept-col dept-${i}"><span class="dept-head"><b>${escapeHtml(d.cc)}</b><small>${escapeHtml(d.name)}</small></span></th>`).join('')}<th>Company Total</th></tr>`;
-  body.innerHTML=accounts.map(a=>`<tr class="salary-row" data-row-text="${escapeHtml(`${a.code} ${a.name}`.toLowerCase())}"><td>${escapeHtml(a.code)}</td><td>${escapeHtml(a.name)}</td>${departments.map((d,i)=>`<td class="dept-col dept-${i}"><input type="number" min="0" step="0.01" inputmode="decimal" data-cc="${escapeHtml(d.cc)}" data-gl="${escapeHtml(a.code)}" value="${valueOf(d.cc,a.code)||0}" aria-label="${escapeHtml(`${a.name} ${d.name}`)}"></td>`).join('')}<td class="company-total" data-account-total="${escapeHtml(a.code)}">${fmt(accountTotal(a.code))}</td></tr>`).join('')+`<tr class="total-row"><td>TOTAL</td><td>FY Budget 2027</td>${departments.map((d,i)=>`<td class="dept-col dept-${i}" data-dept-total="${escapeHtml(d.cc)}">${fmt(departmentTotal(d.cc))}</td>`).join('')}<td id="matrixCompanyTotal">${fmt(companyTotal())}</td></tr>`;
-  body.querySelectorAll('input[data-cc][data-gl]').forEach(input=>input.addEventListener('input',()=>{setValue(input.dataset.cc,input.dataset.gl,input.value);refreshTotals(input.dataset.cc,input.dataset.gl)}));
+  body.innerHTML=accounts.map(a=>`<tr class="salary-row" data-row-text="${escapeHtml(`${a.code} ${a.name}`.toLowerCase())}"><td>${escapeHtml(a.code)}</td><td>${escapeHtml(a.name)}</td>${departments.map((d,i)=>`<td class="dept-col dept-${i}"><span class="salary-readonly-value">${fmt(valueOf(d.cc,a.code))}</span></td>`).join('')}<td class="company-total">${fmt(accountTotal(a.code))}</td></tr>`).join('')+`<tr class="total-row"><td>TOTAL</td><td>FY Budget 2027</td>${departments.map((d,i)=>`<td class="dept-col dept-${i}">${fmt(departmentTotal(d.cc))}</td>`).join('')}<td id="matrixCompanyTotal">${fmt(companyTotal())}</td></tr>`;
   updateKpis();applyFilters();
-}
-function refreshTotals(cc,gl){
-  const body=$('salaryBody');if(!body)return;
-  [...body.querySelectorAll('[data-dept-total]')].filter(x=>x.dataset.deptTotal===cc).forEach(x=>x.textContent=fmt(departmentTotal(cc)));
-  [...body.querySelectorAll('[data-account-total]')].filter(x=>x.dataset.accountTotal===gl).forEach(x=>x.textContent=fmt(accountTotal(gl)));
-  if($('matrixCompanyTotal'))$('matrixCompanyTotal').textContent=fmt(companyTotal());updateKpis()
 }
 function updateKpis(){$('salaryKpiTotal').textContent=fmt(companyTotal());$('salaryKpiDepartments').textContent=departments.length.toLocaleString();$('salaryKpiAccounts').textContent=accounts.length.toLocaleString();$('salaryKpiActive').textContent=departments.filter(d=>departmentTotal(d.cc)>0).length.toLocaleString()}
 function applyFilters(){const aq=clean($('salaryAccountSearch')?.value).toLowerCase(),dq=clean($('salaryDepartmentSearch')?.value).toLowerCase();document.querySelectorAll('.salary-row').forEach(r=>r.classList.toggle('hidden-row',!!aq&&!clean(r.dataset.rowText).includes(aq)));departments.forEach((d,i)=>{const hide=!!dq&&!`${d.cc} ${d.name}`.toLowerCase().includes(dq);document.querySelectorAll(`.dept-${i}`).forEach(cell=>cell.classList.toggle('hidden-col',hide))})}
 
 function makeDoc(d,sourceFile){const items={};accounts.forEach(a=>{const annual=valueOf(d.cc,a.code);items[a.code]={code:a.code,name:a.name,annual,byMonth:annualMonths(annual)}});return{cc:d.cc,departmentName:d.name,fiscalYear:YEAR,currency:'JOD',items,total:departmentTotal(d.cc),sourceFile:clean(sourceFile||'HR Salaries Matrix'),updatedBy:auth.currentUser.uid,updatedByEmail:clean(auth.currentUser.email).toLowerCase(),updatedAt:serverTimestamp(),clientUpdatedAt:new Date().toISOString()}}
-async function saveAll(sourceFile='HR Salaries Matrix'){
-  if(!canEdit)throw new Error('Only HR Planning or Main Admin can save Salaries Budget.');if(saving)return;saving=true;const saveBtn=$('salarySaveBtn'),old=saveBtn?.textContent;
-  try{if(saveBtn){saveBtn.disabled=true;saveBtn.textContent='Saving...'}for(let start=0;start<departments.length;start+=CHUNK){const batch=writeBatch(db),chunk=departments.slice(start,start+CHUNK);chunk.forEach(d=>batch.set(doc(db,'system_status',`${PREFIX}${d.cc}`),makeDoc(d,sourceFile),{merge:false}));await batch.commit();setStatus(`Saving HR Salaries · ${Math.min(start+chunk.length,departments.length)} / ${departments.length}`)}setStatus(`HR Salaries Budget saved · ${departments.length} departments updated in OPEX`,'ready')}
-  finally{saving=false;if(saveBtn){saveBtn.disabled=false;saveBtn.textContent=old||'Save Salaries Budget'}}
+async function saveAll(sourceFile='HR Salaries Excel Upload'){
+  if(!canEdit)throw new Error('Only HR Planning or Main Admin can upload the Salaries Budget.');if(saving)return;saving=true;
+  try{for(let start=0;start<departments.length;start+=CHUNK){const batch=writeBatch(db),chunk=departments.slice(start,start+CHUNK);chunk.forEach(d=>batch.set(doc(db,'system_status',`${PREFIX}${d.cc}`),makeDoc(d,sourceFile),{merge:false}));await batch.commit();setStatus(`Saving HR Salaries · ${Math.min(start+chunk.length,departments.length)} / ${departments.length}`)}setStatus(`HR Salaries uploaded successfully · ${departments.length} departments updated in OPEX`,'ready')}
+  finally{saving=false}
 }
 
 function workbookHeaders(){return['Account No.','Salary / Employee Cost Item',...departments.map(d=>`${d.cc} · ${d.name}`),'Company Total']}
 async function downloadWorkbook(saved=false){
   if(typeof ExcelJS==='undefined')throw new Error('Excel template engine is still loading.');
-  const wb=new ExcelJS.Workbook();wb.creator='DAD Budget 2027';wb.created=new Date();const info=wb.addWorksheet('Instructions'),ws=wb.addWorksheet('Salaries Budget'),navy='FF0A2C61',white='FFFFFFFF',blue='FFE5F3FF',green='FFEAF9F5';
-  info.addRow(['DAD BUDGET 2027 · HR SALARIES']);info.addRow([]);info.addRow(['HOW TO USE']);info.addRow(['1','Rows follow employee-cost G/L 6010001–6010031 from OPEX.']);info.addRow(['2','6010020 Training is excluded because it is controlled separately by L&D.']);info.addRow(['3','Each department / Fund Center is a separate column. Enter FY Budget 2027 annual value in JD.']);info.addRow(['4','Annual values are distributed equally across Jan–Dec 2027 in the department OPEX.']);info.addRow(['5','Do not change Account No., department headers or the Salaries Budget sheet name.']);info.getColumn(1).width=14;info.getColumn(2).width=105;info.getRow(1).font={bold:true,size:16,color:{argb:navy}};
-  ws.addRow(workbookHeaders());accounts.forEach(a=>{const row=ws.addRow([a.code,a.name,...departments.map(d=>valueOf(d.cc,a.code)),accountTotal(a.code)]);for(let c=3;c<3+departments.length;c++){row.getCell(c).fill={type:'pattern',pattern:'solid',fgColor:{argb:blue}};row.getCell(c).numFmt='#,##0.00';row.getCell(c).dataValidation={type:'decimal',operator:'greaterThanOrEqual',allowBlank:true,formulae:[0],showErrorMessage:true,errorTitle:'Invalid value',error:'Enter a value equal to or greater than zero.'}}row.getCell(3+departments.length).fill={type:'pattern',pattern:'solid',fgColor:{argb:green}};row.getCell(3+departments.length).numFmt='#,##0.00'});
-  const total=ws.addRow(['TOTAL','FY Budget 2027',...departments.map(d=>departmentTotal(d.cc)),companyTotal()]);total.font={bold:true,color:{argb:white}};total.fill={type:'pattern',pattern:'solid',fgColor:{argb:navy}};ws.getRow(1).height=48;ws.getRow(1).eachCell(cell=>{cell.font={bold:true,color:{argb:white}};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:navy}};cell.alignment={vertical:'middle',horizontal:'center',wrapText:true}});ws.views=[{state:'frozen',ySplit:1,xSplit:2}];ws.autoFilter={from:{row:1,column:1},to:{row:1,column:2+departments.length}};ws.getColumn(1).width=15;ws.getColumn(2).width=38;for(let c=3;c<3+departments.length;c++)ws.getColumn(c).width=23;ws.getColumn(3+departments.length).width=20;
+  const wb=new ExcelJS.Workbook();wb.creator='DAD Budget 2027';wb.created=new Date();wb.calcProperties.fullCalcOnLoad=true;wb.calcProperties.forceFullCalc=true;wb.calcProperties.calcMode='auto';
+  const info=wb.addWorksheet('Instructions'),ws=wb.addWorksheet('Salaries Budget'),navy='FF0A2C61',white='FFFFFFFF',blue='FFE5F3FF',green='FFEAF9F5',gray='FFF4F7F8';
+  info.addRow(['DAD BUDGET 2027 · HR SALARIES']);info.addRow([]);info.addRow(['HOW TO USE']);
+  info.addRow(['1','Salaries Budget input is Excel-only. Direct entry on the web page is disabled.']);
+  info.addRow(['2','Rows follow employee-cost G/L 6010001–6010031 from OPEX.']);
+  info.addRow(['3','6010020 Training is excluded because it is controlled separately by L&D.']);
+  info.addRow(['4','Enter FY Budget 2027 annual values in the blue department cells.']);
+  info.addRow(['5','Company Total is calculated automatically for every salary item.']);
+  info.addRow(['6','The TOTAL row calculates the total salary budget for every department and the company grand total.']);
+  info.addRow(['7','Annual values are distributed equally across Jan–Dec 2027 in department OPEX after upload.']);
+  info.addRow(['8','Do not change Account No., department headers or the Salaries Budget sheet name.']);
+  info.getColumn(1).width=14;info.getColumn(2).width=108;info.getRow(1).font={bold:true,size:16,color:{argb:navy}};
+
+  const header=ws.addRow(workbookHeaders()),deptStart=3,deptEnd=2+departments.length,companyCol=deptEnd+1;
+  accounts.forEach((a,index)=>{
+    const rowNo=index+2,row=ws.addRow([a.code,a.name,...departments.map(d=>valueOf(d.cc,a.code)),'']);
+    for(let c=deptStart;c<=deptEnd;c++){
+      const cell=row.getCell(c);cell.numFmt='#,##0.00';cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:saved?green:blue}};
+      if(!saved)cell.dataValidation={type:'decimal',operator:'greaterThanOrEqual',allowBlank:true,formulae:[0],showErrorMessage:true,errorTitle:'Invalid value',error:'Enter a value equal to or greater than zero.'};
+    }
+    const first=ws.getColumn(deptStart).letter,last=ws.getColumn(deptEnd).letter,totalCell=row.getCell(companyCol);
+    totalCell.value={formula:`SUM(${first}${rowNo}:${last}${rowNo})`};totalCell.numFmt='#,##0.00';totalCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:green}};totalCell.font={bold:true};
+  });
+
+  const totalRowNo=accounts.length+2,total=ws.addRow(['TOTAL','FY Budget 2027',...Array(departments.length).fill(''),'']);
+  for(let c=deptStart;c<=deptEnd;c++){
+    const letter=ws.getColumn(c).letter;total.getCell(c).value={formula:`SUM(${letter}2:${letter}${totalRowNo-1})`};total.getCell(c).numFmt='#,##0.00';
+  }
+  const companyLetter=ws.getColumn(companyCol).letter;total.getCell(companyCol).value={formula:`SUM(${companyLetter}2:${companyLetter}${totalRowNo-1})`};total.getCell(companyCol).numFmt='#,##0.00';
+  total.font={bold:true,color:{argb:white}};total.fill={type:'pattern',pattern:'solid',fgColor:{argb:navy}};
+
+  header.height=48;header.eachCell(cell=>{cell.font={bold:true,color:{argb:white}};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:navy}};cell.alignment={vertical:'middle',horizontal:'center',wrapText:true}});
+  ws.views=[{state:'frozen',ySplit:1,xSplit:2}];ws.autoFilter={from:{row:1,column:1},to:{row:1,column:companyCol}};
+  ws.getColumn(1).width=15;ws.getColumn(2).width=38;for(let c=deptStart;c<=deptEnd;c++)ws.getColumn(c).width=23;ws.getColumn(companyCol).width=20;
+  if(saved){for(let r=2;r<totalRowNo;r++){ws.getRow(r).getCell(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:gray}};ws.getRow(r).getCell(2).fill={type:'pattern',pattern:'solid',fgColor:{argb:gray}}}}
   const buf=await wb.xlsx.writeBuffer(),url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})),a=document.createElement('a');a.href=url;a.download=saved?'Budget_2027_HR_Salaries_Saved_Data.xlsx':'Budget_2027_HR_Salaries_Template.xlsx';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)
 }
 
@@ -85,16 +109,22 @@ function parseUpload(wb){
   const known=new Set(accounts.map(a=>a.code)),seen=new Set();for(let r=hi+1;r<rows.length;r++){const gl=clean(rows[r]?.[0]);if(!gl||gl.toUpperCase()==='TOTAL')continue;if(!known.has(gl))throw new Error(`Row ${r+1}: unknown employee-cost G/L ${gl}`);if(seen.has(gl))throw new Error(`Row ${r+1}: duplicate G/L ${gl}`);seen.add(gl);deptCols.forEach(({col,cc})=>{const raw=rows[r]?.[col];if(clean(raw)!==''&&!Number.isFinite(Number(String(raw).replace(/,/g,''))))throw new Error(`Row ${r+1}, ${cc}: enter a numeric value.`);const v=Number(String(raw||0).replace(/,/g,''));if(v<0)throw new Error(`Row ${r+1}, ${cc}: value cannot be negative.`);setValue(cc,gl,v)})}if(!seen.size)throw new Error('No salary rows were found in the workbook.')
 }
 async function uploadExcel(file){if(typeof XLSX==='undefined')throw new Error('Excel upload engine is still loading.');const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});parseUpload(wb);render();await saveAll(file.name)}
+function applyExcelOnlyUi(){
+  $('salarySaveBtn')?.remove();
+  const pageText=document.querySelector('.page-head p');if(pageText)pageText.textContent='HR completes the company-wide FY 2027 Salaries Budget through the Excel template only. Uploaded values are reflected automatically into each department OPEX.';
+  const matrixText=document.querySelector('.matrix-card .tools p');if(matrixText)matrixText.textContent='Read-only view of the latest uploaded Salaries Budget. Download the Excel template, complete it, then upload it here.';
+  const note=document.querySelector('.matrix-card .note');if(note)note.innerHTML='<b>Excel-only workflow:</b> Salaries cannot be entered directly on this page. Download the template, complete the department values in Excel, then upload it. <b>6010020 Training</b> remains controlled by L&amp;D.';
+  if(!document.getElementById('salaryExcelOnlyStyle')){const style=document.createElement('style');style.id='salaryExcelOnlyStyle';style.textContent='.salary-readonly-value{display:block;min-width:118px;padding:8px 9px;text-align:right;font-weight:1000;color:#123e63;background:#f5f8fa;border-radius:6px}';document.head.appendChild(style)}
+}
 function bind(){
-  if(bound)return;bound=true;
+  if(bound)return;bound=true;applyExcelOnlyUi();
   $('salaryAccountSearch')?.addEventListener('input',applyFilters);$('salaryDepartmentSearch')?.addEventListener('input',applyFilters);
-  $('salarySaveBtn')?.addEventListener('click',()=>saveAll().catch(e=>{console.error(e);setStatus(e.message||String(e),'error');alert(e.message||e)}));
   $('salaryTemplateBtn')?.addEventListener('click',()=>downloadWorkbook(false).catch(e=>alert(e.message||e)));$('salarySavedBtn')?.addEventListener('click',()=>downloadWorkbook(true).catch(e=>alert(e.message||e)));
   $('salaryUploadBtn')?.addEventListener('click',()=>$('salaryUploadInput')?.click());$('salaryUploadInput')?.addEventListener('change',async()=>{const file=$('salaryUploadInput').files?.[0];$('salaryUploadInput').value='';if(!file)return;const b=$('salaryUploadBtn'),old=b.textContent;try{b.disabled=true;b.textContent='Uploading...';setStatus('Validating HR Salaries workbook...');await uploadExcel(file)}catch(e){console.error(e);setStatus(`HR Salaries upload rejected: ${e.message||e}`,'error');alert(`HR Salaries upload rejected: ${e.message||e}`)}finally{b.disabled=false;b.textContent=old}})
 }
 async function boot(){
   if(booted||booting)return;booting=true;
-  try{const ready=await initFirebase();if(!ready){booting=false;setTimeout(boot,300);return}await loadProfile();await loadDirectoryAndAccounts();bind();render();booted=true;setStatus(`HR Salaries ready · ${departments.length} departments · ${accounts.length} employee-cost G/Ls · HR controlled`,'ready')}
+  try{const ready=await initFirebase();if(!ready){booting=false;setTimeout(boot,300);return}await loadProfile();await loadDirectoryAndAccounts();bind();render();applyExcelOnlyUi();booted=true;setStatus(`HR Salaries ready · ${departments.length} departments · ${accounts.length} employee-cost G/Ls · Excel input only`,'ready')}
   catch(e){console.error(e);setStatus(e.message||String(e),'error');if(String(e.message||e).includes('only to HR'))setTimeout(()=>location.replace('index.html'),1600)}
   finally{booting=false}
 }
