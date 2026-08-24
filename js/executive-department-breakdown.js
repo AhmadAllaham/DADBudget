@@ -196,3 +196,5 @@ async function load(){
 }
 function start(user){if(!user)return;ensurePanel();setupDepartmentsPanel();load()}
 arrangeOverview();ensurePanel();setupDepartmentsPanel();onAuthStateChanged(auth,start);window.addEventListener('dad-user-ready',e=>start(e.detail?.user||auth.currentUser));
+
+if(!document.querySelector('script[data-cfo-roadmap]')){const roadmap=document.createElement('script');roadmap.src='js/executive-roadmap.js?v=20260824-premium-roadmap-1';roadmap.dataset.cfoRoadmap='1';document.head.appendChild(roadmap)}
