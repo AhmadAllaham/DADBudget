@@ -9,4 +9,5 @@ function apply(profile=cached()){
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>apply());else apply();
 window.addEventListener('dad-user-ready',e=>apply(e.detail?.profile||cached()));
+if(/hr-salaries\.html$/i.test((location.pathname||'').split('?')[0]))import('./hr-salaries-combined.js?v=20260824-total-salaries-1').catch(e=>console.error('Total Salaries view failed:',e));
 })();
