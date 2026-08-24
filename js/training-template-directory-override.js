@@ -9,18 +9,21 @@ function userDepartmentName(user,index,cc){const labels=Array.isArray(user?.depa
 async function addSecureDirectory(a,map){try{const token=await a.auth.currentUser.getIdToken(),r=await fetch(DIRECTORY_URL,{method:'GET',headers:{Authorization:`Bearer ${token}`}}),payload=await r.json().catch(()=>({}));if(!r.ok||payload.ok!==true||!Array.isArray(payload.directory))throw Error(payload.error||`HTTP ${r.status}`);payload.directory.forEach(x=>add(map,x?.cc,x?.name));return payload.directory.length}catch(e){console.warn('Secure Training template directory unavailable',e);return 0}}
 async function data(){
  const a=window.DADFirebase;if(!a?.db||!a.auth?.currentUser)throw Error('Secure cloud connection is not ready.');
- const f=await import('https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js'),metaRef=f.doc(a.db,'opex_baseline_meta','current'),dirRef=f.doc(a.db,'system_status',DIR_DOC),[m,s,d]=await Promise.all([f.getDoc(metaRef),f.getDocs(f.collection(a.db,'system_status')),f.getDoc(dirRef)]),map=new Map(),alloc=new Map();
+ const f=await import('https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js'),metaRef=f.doc(a.db,'opex_baseline_meta','current'),dirRef=f.doc(a.db,'system_status',DIR_DOC),trainingQuery=f.query(f.collection(a.db,'system_status'),f.orderBy(f.documentId()),f.startAt('training_allocation_'),f.endAt('training_allocation_\uf8ff')),[m,s,d]=await Promise.all([f.getDoc(metaRef),f.getDocs(trainingQuery),f.getDoc(dirRef)]),map=new Map(),alloc=new Map();
  if(!m.exists())throw Error('Finance OPEX baseline is not published yet.');
- const md=m.data()||{};
+ const md=m.data()||{},expected=Math.max(0,Number(md.departmentCount||0));
  (md.departmentDirectory||[]).forEach(x=>add(map,x?.cc,x?.name));(md.departments||[]).forEach(x=>typeof x==='object'?add(map,x?.cc,x?.name):add(map,x,x));
  if(d.exists())(d.data()?.directory||[]).forEach(x=>add(map,x?.cc,x?.name));
  (window.DADTrainingCompleteDirectory||[]).forEach(x=>add(map,x?.cc,x?.name));
- s.docs.filter(x=>c(x.id).startsWith('training_allocation_')).forEach(x=>{const cc=c(x.id).replace(/^training_allocation_/,'');alloc.set(cc,x.data()||{});add(map,cc,x.data()?.departmentName)});
- addLocalDirectory(map);addKnownGroupFundCenters(map);await addSecureDirectory(a,map);
+ s.docs.forEach(x=>{const cc=c(x.id).replace(/^training_allocation_/,'');alloc.set(cc,x.data()||{});add(map,cc,x.data()?.departmentName)});
+ addLocalDirectory(map);addKnownGroupFundCenters(map);
  const p=profile(),admin=a.auth.currentUser.uid===a.mainAdminUid||p?.isMainAdmin===true||p?.role==='admin';
- if(admin){
+ // The Finance metadata is the primary directory. Expensive collection reads and
+ // the secure fallback are used only when that directory is actually incomplete.
+ if(!expected||map.size<expected)await addSecureDirectory(a,map);
+ if(admin&&(!expected||map.size<expected)){
   try{const all=await f.getDocs(f.collection(a.db,'opex_baseline_departments'));all.docs.forEach(x=>add(map,x.id,x.data()?.name||x.data()?.departmentName||x.id))}catch(e){console.warn('Training directory baseline read failed',e)}
-  try{const users=await f.getDocs(f.collection(a.db,'users'));users.docs.forEach(snap=>{const u=snap.data()||{},deps=Array.isArray(u.departments)?u.departments:(u.department?[u.department]:[]);deps.forEach((cc,i)=>add(map,cc,userDepartmentName(u,i,cc)))})}catch(e){console.warn('Training directory user-profile read failed',e)}
+  if(!expected||map.size<expected){try{const users=await f.getDocs(f.collection(a.db,'users'));users.docs.forEach(snap=>{const u=snap.data()||{},deps=Array.isArray(u.departments)?u.departments:(u.department?[u.department]:[]);deps.forEach((cc,i)=>add(map,cc,userDepartmentName(u,i,cc)))})}catch(e){console.warn('Training directory user-profile read failed',e)}}
  }
  const dir=[...map.values()].sort((x,y)=>x.name.localeCompare(y.name)||x.cc.localeCompare(y.cc,undefined,{numeric:true}));
  if(!dir.length)throw Error('No departments were found in the Finance OPEX directory.');
