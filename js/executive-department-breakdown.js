@@ -109,11 +109,11 @@ function arrangeOverview(){
 }
 
 function parseCellNumber(cell){const text=clean(cell?.textContent).replace(/,/g,'').replace(/[^0-9.()\-]/g,'');if(!text)return 0;if(/^\(.*\)$/.test(text))return-num(text.slice(1,-1));return num(text)}
-let departmentPolishBusy=false;
+let departmentPolishBusy=false,departmentObserver=null;
 function polishDepartmentsTable(){
   if(departmentPolishBusy)return;
   const body=document.getElementById('departmentBody');if(!body)return;
-  departmentPolishBusy=true;
+  departmentPolishBusy=true;departmentObserver?.disconnect();
   try{
     body.querySelectorAll('.cfo-dept-total').forEach(x=>x.remove());
     [...body.querySelectorAll('tr')].forEach(row=>{
@@ -128,14 +128,17 @@ function polishDepartmentsTable(){
     const total=document.createElement('tr');total.className='cfo-dept-total';
     total.innerHTML=`<td><b>TOTAL</b><br><small>${visible.length} Approved Departments</small></td><td>—</td><td class="num">${money(sums[2])}</td><td class="num">${money(sums[3])}</td><td class="num ${sums[4]<0?'negative':'positive'}">${money(sums[4])}</td><td class="num">${money(sums[5])}</td><td class="num ${sums[6]<0?'negative':''}">${money(sums[6])}</td><td class="num">${money(sums[7])}</td><td class="num">${money(sums[8])}</td><td><span class="badge good">Approved</span></td>`;
     body.appendChild(total)
-  }finally{departmentPolishBusy=false}
+  }finally{
+    departmentPolishBusy=false;
+    if(departmentObserver&&document.body.contains(body))departmentObserver.observe(body,{childList:true,subtree:true})
+  }
 }
 function setupDepartmentsPanel(){
   injectPremiumStyle();
   const panel=document.querySelector('.exec-panel[data-panel="departments"]'),body=document.getElementById('departmentBody');if(!panel||!body||body.dataset.cfoApprovedOnly==='1')return;
   body.dataset.cfoApprovedOnly='1';
   const sub=panel.querySelector('.sub');if(sub)sub.textContent='Finance Approved departments only. Executive comparison of Budget YTD, Actual, FY Budget 2026, Remaining, FY Budget 2027 and approved CAPEX.';
-  let timer=null;new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(polishDepartmentsTable,0)}).observe(body,{childList:true,subtree:true});
+  let timer=null;departmentObserver=new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(polishDepartmentsTable,0)});departmentObserver.observe(body,{childList:true,subtree:true});
   document.getElementById('departmentSearch')?.addEventListener('input',()=>setTimeout(polishDepartmentsTable,0));
   document.getElementById('sectorFilter')?.addEventListener('change',()=>setTimeout(polishDepartmentsTable,0));
   setTimeout(polishDepartmentsTable,350)
