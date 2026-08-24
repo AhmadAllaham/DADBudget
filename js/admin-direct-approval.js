@@ -16,6 +16,11 @@ function context(){
 function approvalFields(user){const email=clean(user?.email).toLowerCase();return{workflowStatus:'approved',status:'approved',financeStatus:'approved',financeReturnPending:false,financeReturnNote:'',financeReturnedAt:null,managerStatus:'approved_by_finance',managerNote:'',financeUpdatedBy:user.uid,financeUpdatedEmail:email,workflowUpdatedAt:serverTimestamp(),approvedAt:serverTimestamp(),approvedBy:user.uid,approvedByEmail:email,directAdminEntry:true,directAdminApprovedAt:serverTimestamp()}}
 function budgetSnapshot(department={}){const out={};Object.entries(department.items||{}).forEach(([raw,item])=>{const code=clean(item?.code||raw);if(code)out[code]={...(item?.newBudgetByMonth||{})}});return out}
 function travelSnapshot(department={}){const out={};Object.entries(department.items||{}).forEach(([raw,item])=>{const code=clean(item?.code||raw);if(/^60200(0[1-9]|10)$/.test(code))out[code]={...(item?.newBudgetByMonth||{})}});return out}
+function invalidateViews(cc,module){
+  try{sessionStorage.removeItem('dadBudgetDashboardSubmissionCacheV1');sessionStorage.removeItem('dadBudgetOPEXSummaryCloudReadAt')}catch(_){}
+  if(module==='OPEX'&&cc){try{const states=JSON.parse(localStorage.getItem('dadBudgetOPEXSubmissionStatus')||'{}')||{};states[cc]='approved';localStorage.setItem('dadBudgetOPEXSubmissionStatus',JSON.stringify(states))}catch(_){}}
+}
+async function markCentralStatus(ctx,cc,module,name=''){try{await setDoc(doc(ctx.db,'budget_submission_status',cc),{cc,departmentName:clean(name||cc),workflowStatus:'approved',status:'approved',financeStatus:'approved',directAdminEntry:true,directAdminModule:module,financeUpdatedBy:ctx.user.uid,financeUpdatedEmail:clean(ctx.user.email).toLowerCase(),workflowUpdatedAt:serverTimestamp()},{merge:true})}catch(e){console.warn('Central admin approval status update skipped',e)}}
 
 async function approveDirectOpex(fileName=''){
   const ctx=context();if(!ctx)return;
@@ -24,17 +29,19 @@ async function approveDirectOpex(fileName=''){
   const baseRef=doc(ctx.db,'opex_baseline_departments',cc),subRef=doc(ctx.db,'opex_budget_submissions',cc),[base,prev]=await Promise.all([getDoc(baseRef),getDoc(subRef)]);if(!base.exists())return;
   const revision=Number(prev.exists()?prev.data()?.revision||0:0)+1,email=clean(ctx.user.email).toLowerCase(),baseData=base.data()||{},snapshot=budgetSnapshot(department),travel=travelSnapshot(department);
   await setDoc(subRef,{cc,name:clean(department.name||cc),encoding:baseData.encoding,payload:baseData.payload,fileName:clean(fileName||model.fileName||'Admin OPEX Entry'),revision,travelBudgetByGl:travel,financeApprovedBudgetByGl:snapshot,financeApprovedSnapshotAt:serverTimestamp(),submittedBy:ctx.user.uid,submittedByEmail:email,submittedEmail:email,submittedAt:serverTimestamp(),clientSubmittedAt:new Date().toISOString(),...approvalFields(ctx.user)},{merge:true});
+  await markCentralStatus(ctx,cc,'OPEX',department.name||cc);invalidateViews(cc,'OPEX');
   const el=document.getElementById('opexUploadStatus');if(el){el.textContent=`${clean(fileName||model.fileName||'OPEX')} · Approved`;el.classList.remove('error');el.classList.add('ready')}
-  window.dispatchEvent(new CustomEvent('dad-admin-direct-budget-approved',{detail:{module:'OPEX',cc}}));
+  window.dispatchEvent(new CustomEvent('dad-admin-direct-budget-approved',{detail:{module:'OPEX',cc,status:'approved'}}));
 }
 
 async function approveDirectCapex(cc){
   const ctx=context();cc=clean(cc);if(!ctx||!validCc(cc))return;
   const ref=doc(ctx.db,'capex_budget_submissions',cc),snap=await getDoc(ref);if(!snap.exists())return;const data=snap.data()||{},email=clean(ctx.user.email).toLowerCase();
   await setDoc(ref,{...approvalFields(ctx.user),financeNote:'Approved automatically because the budget was entered directly by Main Admin.',financeApprovedAt:serverTimestamp(),financeApprovedBy:ctx.user.uid,financeApprovedByEmail:email},{merge:true});
-  const mirrorRef=doc(ctx.db,'capex_it_requests',cc);try{await setDoc(mirrorRef,{workflowStatus:'approved',updatedBy:ctx.user.uid,updatedByEmail:email,updatedAt:serverTimestamp()},{merge:true})}catch(e){console.warn('Admin direct CAPEX mirror approval skipped',e)}
+  await markCentralStatus(ctx,cc,'CAPEX',data.departmentName||cc);invalidateViews(cc,'CAPEX');
+  const mirrorRef=doc(ctx.db,'capex_it_requests',cc);try{await setDoc(mirrorRef,{workflowStatus:'approved',status:'approved',financeStatus:'approved',updatedBy:ctx.user.uid,updatedByEmail:email,updatedAt:serverTimestamp()},{merge:true})}catch(e){console.warn('Admin direct CAPEX mirror approval skipped',e)}
   const el=document.getElementById('capexStatus');if(el){el.textContent=`${clean(data.fileName||'CAPEX')} · Approved`;el.classList.remove('error');el.classList.add('ready')}
-  window.dispatchEvent(new CustomEvent('dad-admin-direct-budget-approved',{detail:{module:'CAPEX',cc}}));
+  window.dispatchEvent(new CustomEvent('dad-admin-direct-budget-approved',{detail:{module:'CAPEX',cc,status:'approved'}}));
 }
 
 function hookCapex(){
