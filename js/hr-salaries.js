@@ -1,6 +1,6 @@
 import {getApps} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
 import {getAuth} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
-import {getFirestore,doc,getDoc,getDocs,collection,writeBatch,serverTimestamp} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
+import {getFirestore,doc,getDoc,getDocs,collection,writeBatch,serverTimestamp,query,orderBy,startAt,endAt,documentId} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 
 const MAIN='PST3chwdZmaQGeG25t4ym9Vlixe2',YEAR=2027,PREFIX='hr_salary_allocation_',CHUNK=300;
 const $=id=>document.getElementById(id),clean=v=>String(v??'').trim(),num=v=>{const x=Number(String(v??'').replace(/,/g,''));return Number.isFinite(x)?Math.max(0,x):0},fmt=v=>num(v).toLocaleString(undefined,{maximumFractionDigits:0});
@@ -26,17 +26,21 @@ async function initFirebase(){
 }
 async function loadProfile(){const snap=await getDoc(doc(db,'users',auth.currentUser.uid));if(!snap.exists())throw new Error('User profile not found.');profile=snap.data()||{};const modules=Array.isArray(profile.modules)?profile.modules:[];canEdit=isAdmin()||modules.includes('hr');if(!canEdit)throw new Error('HR Salaries Budget is available only to HR Planning and Main Admin.')}
 async function loadDirectoryAndAccounts(){
-  const [metaSnap,baseSnap,statusSnap]=await Promise.all([getDoc(doc(db,'opex_baseline_meta','current')),getDocs(collection(db,'opex_baseline_departments')),getDocs(collection(db,'system_status'))]);
+  const metaSnap=await getDoc(doc(db,'opex_baseline_meta','current'));
   if(!metaSnap.exists())throw new Error('Finance OPEX baseline is not published yet.');
-  const meta=metaSnap.data()||{},map=new Map();
+  const meta=metaSnap.data()||{},map=new Map(),expected=Math.max(0,Number(meta.departmentCount||0));
   (Array.isArray(meta.departmentDirectory)?meta.departmentDirectory:[]).forEach(x=>{const cc=clean(x?.cc),name=clean(x?.name||cc);if(cc&&cc!=='16')map.set(cc,{cc,name:name||cc})});
-  baseSnap.docs.forEach(s=>{const cc=clean(s.id),name=clean(s.data()?.name||cc);if(cc&&cc!=='16'&&!map.has(cc))map.set(cc,{cc,name:name||cc})});
+  if(!map.size||(expected&&map.size<expected)){
+    const baseSnap=await getDocs(collection(db,'opex_baseline_departments'));
+    baseSnap.docs.forEach(s=>{const cc=clean(s.id),name=clean(s.data()?.name||cc);if(cc&&cc!=='16'&&!map.has(cc))map.set(cc,{cc,name:name||cc})});
+  }
   departments=[...map.values()].sort((a,b)=>a.name.localeCompare(b.name)||a.cc.localeCompare(b.cc,undefined,{numeric:true}));
   const master=Array.isArray(meta.accountMaster)?meta.accountMaster:Object.values(meta.accountMaster||{}),found=new Map();
   master.forEach(x=>{const code=clean(x?.code),name=clean(x?.name||code);if(isSalary(code))found.set(code,{code,name:name||code})});
   accounts=(found.size?[...found.values()]:FALLBACK.slice()).sort((a,b)=>a.code.localeCompare(b.code));
   values=new Map(departments.map(d=>[d.cc,new Map()]));
-  statusSnap.docs.filter(s=>clean(s.id).startsWith(PREFIX)).forEach(s=>{const cc=clean(s.id).slice(PREFIX.length);if(!values.has(cc))return;Object.entries(s.data()?.items||{}).forEach(([raw,item])=>{const code=clean(item?.code||raw);if(isSalary(code))setValue(cc,code,item?.annual)})});
+  const salarySnap=await getDocs(query(collection(db,'system_status'),orderBy(documentId()),startAt(PREFIX),endAt(`${PREFIX}\uf8ff`)));
+  salarySnap.docs.forEach(s=>{const cc=clean(s.id).slice(PREFIX.length);if(!values.has(cc))return;Object.entries(s.data()?.items||{}).forEach(([raw,item])=>{const code=clean(item?.code||raw);if(isSalary(code))setValue(cc,code,item?.annual)})});
   if(!departments.length)throw new Error('No Finance OPEX departments were found.');
   if(!accounts.length)throw new Error('No employee-cost G/L accounts were found in OPEX.');
 }
