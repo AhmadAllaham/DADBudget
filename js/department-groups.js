@@ -61,3 +61,9 @@
   if(document.querySelector('script[data-admin-direct-approval]'))return;
   const script=document.createElement('script');script.type='module';script.src='js/admin-direct-approval.js?v=20260824-admin-approved-4';script.dataset.adminDirectApproval='1';document.head.appendChild(script);
 })();
+
+(function(){
+  if(!/capex\.html$/i.test((location.pathname||'').split('?')[0]))return;
+  if(document.querySelector('script[data-capex-report]'))return;
+  const script=document.createElement('script');script.src='js/capex-report.js?v=20260824-capex-report-1';script.dataset.capexReport='1';document.head.appendChild(script);
+})();
