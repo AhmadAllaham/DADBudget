@@ -39,7 +39,12 @@ function apply(){
     }
   }finally{applying=false}
 }
+function installSalaryNav(){
+  const sub=document.querySelector('.hr-subnav');if(!sub||sub.querySelector('a[href="hr-salaries.html"]'))return;
+  const a=document.createElement('a');a.href='hr-salaries.html';a.textContent='Salaries Budget';sub.appendChild(a);
+}
 function install(){
+  installSalaryNav();
   const tools=document.querySelector('.filter-tools'),body=$('headcountBody');
   if(!tools||!body)return;
   if(!$('headcountZeroToggle')){
