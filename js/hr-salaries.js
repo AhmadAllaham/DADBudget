@@ -2,7 +2,7 @@ import {getApps} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.j
 import {getAuth} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
 import {getFirestore,doc,getDoc,getDocs,collection,writeBatch,serverTimestamp,query,orderBy,startAt,endAt,documentId} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 
-const MAIN='PST3chwdZmaQGeG25t4ym9Vlixe2',YEAR=2027,PREFIX='hr_salary_allocation_',CHUNK=300;
+const MAIN='PST3chwdZmaQGeG25t4ym9Vlixe2',YEAR=2027,PREFIX='hr_salary_allocation_',CHUNK=300,DIR_DOC='department_directory_fy2027';
 const $=id=>document.getElementById(id),clean=v=>String(v??'').trim(),num=v=>{const x=Number(String(v??'').replace(/,/g,''));return Number.isFinite(x)?Math.max(0,x):0},fmt=v=>num(v).toLocaleString(undefined,{maximumFractionDigits:0});
 const FALLBACK=[
  ['6010001','Basic Salaries'],['6010002','13th, 14th Salaries'],['6010003','Living Allowance'],['6010004','Nursery Allowance'],['6010005','Vacation Provision Expenses'],['6010006','Salaries Incentive'],['6010007','Sales Force Commissions'],['6010008','Social Security Contributions'],['6010009','Transportation Allowance'],['6010010','Indemnity Provision Expenses'],['6010011','Unplanned Indemnity Expenses'],['6010012','School Allowance'],['6010013','House Allowance'],['6010014','Mobile Allowance'],['6010015','Overtime'],['6010016','Health Insurance'],['6010017','Life Insurance'],['6010018','Entertainment'],['6010019','Meals'],['6010021','Daily Workers'],['6010022','Employees Tickets'],['6010023','Employees Samples'],['6010024','Iqama Fees'],['6010025','Travel Exit re-entry'],['6010026','Meals Contract'],['6010027','Other Employees Benefits'],['6010028','Employee Benefit Adjustment-Projects'],['6010029','Medical Rep. / Salesman Uniform'],['6010030','Employee Car Insurance'],['6010031','Employee Transportation Contract']
@@ -18,7 +18,8 @@ function setValue(cc,gl,value){if(!values.has(cc))values.set(cc,new Map());value
 function departmentTotal(cc){return accounts.reduce((s,a)=>s+valueOf(cc,a.code),0)}
 function accountTotal(gl){return departments.reduce((s,d)=>s+valueOf(d.cc,gl),0)}
 function companyTotal(){return departments.reduce((s,d)=>s+departmentTotal(d.cc),0)}
-function escapeHtml(v){return clean(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]))}
+function escapeHtml(v){return clean(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function addDepartment(map,rawCc,rawName){const cc=clean(rawCc),name=clean(rawName||cc);if(!cc||cc==='16'||cc==='ALL'||cc.startsWith('GROUP:'))return;const old=map.get(cc),better=name&&name!==cc&&!/^\d+$/.test(name);if(!old||old.name===old.cc||(/^\d+$/.test(old.name)&&better))map.set(cc,{cc,name:name||cc})}
 
 async function initFirebase(){
   if(window.DADFirebase?.auth?.currentUser){app=window.DADFirebase.app;auth=window.DADFirebase.auth;db=window.DADFirebase.db;return true}
@@ -26,13 +27,23 @@ async function initFirebase(){
 }
 async function loadProfile(){const snap=await getDoc(doc(db,'users',auth.currentUser.uid));if(!snap.exists())throw new Error('User profile not found.');profile=snap.data()||{};const modules=Array.isArray(profile.modules)?profile.modules:[];canEdit=isAdmin()||modules.includes('hr');if(!canEdit)throw new Error('HR Salaries Budget is available only to HR Planning and Main Admin.')}
 async function loadDirectoryAndAccounts(){
-  const metaSnap=await getDoc(doc(db,'opex_baseline_meta','current'));
+  // HR must budget salaries for the whole company, regardless of the HR user's own Fund Center access.
+  // Load the canonical company directory locally first so this does not create a large Firestore read.
+  if(!Array.isArray(window.DADCanonicalDepartmentDirectory)||!window.DADCanonicalDepartmentDirectory.length){
+    try{await import('./training-canonical-department-names.js?v=20260824-hr-company-directory-1')}catch(e){console.warn('Canonical company directory could not be loaded',e)}
+  }
+  const [metaSnap,sharedDirSnap]=await Promise.all([
+    getDoc(doc(db,'opex_baseline_meta','current')),
+    getDoc(doc(db,'system_status',DIR_DOC)).catch(()=>null)
+  ]);
   if(!metaSnap.exists())throw new Error('Finance OPEX baseline is not published yet.');
-  const meta=metaSnap.data()||{},map=new Map(),expected=Math.max(0,Number(meta.departmentCount||0));
-  (Array.isArray(meta.departmentDirectory)?meta.departmentDirectory:[]).forEach(x=>{const cc=clean(x?.cc),name=clean(x?.name||cc);if(cc&&cc!=='16')map.set(cc,{cc,name:name||cc})});
-  if(!map.size||(expected&&map.size<expected)){
-    const baseSnap=await getDocs(collection(db,'opex_baseline_departments'));
-    baseSnap.docs.forEach(s=>{const cc=clean(s.id),name=clean(s.data()?.name||cc);if(cc&&cc!=='16'&&!map.has(cc))map.set(cc,{cc,name:name||cc})});
+  const meta=metaSnap.data()||{},map=new Map();
+  (Array.isArray(window.DADCanonicalDepartmentDirectory)?window.DADCanonicalDepartmentDirectory:[]).forEach(x=>addDepartment(map,x?.cc,x?.name));
+  (Array.isArray(meta.departmentDirectory)?meta.departmentDirectory:[]).forEach(x=>addDepartment(map,x?.cc,x?.name));
+  if(sharedDirSnap?.exists?.())(Array.isArray(sharedDirSnap.data()?.directory)?sharedDirSnap.data().directory:[]).forEach(x=>addDepartment(map,x?.cc,x?.name));
+  // Only fall back to the baseline collection if no full company directory is available.
+  if(map.size<20){
+    try{const baseSnap=await getDocs(collection(db,'opex_baseline_departments'));baseSnap.docs.forEach(s=>addDepartment(map,s.id,s.data()?.name||s.data()?.departmentName||s.id))}catch(e){console.warn('HR salary baseline directory fallback unavailable',e)}
   }
   departments=[...map.values()].sort((a,b)=>a.name.localeCompare(b.name)||a.cc.localeCompare(b.cc,undefined,{numeric:true}));
   const master=Array.isArray(meta.accountMaster)?meta.accountMaster:Object.values(meta.accountMaster||{}),found=new Map();
@@ -41,7 +52,7 @@ async function loadDirectoryAndAccounts(){
   values=new Map(departments.map(d=>[d.cc,new Map()]));
   const salarySnap=await getDocs(query(collection(db,'system_status'),orderBy(documentId()),startAt(PREFIX),endAt(`${PREFIX}\uf8ff`)));
   salarySnap.docs.forEach(s=>{const cc=clean(s.id).slice(PREFIX.length);if(!values.has(cc))return;Object.entries(s.data()?.items||{}).forEach(([raw,item])=>{const code=clean(item?.code||raw);if(isSalary(code))setValue(cc,code,item?.annual)})});
-  if(!departments.length)throw new Error('No Finance OPEX departments were found.');
+  if(!departments.length)throw new Error('No company departments were found for HR Salaries.');
   if(!accounts.length)throw new Error('No employee-cost G/L accounts were found in OPEX.');
 }
 
@@ -124,7 +135,7 @@ function bind(){
 }
 async function boot(){
   if(booted||booting)return;booting=true;
-  try{const ready=await initFirebase();if(!ready){booting=false;setTimeout(boot,300);return}await loadProfile();await loadDirectoryAndAccounts();bind();render();applyExcelOnlyUi();booted=true;setStatus(`HR Salaries ready · ${departments.length} departments · ${accounts.length} employee-cost G/Ls · Excel input only`,'ready')}
+  try{const ready=await initFirebase();if(!ready){booting=false;setTimeout(boot,300);return}await loadProfile();await loadDirectoryAndAccounts();bind();render();applyExcelOnlyUi();booted=true;setStatus(`HR Salaries ready · ${departments.length} company departments · ${accounts.length} employee-cost G/Ls · Excel input only`,'ready')}
   catch(e){console.error(e);setStatus(e.message||String(e),'error');if(String(e.message||e).includes('only to HR'))setTimeout(()=>location.replace('index.html'),1600)}
   finally{booting=false}
 }
