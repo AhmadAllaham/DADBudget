@@ -19,7 +19,7 @@
     .login-feature-grid{animation:brandTextReveal .9s ease-out both .72s}
     .login-brand-footer{animation:brandTextReveal .9s ease-out both .9s}
     .login-error{display:none;margin-top:12px;padding:10px 12px;border:1px solid #efc1c1;border-radius:8px;background:#fff0f0;color:#a63b3b;font-size:10px;font-weight:850}
-    .login-error.show{display:block}
+    .login-error.show{display:block}.login-error.success{border-color:#a8ded1;background:#eaf8f5;color:#087a64}.forgot-password[aria-busy="true"]{pointer-events:none;opacity:.6}
     @keyframes brandReveal{0%{opacity:0;transform:translateY(18px) scale(.965);filter:blur(7px)}100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
     @keyframes brandTextReveal{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}
     @keyframes logoFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
@@ -50,7 +50,7 @@
       <form id="loginForm">
         <label for="email">Email address</label><div class="login-input-wrap"><span class="input-icon">@</span><input id="email" type="email" placeholder="Enter your email" required /></div>
         <label for="password">Password</label><div class="login-input-wrap"><span class="input-icon">•</span><input id="password" type="password" placeholder="Enter your password" required /></div>
-        <div class="login-options"><label class="remember"><input id="rememberMe" type="checkbox" /> Remember me</label><a href="#" onclick="return false;">Forgot password?</a></div>
+        <div class="login-options"><label class="remember"><input id="rememberMe" type="checkbox" /> Remember me</label><a class="forgot-password" id="forgotPassword" href="#">Forgot password?</a></div>
         <button class="login-submit" id="loginSubmit" type="submit"><span>Sign In</span><span class="submit-arrow">→</span></button>
       </form>
       <div class="login-error" id="loginError"></div>
@@ -58,13 +58,27 @@
     </div><footer class="login-footer">© 2026 Budget 2027 &nbsp;•&nbsp; Planning &amp; Management Application</footer></div></section>
   </main>
 
-  <script type="module" src="js/firebase.js?v=20260823-licensing-admin-3"></script>
+  <script type="module" src="js/firebase.js?v=20260827-forgot-password-1"></script>
   <script>
     (function(){
-      const form=document.getElementById('loginForm'),btn=document.getElementById('loginSubmit'),err=document.getElementById('loginError'),email=document.getElementById('email'),remember=document.getElementById('rememberMe');
+      const form=document.getElementById('loginForm'),btn=document.getElementById('loginSubmit'),err=document.getElementById('loginError'),email=document.getElementById('email'),remember=document.getElementById('rememberMe'),forgot=document.getElementById('forgotPassword');
       remember.checked=localStorage.getItem('dadBudgetRememberMe')==='1';
       if(remember.checked)email.value=localStorage.getItem('dadBudgetRememberedEmail')||'';
-      function message(text){err.textContent=text;err.classList.toggle('show',!!text)}
+      function message(text,success=false){err.textContent=text;err.classList.toggle('show',!!text);err.classList.toggle('success',!!text&&success)}
+      forgot.addEventListener('click',async e=>{
+        e.preventDefault();message('');
+        const address=email.value.trim().toLowerCase();
+        if(!address){message('Enter your email address first, then click Forgot password.');email.focus();return}
+        try{
+          forgot.setAttribute('aria-busy','true');forgot.textContent='Sending reset link...';
+          if(!window.DADFirebase)throw new Error('Firebase is still loading. Please try again.');
+          await window.DADFirebase.sendPasswordReset(address);
+          message(`Password reset link sent to ${address}. Check your Inbox and Spam folders.`,true);
+        }catch(x){
+          const text=x.code==='auth/invalid-email'?'Enter a valid email address.':x.code==='auth/too-many-requests'?'Too many attempts. Please wait a few minutes and try again.':(x.message||'Password reset email could not be sent.');
+          message(text);
+        }finally{forgot.removeAttribute('aria-busy');forgot.textContent='Forgot password?'}
+      });
       form.addEventListener('submit',async e=>{
         e.preventDefault();e.stopImmediatePropagation();message('');
         try{
