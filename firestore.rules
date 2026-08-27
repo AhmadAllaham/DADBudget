@@ -35,6 +35,13 @@ service cloud.firestore {
                 && 'executive' in currentUserProfile().modules));
     }
 
+    function isTrainingReportViewer() {
+      return hasUserProfile()
+        && currentUserProfile().enabled != false
+        && (request.auth.token.email == 'nouralhuda.hasan@dadgroup.com'
+            || currentUserProfile().email == 'nouralhuda.hasan@dadgroup.com');
+    }
+
     function hasModule(moduleName) {
       return hasUserProfile()
         && currentUserProfile().enabled != false
@@ -435,6 +442,7 @@ service cloud.firestore {
     match /opex_baseline_departments/{fundCenter} {
       allow read: if isMainAdmin()
                   || isExecutiveViewer()
+                  || isTrainingReportViewer()
                   || isCapexItViewer()
                   || isHrPlanner()
                   || isHrItViewer()
@@ -514,7 +522,7 @@ service cloud.firestore {
     }
 
     match /opex_budget_submissions/{fundCenter} {
-      allow read: if isMainAdmin() || isExecutiveViewer() || hasDepartment(fundCenter);
+      allow read: if isMainAdmin() || isExecutiveViewer() || isTrainingReportViewer() || hasDepartment(fundCenter);
       allow create: if isMainAdmin()
                     || (hasDepartment(fundCenter)
                         && request.resource.data.submittedBy == request.auth.uid
