@@ -39,7 +39,7 @@
   }
   function applyCachedAccess(){
     const p=currentProfile();if(!p)return;
-    const isAdmin=p.isMainAdmin===true||p.role==='admin',mainAdmin=p.isMainAdmin===true,mods=new Set(Array.isArray(p.modules)?p.modules:[]),departmentAccess=(Array.isArray(p.departments)?p.departments:[p.department]).some(x=>x&&x!=='ALL'),allowedModule=req=>mods.has(req)||(req==='capex'&&mods.has('capex_it'))||(req==='hr'&&(mods.has('hr_it')||departmentAccess))||(mods.has('opex')&&(req==='opex_detail'||req==='opex_summary'));
+    const isAdmin=p.isMainAdmin===true||p.role==='admin',mainAdmin=p.isMainAdmin===true,mods=new Set(Array.isArray(p.modules)?p.modules:[]),departmentAccess=(Array.isArray(p.departments)?p.departments:[p.department]).some(x=>x&&x!=='ALL'),trainingReportViewer=String(p.email||'').trim().toLowerCase()==='nouralhuda.hasan@dadgroup.com',allowedModule=req=>mods.has(req)||(req==='training'&&trainingReportViewer)||(req==='capex'&&mods.has('capex_it'))||(req==='hr'&&(mods.has('hr_it')||departmentAccess))||(mods.has('opex')&&(req==='opex_detail'||req==='opex_summary'));
     const nav=document.querySelector('.sidebar-nav');
     if(nav){
       nav.querySelectorAll('a').forEach(a=>{const req=moduleForLink(a);if(!req)return;const allowed=req==='main_admin'?mainAdmin:req==='admin_only'?isAdmin:(isAdmin||allowedModule(req));if(allowed)a.style.removeProperty('display');else a.style.setProperty('display','none','important')});
