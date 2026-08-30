@@ -57,7 +57,6 @@
       '6020010':rate?rate[8]:0
     };
     const calculatedTotal=Object.values(amounts).reduce((s,v)=>s+v,0),unpriced=!!from&&!!to&&!ticket&&!rate;
-    // Compatibility with existing upload validators: a complete but unpriced route is accepted while all financial amounts remain zero.
     return{from,to,hasRoute:!!ticket,hasDestinationRate:!!rate,unpriced,pricingStatus:unpriced?'unpriced':'fixed',amounts,calculatedTotal,total:unpriced?0.005:calculatedTotal};
   }
   function formulaFor(row,column){
@@ -84,4 +83,10 @@
     await sheet.protect('DAD-Travel-2027',{selectLockedCells:true,selectUnlockedCells:true,autoFilter:true});return{lists,pricing};
   }
   window.DADTravelPricing={USD_TO_JD,countries,rates,tickets,country,quote,configureExcelJs};
+})();
+
+(function(){
+  if(!/opex\.html$/i.test((location.pathname||'').split('?')[0]))return;
+  if(document.querySelector('script[data-complete-opex-template]'))return;
+  const s=document.createElement('script');s.src='js/opex-template-complete.js?v=20260831-complete-1';s.dataset.completeOpexTemplate='1';document.head.appendChild(s);
 })();
