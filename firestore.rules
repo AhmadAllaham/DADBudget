@@ -63,6 +63,12 @@ service cloud.firestore {
       return hasModule('hr_it');
     }
 
+    function isEngineeringPlanner() {
+      return hasUserProfile()
+        && currentUserProfile().enabled != false
+        && hasDepartment('1000100301');
+    }
+
     function isManager() {
       return hasUserProfile()
         && currentUserProfile().enabled != false
@@ -430,11 +436,21 @@ service cloud.firestore {
     match /system_status/{document} {
       allow read: if isSignedIn();
       allow write: if isSignedIn()
-                   && (!document.matches('subscription_budget_.*')
-                       || (request.resource.data.cc is string
-                           && document == 'subscription_budget_' + request.resource.data.cc
-                           && (isMainAdmin()
-                               || hasDepartment(request.resource.data.cc))));
+                   && (
+                     ((document == 'utilities_budget_fy2027'
+                       || document == 'maintenance_budget_fy2027')
+                      && (isMainAdmin() || isEngineeringPlanner())
+                      && request.resource.data.sourceCc == '1000100301')
+                     ||
+                     ((!document.matches('subscription_budget_.*'))
+                      && document != 'utilities_budget_fy2027'
+                      && document != 'maintenance_budget_fy2027')
+                     ||
+                     (request.resource.data.cc is string
+                      && document == 'subscription_budget_' + request.resource.data.cc
+                      && (isMainAdmin()
+                          || hasDepartment(request.resource.data.cc)))
+                   );
     }
 
     match /users/{userId} {
@@ -454,6 +470,7 @@ service cloud.firestore {
                   || isCapexItViewer()
                   || isHrPlanner()
                   || isHrItViewer()
+                  || isEngineeringPlanner()
                   || hasDepartment(fundCenter);
       allow create, update, delete: if isMainAdmin();
     }

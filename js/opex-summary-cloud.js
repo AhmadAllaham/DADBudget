@@ -2,7 +2,7 @@ import {getApps} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.j
 import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
 import {getFirestore,collection,getDocs,doc,getDoc,query,orderBy,startAt,endAt,documentId} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 
-const app=getApps()[0],auth=getAuth(app),db=getFirestore(app),MAIN='PST3chwdZmaQGeG25t4ym9Vlixe2',KEY='dadBudgetOPEXBaselineV17',CACHE_TS='dadBudgetOPEXSummaryCloudReadAt',TTL=10*60*1000,SUMMARY_VERSION=2;
+const app=getApps()[0],auth=getAuth(app),db=getFirestore(app),MAIN='PST3chwdZmaQGeG25t4ym9Vlixe2',KEY='dadBudgetOPEXBaselineV17',CACHE_TS='dadBudgetOPEXSummaryCloudReadAt',TTL=10*60*1000,SUMMARY_VERSION=3;
 const clean=v=>String(v??'').trim(),num=v=>Number.isFinite(Number(v))?Number(v):0,key=v=>clean(v).toUpperCase().replace(/[^A-Z0-9]/g,'');
 const prefixQuery=prefix=>query(collection(db,'system_status'),orderBy(documentId()),startAt(prefix),endAt(`${prefix}\uf8ff`));
 function bytes(s){const b=atob(s||''),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a}
@@ -14,7 +14,7 @@ function mergeSubmission(base,submitted){
  if(!base||!submitted?.items)return base;
  const out={...base,items:{...(base.items||{})}};
  Object.entries(submitted.items||{}).forEach(([raw,item])=>{
-  const code=clean(item?.code||raw);if(!code||code.startsWith('608'))return;
+  const code=clean(item?.code||raw);if(!code||code.startsWith('604')||code.startsWith('608'))return;
   const current=out.items[code]||out.items[raw]||{code,name:clean(item?.name)||code,budgetByMonth:{},actualByMonth:{},lyByMonth:{},newBudgetByMonth:{},fyBudget:0,actualUnperiodized:0,lyUnperiodized:0,hasLY:false};
   const incoming={...(item?.newBudgetByMonth||{})},has=Object.values(incoming).some(v=>Math.abs(num(v))>.00001),travel=/^60200(0[1-9]|10)$/.test(code);
   out.items[code]={...current,code:clean(current.code||code),name:clean(current.name||item?.name)||code,newBudgetByMonth:travel&&!has?{...(current.newBudgetByMonth||{})}:incoming,landing:num(item?.landing),professionalDetails:clean(item?.professionalDetails)};
@@ -45,7 +45,9 @@ function combinedSalary(existingAllocation,newAllocation){const out=new Map(),ad
 function mergeHR(department,existingAllocation,newAllocation){if(!department)return department;const combined=combinedSalary(existingAllocation,newAllocation);if(!combined.size)return department;const out={...department,items:{...(department.items||{})}};combined.forEach(value=>{const current=out.items[value.code]||{code:value.code,name:value.name,budgetByMonth:{},actualByMonth:{},lyByMonth:{},newBudgetByMonth:{},fyBudget:0,actualUnperiodized:0,lyUnperiodized:0,hasLY:false};out.items[value.code]={...current,newBudgetByMonth:{...value.byMonth},landing:0,hrControlled:true,hrAllocatedExistingTotal:value.existingAnnual,hrAllocatedNewEmployeesTotal:value.newAnnual,hrAllocatedTotal:value.existingAnnual+value.newAnnual}});return out}
 
 function buildCentralUtilities(plan={}){const byCc=new Map();(Array.isArray(plan.rows)?plan.rows:[]).forEach(row=>{const cc=clean(row?.cc),gl=clean(row?.gl);if(!cc||!gl.startsWith('608'))return;let dep=byCc.get(cc);if(!dep){dep={items:{}};byCc.set(cc,dep)}const item=dep.items[gl]||(dep.items[gl]={code:gl,name:clean(row?.accountName)||gl,landing:0,newBudgetByMonth:{}});item.landing+=num(row?.landing);Object.entries(row?.newBudgetByMonth||{}).forEach(([month,value])=>item.newBudgetByMonth[month]=num(item.newBudgetByMonth[month])+num(value))});return byCc}
-function mergeCentralUtilities(department,allocation){if(!department||!allocation)return department;const out={...department,items:{...(department.items||{})}};Object.entries(out.items).forEach(([raw,item])=>{const code=clean(item?.code||raw);if(code.startsWith('608'))out.items[raw]={...item,newBudgetByMonth:{},landing:0,utilityControlled:true}});Object.entries(allocation.items||{}).forEach(([gl,value])=>{const current=out.items[gl]||{code:gl,name:clean(value?.name)||gl,budgetByMonth:{},actualByMonth:{},lyByMonth:{},fyBudget:0,actualUnperiodized:0,lyUnperiodized:0,hasLY:false};out.items[gl]={...current,newBudgetByMonth:{...(value?.newBudgetByMonth||{})},landing:num(value?.landing),utilityControlled:true,utilitySource:'central-plan'}});return out}
+function mergeCentralUtilities(department,allocation){if(!department)return department;const out={...department,items:{...(department.items||{})}};Object.entries(out.items).forEach(([raw,item])=>{const code=clean(item?.code||raw);if(code.startsWith('608'))out.items[raw]={...item,newBudgetByMonth:{},landing:0,utilityControlled:true}});Object.entries(allocation?.items||{}).forEach(([gl,value])=>{const current=out.items[gl]||{code:gl,name:clean(value?.name)||gl,budgetByMonth:{},actualByMonth:{},lyByMonth:{},fyBudget:0,actualUnperiodized:0,lyUnperiodized:0,hasLY:false};out.items[gl]={...current,newBudgetByMonth:{...(value?.newBudgetByMonth||{})},landing:num(value?.landing),utilityControlled:true,utilitySource:'central-plan'}});return out}
+function buildCentralMaintenance(plan={}){const byCc=new Map();(Array.isArray(plan.rows)?plan.rows:[]).forEach(row=>{const cc=clean(row?.cc),gl=clean(row?.gl);if(!cc||!gl.startsWith('604'))return;let dep=byCc.get(cc);if(!dep){dep={items:{}};byCc.set(cc,dep)}const item=dep.items[gl]||(dep.items[gl]={code:gl,name:clean(row?.accountName)||gl,landing:0,newBudgetByMonth:{}});item.landing+=num(row?.landing);Object.entries(row?.newBudgetByMonth||{}).forEach(([month,value])=>item.newBudgetByMonth[month]=num(item.newBudgetByMonth[month])+num(value))});return byCc}
+function mergeCentralMaintenance(department,allocation){if(!department)return department;const out={...department,items:{...(department.items||{})}};Object.entries(out.items).forEach(([raw,item])=>{const code=clean(item?.code||raw);if(code.startsWith('604'))out.items[raw]={...item,newBudgetByMonth:{},landing:0,maintenanceControlled:true}});Object.entries(allocation?.items||{}).forEach(([gl,value])=>{const current=out.items[gl]||{code:gl,name:clean(value?.name)||gl,budgetByMonth:{},actualByMonth:{},lyByMonth:{},fyBudget:0,actualUnperiodized:0,lyUnperiodized:0,hasLY:false};out.items[gl]={...current,newBudgetByMonth:{...(value?.newBudgetByMonth||{})},landing:num(value?.landing),maintenanceControlled:true,maintenanceSource:'central-plan'}});return out}
 
 function subscriptionMatch(item={},raw=''){const code=clean(item?.code||raw),name=key(item?.name||item?.accountName);return['6140006','6141410'].includes(code)||(name.includes('SUBSCRIPTION')&&(name.includes('BOOK')||name.includes('MAGAZINE')))}
 function aggregateSubscriptionPlan(plan={}){const out={};Object.entries(plan?.items||{}).forEach(([raw,value])=>{const gl=clean(value?.code||raw);if(gl)out[gl]={code:gl,name:clean(value?.name)||gl,landing:num(value?.landing),newBudgetByMonth:{...(value?.newBudgetByMonth||{})}}});if(!Object.keys(out).length)(Array.isArray(plan.rows)?plan.rows:[]).forEach(row=>{const gl=clean(row?.gl);if(!gl)return;const item=out[gl]||(out[gl]={code:gl,name:clean(row?.accountName)||gl,landing:0,newBudgetByMonth:{}});item.landing+=num(row?.landing);Object.entries(row?.newBudgetByMonth||{}).forEach(([month,value])=>item.newBudgetByMonth[month]=num(item.newBudgetByMonth[month])+num(value))});return out}
@@ -59,7 +61,7 @@ let loading=false,bootedUid='';
 async function loadAdmin(){
  if(loading)return;loading=true;
  try{
-  const [baseSnap,uploadSnap,metaSnap,legacyUtilitySnap,itSnap,trainingSnap,hrExistingSnap,hrNewSnap,subscriptionSnap,utilityPlanSnap]=await Promise.all([
+  const [baseSnap,uploadSnap,metaSnap,legacyUtilitySnap,itSnap,trainingSnap,hrExistingSnap,hrNewSnap,subscriptionSnap,utilityPlanSnap,maintenancePlanSnap]=await Promise.all([
    getDocs(collection(db,'opex_baseline_departments')),
    getDocs(collection(db,'opex_budget_submissions')),
    getDoc(doc(db,'opex_baseline_meta','current')),
@@ -69,9 +71,10 @@ async function loadAdmin(){
    safeDocs(prefixQuery('hr_salary_allocation_'),'HR salary allocations'),
    safeDocs(prefixQuery('hr_new_salary_allocation_'),'HR new salary allocations'),
    safeDocs(prefixQuery('subscription_budget_'),'Subscriptions'),
-   safeDoc(doc(db,'system_status','utilities_budget_fy2027'),'central Utilities')
+   safeDoc(doc(db,'system_status','utilities_budget_fy2027'),'central Utilities'),
+   safeDoc(doc(db,'system_status','maintenance_budget_fy2027'),'central Maintenance')
   ]);
-  const uploads=new Map(uploadSnap.docs.map(x=>[clean(x.id),x.data()||{}])),legacyUtilities=new Map(legacyUtilitySnap.docs.map(x=>[clean(x.id),x.data()||{}])),itAllocations=new Map(itSnap.docs.map(x=>[clean(x.id),x.data()||{}])),training=new Map(trainingSnap.docs.map(x=>[clean(x.id).replace(/^training_allocation_/,''),x.data()||{}])),hrExisting=new Map(hrExistingSnap.docs.map(x=>[clean(x.id).replace(/^hr_salary_allocation_/,''),x.data()||{}])),hrNew=new Map(hrNewSnap.docs.map(x=>[clean(x.id).replace(/^hr_new_salary_allocation_/,''),x.data()||{}])),subscriptions=new Map(subscriptionSnap.docs.map(x=>[clean(x.id).replace(/^subscription_budget_/,''),x.data()||{}])),centralUtilities=buildCentralUtilities(utilityPlanSnap.exists()?utilityPlanSnap.data()||{}:{}),departments={},statuses={};
+  const uploads=new Map(uploadSnap.docs.map(x=>[clean(x.id),x.data()||{}])),legacyUtilities=new Map(legacyUtilitySnap.docs.map(x=>[clean(x.id),x.data()||{}])),itAllocations=new Map(itSnap.docs.map(x=>[clean(x.id),x.data()||{}])),training=new Map(trainingSnap.docs.map(x=>[clean(x.id).replace(/^training_allocation_/,''),x.data()||{}])),hrExisting=new Map(hrExistingSnap.docs.map(x=>[clean(x.id).replace(/^hr_salary_allocation_/,''),x.data()||{}])),hrNew=new Map(hrNewSnap.docs.map(x=>[clean(x.id).replace(/^hr_new_salary_allocation_/,''),x.data()||{}])),subscriptions=new Map(subscriptionSnap.docs.map(x=>[clean(x.id).replace(/^subscription_budget_/,''),x.data()||{}])),centralUtilities=buildCentralUtilities(utilityPlanSnap.exists()?utilityPlanSnap.data()||{}:{}),centralMaintenance=buildCentralMaintenance(maintenancePlanSnap.exists()?maintenancePlanSnap.data()||{}:{}),departments={},statuses={};
   await Promise.all(baseSnap.docs.map(async b=>{
    const cc=clean(b.id);if(!cc)return;let department=await decode(b.data(),cc);const upload=uploads.get(cc);if(upload){const visible=await visibleSubmission(upload,cc);if(visible?.items)department=mergeSubmission(department,visible);statuses[cc]=upload.workflowStatus||upload.status||'uploaded'}
    department=mergeLegacyUtilities(department,legacyUtilities.get(cc));
@@ -79,6 +82,7 @@ async function loadAdmin(){
    department=mergeTraining(department,training.get(cc));
    department=mergeHR(department,hrExisting.get(cc),hrNew.get(cc));
    department=mergeCentralUtilities(department,centralUtilities.get(cc));
+   department=mergeCentralMaintenance(department,centralMaintenance.get(cc));
    department=mergeSubscriptions(department,subscriptions.get(cc));
    departments[cc]=department;
   }));
