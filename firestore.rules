@@ -24,7 +24,9 @@ service cloud.firestore {
     function hasDepartment(fundCenter) {
       return hasUserProfile()
         && currentUserProfile().departments is list
-        && fundCenter in currentUserProfile().departments;
+        && (fundCenter in currentUserProfile().departments
+            || (fundCenter == '1000100301'
+                && '100100301' in currentUserProfile().departments));
     }
 
     function isExecutiveViewer() {
@@ -426,7 +428,13 @@ service cloud.firestore {
     }
 
     match /system_status/{document} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn();
+      allow write: if isSignedIn()
+                   && (!document.matches('subscription_budget_.*')
+                       || (request.resource.data.cc is string
+                           && document == 'subscription_budget_' + request.resource.data.cc
+                           && (isMainAdmin()
+                               || hasDepartment(request.resource.data.cc))));
     }
 
     match /users/{userId} {
@@ -450,7 +458,7 @@ service cloud.firestore {
       allow create, update, delete: if isMainAdmin();
     }
 
-    // Utilities Budget 2027 is entered only by Engineering (100100301).
+    // Utilities Budget 2027 is entered only by Engineering (1000100301).
     // Finance publishes the approved allocation separately for each target
     // Fund Center. Departments can read only their own allocated values.
     match /opex_utilities_allocations/{fundCenter} {
@@ -460,7 +468,7 @@ service cloud.firestore {
 
       allow create, update: if isMainAdmin()
                             && request.resource.data.cc == fundCenter
-                            && request.resource.data.sourceCc == '100100301'
+                            && request.resource.data.sourceCc == '1000100301'
                             && request.resource.data.items is map;
 
       allow delete: if false;

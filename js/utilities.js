@@ -4,7 +4,7 @@ import {getFirestore,doc,getDoc,setDoc,serverTimestamp} from 'https://www.gstati
 
 const firebaseConfig={apiKey:'AIzaSyDAMLbm1ngqtzKjnDp6AMz8ucyhqNSnfBY',authDomain:'budget-8c575.firebaseapp.com',projectId:'budget-8c575',storageBucket:'budget-8c575.firebasestorage.app',messagingSenderId:'990142203884',appId:'1:990142203884:web:5c22dc2c14855528a022c9'};
 const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
-const MAIN_ADMIN_UID='PST3chwdZmaQGeG25t4ym9Vlixe2',ENGINEERING_CC='100100301',PLAN_ID='utilities_budget_fy2027',PLAN_CACHE='dadBudgetUtilitiesPlanCacheV1',META_CACHE='dadBudgetUtilitiesMetaCacheV1',CACHE_MS=10*60*1000,META_CACHE_MS=30*60*1000;
+const MAIN_ADMIN_UID='PST3chwdZmaQGeG25t4ym9Vlixe2',ENGINEERING_CC='1000100301',PLAN_ID='utilities_budget_fy2027',PLAN_CACHE='dadBudgetUtilitiesPlanCacheV1',META_CACHE='dadBudgetUtilitiesMetaCacheV1',CACHE_MS=10*60*1000,META_CACHE_MS=30*60*1000;
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const $=id=>document.getElementById(id),clean=v=>String(v??'').trim(),num=v=>{if(typeof v==='number'&&Number.isFinite(v))return v;let s=clean(v).replace(/,/g,'');if(/^\(.*\)$/.test(s))s='-'+s.slice(1,-1);const n=Number(s);return Number.isFinite(n)?n:0},money=v=>num(v).toLocaleString(undefined,{maximumFractionDigits:0});
 let profile=null,directory=[],utilityAccounts=[],plan={rows:[],revision:0,total:0,sourceFile:''},hideZero=true;

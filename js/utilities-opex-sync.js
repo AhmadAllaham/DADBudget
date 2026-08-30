@@ -4,7 +4,7 @@ import {getFirestore,doc,getDoc} from 'https://www.gstatic.com/firebasejs/12.16.
 
 const app=getApps()[0];
 if(!app)throw new Error('Firebase app is not initialized');
-const auth=getAuth(app),db=getFirestore(app),OPEX_KEY='dadBudgetOPEXBaselineV17',PLAN_ID='utilities_budget_fy2027',CACHE_KEY='dadBudgetUtilitiesPlanCacheV1',CACHE_MS=10*60*1000,ENGINEERING_CC='100100301';
+const auth=getAuth(app),db=getFirestore(app),OPEX_KEY='dadBudgetOPEXBaselineV17',PLAN_ID='utilities_budget_fy2027',CACHE_KEY='dadBudgetUtilitiesPlanCacheV1',CACHE_MS=10*60*1000,ENGINEERING_CC='1000100301';
 const clean=v=>String(v??'').trim(),num=v=>Number.isFinite(Number(v))?Number(v):0;
 let active=false,lastAppliedToken='';
 

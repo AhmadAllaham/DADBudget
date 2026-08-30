@@ -15,7 +15,7 @@ const MAIN_ADMIN_UID='PST3chwdZmaQGeG25t4ym9Vlixe2';
 const DOC_PREFIX='subscription_budget_';
 const OPEX_KEY='dadBudgetOPEXBaselineV17';
 const CACHE_KEY='dadBudgetSubscriptionsSimpleCacheV1';
-const BRIDGE_CACHE_KEY='dadBudgetSubscriptionsBridgeCacheV1';
+const BRIDGE_CACHE_KEY='dadBudgetSubscriptionsBridgeCacheV2';
 const CACHE_MS=30*60*1000;
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -34,13 +34,16 @@ const num=v=>{
 const money=v=>Math.abs(num(v))<.005?'—':num(v).toLocaleString(undefined,{maximumFractionDigits:0});
 const pct=(v,b)=>Math.abs(num(b))<.005?'—':`${(num(v)/Math.abs(num(b))*100).toFixed(1)}%`;
 const monthKey=i=>`2027-${String(i+1).padStart(2,'0')}`;
+const DEPARTMENT_ALIASES={'100100301':'1000100301'};
+const normalizeDepartmentCc=value=>DEPARTMENT_ALIASES[clean(value)]||clean(value);
 
 let profile=null,directory=[],masterAccounts=[],selectedData=null;
 
 function departmentsOf(p={}){
-  const out=Array.isArray(p.departments)?p.departments.map(clean).filter(Boolean):[];
-  if(p.department&&!out.includes(clean(p.department)))out.push(clean(p.department));
-  return out;
+  const out=Array.isArray(p.departments)?p.departments.map(normalizeDepartmentCc).filter(Boolean):[];
+  const primary=normalizeDepartmentCc(p.department);
+  if(primary&&!out.includes(primary))out.push(primary);
+  return [...new Set(out)];
 }
 function isAdmin(user=auth.currentUser,p=profile){
   return !!user&&(user.uid===MAIN_ADMIN_UID||p?.isMainAdmin===true||p?.role==='admin');
@@ -108,10 +111,12 @@ async function loadProfile(user){
   return s.exists()?s.data()||{}:{};
 }
 async function loadMeta(force=false){
+  const metaCacheKey=`meta:${clean(auth.currentUser?.uid)}`;
   if(!force){
-    const cached=cacheRead('meta');
+    const cached=cacheRead(metaCacheKey);
     if(cached){
-      directory=cached.directory||[];
+      const allowed=new Set(departmentsOf(profile));
+      directory=(cached.directory||[]).filter(x=>isAdmin()||allowed.has('ALL')||allowed.has(clean(x?.cc)));
       masterAccounts=cached.masterAccounts||[];
       return;
     }
@@ -125,15 +130,16 @@ async function loadMeta(force=false){
   const rawMaster=Array.isArray(data.accountMaster)
     ?data.accountMaster
     :Object.entries(data.accountMaster||{}).map(([code,a])=>({code:clean(a?.code||code),name:clean(a?.name||a?.code||code)}));
+  const allowed=new Set(departmentsOf(profile));
   directory=rawDir
     .map(x=>({cc:clean(x.cc),name:clean(x.name||x.departmentName||x.cc)}))
-    .filter(x=>x.cc&&x.cc!=='16')
+    .filter(x=>x.cc&&x.cc!=='16'&&(isAdmin()||allowed.has('ALL')||allowed.has(x.cc)))
     .sort((a,b)=>a.name.localeCompare(b.name)||a.cc.localeCompare(b.cc,undefined,{numeric:true}));
   masterAccounts=rawMaster
     .map(x=>({code:clean(x.code),name:clean(x.name||x.code)}))
     .filter(isSubscriptionAccount)
     .sort((a,b)=>a.code.localeCompare(b.code));
-  cacheWrite('meta',{directory,masterAccounts});
+  cacheWrite(metaCacheKey,{directory,masterAccounts});
 }
 function canReadBaseline(cc){
   return isAdmin()||departmentsOf(profile).includes('ALL')||departmentsOf(profile).includes(cc);
@@ -165,6 +171,16 @@ async function loadPlan(cc,force=false){
   cacheWrite(`plan:${cc}`,data);
   return data;
 }
+async function loadItAllocation(cc,force=false){
+  if(!force){
+    const cached=cacheRead(`it:${cc}`);
+    if(cached)return cached;
+  }
+  const s=await getDoc(doc(db,'opex_it_allocations',cc));
+  const data=s.exists()?s.data()||{}:{};
+  cacheWrite(`it:${cc}`,data);
+  return data;
+}
 function latestMonth(item){
   let latest=0;
   Object.keys(item?.actualByMonth||{}).forEach(k=>{
@@ -180,6 +196,18 @@ function sumTo(map,month){
 }
 function emptyMonths(){
   return Object.fromEntries(MONTHS.map((_,i)=>[monthKey(i),0]));
+}
+function annualMonths(total){
+  const value=num(total);
+  if(Math.abs(value)<.00001)return emptyMonths();
+  const cents=Math.round(value*100),base=Math.trunc(cents/12),used=base*11,out={};
+  MONTHS.forEach((_,i)=>out[monthKey(i)]=(i===11?cents-used:base)/100);
+  return out;
+}
+function addMonthMaps(...maps){
+  const out=emptyMonths();
+  maps.forEach(map=>Object.entries(map||{}).forEach(([month,value])=>out[month]=num(out[month])+num(value)));
+  return out;
 }
 function aggregatePlan(plan={}){
   const out={};
@@ -225,7 +253,7 @@ function aggregatePlan(plan={}){
   });
   return out;
 }
-function accountRows(department,plan,cc){
+function accountRows(department,plan,itAllocation,cc){
   const planMap=aggregatePlan(plan);
   const baseEntries=Object.entries(department?.items||{})
     .filter(([raw,item])=>isSubscriptionAccount(item,raw))
@@ -244,7 +272,7 @@ function accountRows(department,plan,cc){
     }
   });
   if(!baseEntries.length)baseEntries.push({gl:'6140006',accountName:'Subscriptions, Books and Magazines',item:null});
-  return baseEntries.map(({gl,accountName,item})=>{
+  const departmentRows=baseEntries.map(({gl,accountName,item})=>{
     const cutoff=latestMonth(item)||Number((clean(localStorage.getItem('dadBudgetOPEXDateTo')).match(/^2026-(\d{2})$/)||[])[1])||7;
     const budgetYtd=sumTo(item?.budgetByMonth,cutoff);
     const actualMonthly=sumTo(item?.actualByMonth,cutoff);
@@ -266,6 +294,8 @@ function accountRows(department,plan,cc){
       gl,
       accountName,
       details:clean(p.details),
+      source:'department',
+      sourceLabel:'Department Input',
       lyYtd,
       budgetYtd,
       actualYtd,
@@ -282,6 +312,20 @@ function accountRows(department,plan,cc){
       fy27
     };
   });
+  const source=itAllocation?.items?.subscriptions||{},itGl=clean(source.accountCode)||departmentRows[0]?.gl||'6140006',itName=clean(source.accountName)||'Subscriptions, Books and Magazines',detailRows=Array.isArray(source.rows)?source.rows.filter(r=>Math.abs(num(r?.allocatedAmount??r?.total))>.005):[],fallbackTotal=num(source.total),itRows=(detailRows.length?detailRows:[{description:'Centrally allocated by IT',allocatedAmount:fallbackTotal}]).map(r=>{
+    const fy27=num(r?.allocatedAmount??r?.total),months=annualMonths(fy27);
+    return{
+      cc,
+      departmentName:directory.find(d=>d.cc===cc)?.name||department?.name||cc,
+      gl:itGl,
+      accountName:itName,
+      details:clean(r?.description)||'Centrally allocated by IT',
+      source:'it',
+      sourceLabel:'IT Allocation',
+      lyYtd:0,budgetYtd:0,actualYtd:0,vsBudget:0,vsBudgetPct:'—',vsLy:0,vsLyPct:'—',landing:0,fyLanding:0,fy26:0,remaining:0,remainingPct:'—',newBudgetByMonth:months,fy27
+    };
+  });
+  return [...departmentRows,...itRows];
 }
 function esc(v){
   return clean(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -290,13 +334,13 @@ function cls(v){return num(v)>=0?'good':'bad'}
 function render(){
   const body=$('subscriptionBody');
   if(!selectedData){
-    body.innerHTML='<tr><td colspan="18" class="empty-state">Select a department.</td></tr>';
+    body.innerHTML='<tr><td colspan="19" class="empty-state">Select a department.</td></tr>';
     return;
   }
   const q=clean($('subscriptionSearch').value).toLowerCase();
-  const rows=selectedData.rows.filter(r=>!q||`${r.cc} ${r.departmentName} ${r.gl} ${r.accountName} ${r.details}`.toLowerCase().includes(q));
+  const rows=selectedData.rows.filter(r=>!q||`${r.cc} ${r.departmentName} ${r.gl} ${r.accountName} ${r.details} ${r.sourceLabel}`.toLowerCase().includes(q));
   if(!rows.length){
-    body.innerHTML='<tr><td colspan="18" class="empty-state">No Subscriptions row matches the current search.</td></tr>';
+    body.innerHTML='<tr><td colspan="19" class="empty-state">No Subscriptions row matches the current search.</td></tr>';
     return;
   }
   const t=rows.reduce((a,r)=>{
@@ -313,6 +357,7 @@ function render(){
     <td>${esc(r.gl)}</td>
     <td><b>${esc(r.accountName)}</b></td>
     <td class="details">${esc(r.details)||'—'}</td>
+    <td><span class="source-tag ${r.source==='it'?'it':'department'}">${esc(r.sourceLabel)}</span></td>
     <td class="ref">${money(r.lyYtd)}</td>
     <td class="ref">${money(r.budgetYtd)}</td>
     <td class="actual">${money(r.actualYtd)}</td>
@@ -327,7 +372,7 @@ function render(){
     <td class="var ${cls(r.remaining)}">${r.remainingPct}</td>
     <td class="input">${money(r.fy27)}</td>
   </tr>`).join('')+`<tr class="total-row">
-    <td><b>TOTAL</b></td><td></td><td></td><td></td><td></td>
+    <td><b>TOTAL</b></td><td></td><td></td><td></td><td></td><td></td>
     <td>${money(t.lyYtd)}</td><td>${money(t.budgetYtd)}</td><td>${money(t.actualYtd)}</td>
     <td>${money(t.vsBudget)}</td><td>${pct(t.vsBudget,t.budgetYtd)}</td>
     <td>${money(t.vsLy)}</td><td>${pct(t.vsLy,t.lyYtd)}</td>
@@ -339,8 +384,8 @@ async function selectDepartment(force=false){
   const cc=clean($('subscriptionDept').value);
   if(!cc)return;
   setStatus('Loading department...');
-  const [baseline,plan]=await Promise.all([loadBaseline(cc,force),loadPlan(cc,force)]);
-  selectedData={cc,baseline,plan,rows:accountRows(baseline,plan,cc)};
+  const [baseline,plan,itAllocation]=await Promise.all([loadBaseline(cc,force),loadPlan(cc,force),loadItAllocation(cc,force)]);
+  selectedData={cc,baseline,plan,itAllocation,rows:accountRows(baseline,plan,itAllocation,cc)};
   const editable=canEdit(cc);
   $('subscriptionDownload').disabled=!editable;
   $('subscriptionUpload').disabled=!editable;
@@ -371,7 +416,7 @@ const HEADERS=[
 ];
 
 function excelRows(){
-  return (selectedData?.rows||[]).map(r=>[
+  return (selectedData?.rows||[]).filter(r=>r.source!=='it').map(r=>[
     r.cc,r.departmentName,r.gl,r.accountName,r.details,
     r.lyYtd,r.budgetYtd,r.actualYtd,r.vsBudget,r.vsBudgetPct,
     r.vsLy,r.vsLyPct,r.landing,r.fyLanding,r.fy26,r.remaining,r.remainingPct,
@@ -498,10 +543,13 @@ function applyPlanToSubmission(department,plan){
       code:gl,name:clean(v?.name||gl),budgetByMonth:{},actualByMonth:{},lyByMonth:{},
       fyBudget:0,actualUnperiodized:0,lyUnperiodized:0
     };
+    const departmentMonths={...(v?.newBudgetByMonth||{})},itMonths={...(existing?.itSubscriptionAllocatedByMonth||{})};
     merged.items[existingKey]={
       ...existing,
       landing:num(v?.landing),
-      newBudgetByMonth:{...(v?.newBudgetByMonth||{})},
+      newBudgetByMonth:addMonthMaps(departmentMonths,itMonths),
+      departmentSubscriptionByMonth:departmentMonths,
+      departmentSubscriptionLanding:num(v?.landing),
       subscriptionControlled:true,
       subscriptionSource:'department',
       subscriptionDetails:(plan.rows||[]).filter(r=>clean(r.gl)===gl).map(r=>clean(r.details)).filter(Boolean).join(' | ')
