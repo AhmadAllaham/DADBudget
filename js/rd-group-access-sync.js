@@ -5,20 +5,11 @@ import {getFirestore,collection,query,where,getDocs,doc,getDoc,setDoc,serverTime
 const firebaseConfig={apiKey:'AIzaSyDAMLbm1ngqtzKjnDp6AMz8ucyhqNSnfBY',authDomain:'budget-8c575.firebaseapp.com',projectId:'budget-8c575',storageBucket:'budget-8c575.firebasestorage.app',messagingSenderId:'990142203884',appId:'1:990142203884:web:5c22dc2c14855528a022c9'};
 const MAIN_ADMIN_UID='PST3chwdZmaQGeG25t4ym9Vlixe2';
 const MANAR_EMAIL='manar.alasaad@dadgroup.com';
-const GROUP_VALUE='GROUP:RD_ANALYTICAL';
 const GROUP_IDS=['1000401101','1000401105','1000401106'];
-const GROUP_NAMES={
- '1000401101':'Research & Development Department',
- '1000401105':'Analytical Research Department',
- '1000401106':'Packaging Development Department'
-};
-const OPEX_KEY='dadBudgetOPEXBaselineV17';
 const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);
 const auth=getAuth(app),db=getFirestore(app);
 const clean=v=>String(v??'').trim();
 const email=v=>clean(v).toLowerCase();
-const num=v=>Number.isFinite(Number(v))?Number(v):0;
-const money=v=>Math.abs(num(v))<.005?'—':num(v).toLocaleString(undefined,{maximumFractionDigits:0});
 
 function departmentsOf(profile={}){
  const list=Array.isArray(profile.departments)?profile.departments.map(clean).filter(Boolean):[];
@@ -88,62 +79,6 @@ async function ensureManarGroupAccess(user,profile){
  console.info('R&D group access synced for Manar:',userDoc.id,merged.join(', '));
  return true;
 }
-
-function localOpexModel(){
- try{const m=JSON.parse(localStorage.getItem(OPEX_KEY)||'null');return m?.departments?m:null}catch(_){return null}
-}
-function selectedRange(){
- let from=clean(document.getElementById('dateFrom')?.value)||'2026-01',to=clean(document.getElementById('dateTo')?.value)||'2026-12';
- if(from>to)[from,to]=[to,from];
- return{from,to};
-}
-function sumPeriod(map,from,to){
- let total=0;
- Object.entries(map||{}).forEach(([key,value])=>{if(key>=from&&key<=to)total+=num(value)});
- return total;
-}
-function departmentYtd(department){
- const {from,to}=selectedRange();let budget=0,actual=0;
- Object.values(department?.items||{}).forEach(item=>{
-  budget+=sumPeriod(item?.budgetByMonth,from,to);
-  const actualMap=item?.actualByMonth||{};
-  actual+=sumPeriod(actualMap,from,to)+(Object.keys(actualMap).length?0:num(item?.actualUnperiodized));
- });
- return{budget,actual};
-}
-function ensureSummaryStyle(){
- if(document.getElementById('rdGroupYtdStyle'))return;
- const style=document.createElement('style');style.id='rdGroupYtdStyle';style.textContent=`
- .rd-group-ytd{display:none;margin:0 0 12px;overflow:hidden;border:1px solid #d8e9e6;border-radius:14px;background:linear-gradient(145deg,#fff,#f7fbfa);box-shadow:0 8px 22px rgba(20,67,70,.05)}
- .rd-group-ytd.show{display:block}.rd-group-ytd-head{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:13px 16px;border-bottom:1px solid #e0ecea}.rd-group-ytd-head b{font-size:14px;color:#173f47}.rd-group-ytd-head span{font-size:10px;font-weight:850;color:#72878b}.rd-group-ytd table{width:100%;border-collapse:collapse;font-size:12px}.rd-group-ytd th{padding:9px 12px;background:#f3f9f8;color:#667f84;text-align:right;font-size:9px;font-weight:1000;text-transform:uppercase}.rd-group-ytd th:first-child,.rd-group-ytd td:first-child{text-align:left}.rd-group-ytd td{padding:10px 12px;border-top:1px solid #e8f0ef;text-align:right;font-weight:800;color:#314d52;font-variant-numeric:tabular-nums}.rd-group-ytd td b{display:block;color:#173f47}.rd-group-ytd td small{display:block;margin-top:2px;color:#8a999c;font-size:9px}.rd-group-ytd .actual{color:#0a746d;font-weight:1000}.rd-group-ytd .budget{color:#173f68;font-weight:1000}.rd-group-ytd .rd-total td{background:#0a3568;color:#fff!important;font-weight:1000;border-top:0}
- `;document.head.appendChild(style)
-}
-function ensureSummaryPanel(){
- ensureSummaryStyle();let panel=document.getElementById('rdGroupYtdSummary');if(panel)return panel;
- const kpis=document.querySelector('.kpi-strip');if(!kpis)return null;
- panel=document.createElement('section');panel.id='rdGroupYtdSummary';panel.className='rd-group-ytd';panel.innerHTML='<div class="rd-group-ytd-head"><div><b>R&D Group YTD Summary</b><span id="rdGroupYtdPeriod"></span></div><span>Budget YTD vs Actual YTD</span></div><table><thead><tr><th>Department</th><th>Budget YTD</th><th>Actual YTD</th></tr></thead><tbody id="rdGroupYtdBody"></tbody></table>';
- kpis.insertAdjacentElement('afterend',panel);return panel;
-}
-function renderGroupYtdSummary(){
- const panel=ensureSummaryPanel(),select=document.getElementById('deptFilter');if(!panel||!select)return;
- if(clean(select.value)!==GROUP_VALUE){panel.classList.remove('show');return}
- const model=localOpexModel();if(!model?.departments){panel.classList.remove('show');return}
- const rows=GROUP_IDS.map(cc=>({cc,department:model.departments?.[cc]})).filter(x=>x.department).map(x=>({...x,...departmentYtd(x.department)}));
- if(!rows.length){panel.classList.remove('show');return}
- let totalBudget=0,totalActual=0;rows.forEach(x=>{totalBudget+=x.budget;totalActual+=x.actual});
- const body=document.getElementById('rdGroupYtdBody');body.innerHTML=rows.map(x=>`<tr><td><b>${clean(x.department?.name||GROUP_NAMES[x.cc]||x.cc)}</b><small>${x.cc}</small></td><td class="budget">${money(x.budget)}</td><td class="actual">${money(x.actual)}</td></tr>`).join('')+`<tr class="rd-total"><td>TOTAL</td><td>${money(totalBudget)}</td><td>${money(totalActual)}</td></tr>`;
- const {from,to}=selectedRange(),period=document.getElementById('rdGroupYtdPeriod');if(period)period.textContent=`${from} → ${to}`;
- panel.classList.add('show')
-}
-function bindGroupYtdSummary(){
- ensureSummaryPanel();const select=document.getElementById('deptFilter'),from=document.getElementById('dateFrom'),to=document.getElementById('dateTo');
- if(select&&!select.dataset.rdYtdBound){select.dataset.rdYtdBound='1';select.addEventListener('change',()=>setTimeout(renderGroupYtdSummary,20))}
- if(from&&!from.dataset.rdYtdBound){from.dataset.rdYtdBound='1';from.addEventListener('change',()=>setTimeout(renderGroupYtdSummary,20))}
- if(to&&!to.dataset.rdYtdBound){to.dataset.rdYtdBound='1';to.addEventListener('change',()=>setTimeout(renderGroupYtdSummary,20))}
- ['dad-opex-cloud-ready','dad-opex-refresh-departments','dad-rd-group-access-ready'].forEach(name=>window.addEventListener(name,()=>setTimeout(renderGroupYtdSummary,60)));
- setTimeout(renderGroupYtdSummary,250)
-}
-
 async function run(user){
  if(!user)return;
  try{
@@ -156,12 +91,9 @@ async function run(user){
    writeCachedProfile(fresh,user);
    window.dispatchEvent(new CustomEvent('dad-rd-group-access-ready',{detail:{departments:departmentsOf(fresh)}}));
   }
-  bindGroupYtdSummary();
  }catch(error){
   console.warn('R&D group access sync failed',error);
   try{sessionStorage.setItem('dadBudgetRdGroupSyncStatus',`error:${error.code||error.message||error}`)}catch(_){}
-  bindGroupYtdSummary();
  }
 }
 onAuthStateChanged(auth,run);
-window.addEventListener('load',()=>setTimeout(bindGroupYtdSummary,250));
