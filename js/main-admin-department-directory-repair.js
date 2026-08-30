@@ -47,3 +47,4 @@ async function repair(user,profile={}){
 window.addEventListener('dad-user-ready',e=>repair(e.detail?.user||window.DADFirebase?.auth?.currentUser,e.detail?.profile||{}).catch(err=>console.warn('Department directory repair failed',err)));
 window.addEventListener('dad-firebase-ready',()=>{const user=window.DADFirebase?.auth?.currentUser;if(user)repair(user,{}).catch(err=>console.warn('Department directory repair failed',err))});
 })();
+if(/index\.html$|\/$/i.test((location.pathname||'/').split('?')[0]))import('./rd-group-access-sync.js?v=20260830-medical-manager-1').catch(e=>console.warn('Manager access sync failed',e));
