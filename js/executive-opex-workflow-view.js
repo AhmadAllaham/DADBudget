@@ -92,7 +92,7 @@ function replaceControls(){
 }
 
 function renderBreakdown(){
- if(busy)return;const body=document.getElementById('cfoBreakdownBody');if(!body)return;
+ const body=document.getElementById('cfoBreakdownBody');if(!body)return;
  const q=clean(document.getElementById('cfoBreakdownSearch')?.value).toLowerCase(),filter=document.getElementById('cfoBreakdownFilter')?.value||'all';
  let data=consolidateProduction(enhancedRows.filter(x=>Math.abs(num(x.total27))>.005));
  data=data.filter(x=>(!hideZero||Math.abs(num(x.total27))>.005)&&(!q||`${x.cc} ${x.name}`.toLowerCase().includes(q))&&(filter==='all'||(filter==='project'&&Math.abs(num(x.project27))>.005)||(filter==='travel'&&Math.abs(num(x.travel27))>.005))).sort((a,b)=>(b.isProduction?1:0)-(a.isProduction?1:0)||num(b.total27)-num(a.total27)||clean(a.name).localeCompare(clean(b.name)));
