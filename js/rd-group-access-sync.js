@@ -27,24 +27,36 @@ async function currentProfile(user){
  return snap.exists()?snap.data()||{}:{};
 }
 async function findManarProfile(){
- const exact=await getDocs(query(collection(db,'users'),where('email','==',MANAR_EMAIL)));
- if(!exact.empty)return exact.docs[0];
- return null;
+ // Fast path first. Firestore equality is case-sensitive, so fall back to one
+ // Admin-only directory read and compare the saved email case-insensitively.
+ try{
+  const exact=await getDocs(query(collection(db,'users'),where('email','==',MANAR_EMAIL)));
+  if(!exact.empty)return exact.docs[0];
+ }catch(error){console.warn('R&D group exact email lookup failed',error)}
+ const all=await getDocs(collection(db,'users'));
+ return all.docs.find(x=>email(x.data()?.email)===MANAR_EMAIL)||null;
 }
 async function ensureManarGroupAccess(user,profile){
- const isAdmin=user.uid===MAIN_ADMIN_UID||profile?.isMainAdmin===true||profile?.role==='admin';
- if(!isAdmin)return false;
+ const isMainAdmin=user.uid===MAIN_ADMIN_UID||profile?.isMainAdmin===true;
+ if(!isMainAdmin)return false;
  const userDoc=await findManarProfile();
- if(!userDoc){console.warn('R&D group access sync: Manar profile was not found by email.');return false}
+ if(!userDoc){
+  console.warn('R&D group access sync: Manar profile was not found.');
+  try{sessionStorage.setItem('dadBudgetRdGroupSyncStatus','profile-not-found')}catch(_){}
+  return false;
+ }
  const data=userDoc.data()||{},current=departmentsOf(data),merged=[...new Set([...current,...GROUP_IDS])];
- if(GROUP_IDS.every(cc=>current.includes(cc)))return true;
  await setDoc(doc(db,'users',userDoc.id),{
+  email:email(data.email)||MANAR_EMAIL,
+  department:clean(data.department)||merged[0]||GROUP_IDS[0],
   departments:merged,
   rdAnalyticalPackagingGroup:true,
+  rdGroupFundCenters:GROUP_IDS,
   rdGroupUpdatedAt:serverTimestamp(),
   rdGroupUpdatedBy:user.uid
  },{merge:true});
- console.info('R&D group access synced for Manar:',GROUP_IDS.join(', '));
+ try{sessionStorage.setItem('dadBudgetRdGroupSyncStatus',`ok:${merged.join(',')}`)}catch(_){}
+ console.info('R&D group access synced for Manar:',merged.join(', '));
  return true;
 }
 async function run(user){
@@ -59,6 +71,9 @@ async function run(user){
    writeCachedProfile(fresh,user);
    window.dispatchEvent(new CustomEvent('dad-rd-group-access-ready',{detail:{departments:departmentsOf(fresh)}}));
   }
- }catch(error){console.warn('R&D group access sync skipped',error)}
+ }catch(error){
+  console.warn('R&D group access sync failed',error);
+  try{sessionStorage.setItem('dadBudgetRdGroupSyncStatus',`error:${error.code||error.message||error}`)}catch(_){}
+ }
 }
 onAuthStateChanged(auth,run);
