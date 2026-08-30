@@ -3,16 +3,24 @@ import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/
 import { getFirestore, collection, doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 
 const app=getApps()[0],auth=getAuth(app),db=getFirestore(app);
+const MANAR_EMAIL='manar.alasaad@dadgroup.com',MEDICAL_CC='1000200105';
 const $=id=>document.getElementById(id),clean=v=>String(v??'').trim();
 let profile=null,rows=[];
 async function notifyBudgetUsers({emails=[],cc='',name='',status='',note='',revision=0}={}){const user=auth.currentUser,fromEmail=clean(user?.email).toLowerCase(),targets=[...new Set(emails.map(x=>clean(x).toLowerCase()).filter(x=>x&&x.includes('@')&&x!==fromEmail))],label=status==='manager_approved'?'Approved by Manager':'Returned by Manager';await Promise.all(targets.map(toEmail=>{const ref=doc(collection(db,'messages'));return setDoc(ref,{kind:'notification',notificationType:'budget_workflow',status,department:cc,departmentName:name||cc,fromUid:user.uid,fromEmail,toEmail,subject:`Budget 2027 · ${label}`,body:`${name||cc} (${cc}) · ${label}${note?`\n${note}`:''}`,note,revision:Number(revision||0),targetUrl:`opex.html?department=${encodeURIComponent(cc)}`,read:false,createdAt:serverTimestamp(),clientCreatedAt:new Date().toISOString()})}))}
 
+function assignedIds(){
+  const ids=(Array.isArray(profile?.departments)?profile.departments:(profile?.department?[profile.department]:[])).map(String).filter(x=>x&&x!=='ALL');
+  if(clean(auth.currentUser?.email||profile?.email).toLowerCase()===MANAR_EMAIL&&!ids.includes(MEDICAL_CC))ids.push(MEDICAL_CC);
+  return [...new Set(ids)];
+}
 async function readAssigned(ids){
   const out=[];
   await Promise.all(ids.map(async cc=>{
-    const s=await getDoc(doc(db,'opex_budget_submissions',cc));
-    if(!s.exists())return;
-    out.push({cc,...s.data(),upload:s.data()});
+    try{
+      const s=await getDoc(doc(db,'opex_budget_submissions',cc));
+      if(!s.exists())return;
+      out.push({cc,...s.data(),upload:s.data()});
+    }catch(error){console.warn('Approval read skipped',cc,error.code||error.message)}
   }));
   return out;
 }
@@ -29,7 +37,7 @@ function render(){
 
 async function load(){
   try{
-    const ids=(profile?.departments||[]).map(String).filter(x=>x&&x!=='ALL');
+    const ids=assignedIds();
     $('body').innerHTML='<tr><td colspan="7" class="empty">Loading assigned departments...</td></tr>';
     rows=(await readAssigned(ids)).filter(r=>['pending_manager','manager_approved','manager_returned'].includes(workflowOf(r)));
     render();
@@ -40,9 +48,9 @@ async function decide(tr,action,btn){
   const cc=tr.dataset.cc,note=tr.querySelector('[data-note]').value.trim(),user=auth.currentUser,r=rows.find(x=>x.cc===cc)||{};
   try{
     btn.disabled=true;
-    const approved=action==='approve';
+    const approved=action==='approve',next=approved?'manager_approved':'manager_returned';
     await setDoc(doc(db,'opex_budget_submissions',cc),{
-      workflowStatus:approved?'manager_approved':'manager_returned',
+      workflowStatus:next,
       managerStatus:approved?'approved':'returned',managerNote:note,
       managerApprovedAt:approved?serverTimestamp():null,
       managerApprovedBy:approved?user.uid:null,
@@ -50,9 +58,10 @@ async function decide(tr,action,btn){
       managerDecisionAt:serverTimestamp(),managerDecisionBy:user.uid,
       managerDecisionEmail:clean(user.email).toLowerCase(),workflowUpdatedAt:serverTimestamp()
     },{merge:true});
-    await notifyBudgetUsers({emails:[r.submittedEmail,r.submittedByEmail],cc,name:r.departmentName||r.name||cc,status:approved?'manager_approved':'manager_returned',note,revision:r.revision||0,source:'manager'});
-    await load();
-  }catch(e){alert('Approval failed: '+e.message)}finally{btn.disabled=false}
+    await notifyBudgetUsers({emails:[r.submittedEmail,r.submittedByEmail],cc,name:r.departmentName||r.name||cc,status:next,note,revision:r.revision||0,source:'manager'});
+    rows=rows.map(x=>x.cc===cc?{...x,workflowStatus:next,managerStatus:approved?'approved':'returned',managerNote:note}:x);
+    render();
+  }catch(e){alert('Approval failed: '+(e.code||e.message||e))}finally{btn.disabled=false}
 }
 
 onAuthStateChanged(auth,async user=>{
