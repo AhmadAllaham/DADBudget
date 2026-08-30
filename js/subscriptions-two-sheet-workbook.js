@@ -3,6 +3,7 @@
 
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const CACHE_KEY='dadBudgetSubscriptionsSimpleCacheV1';
+const MIN_ITEM_ROWS_PER_ACCOUNT=30;
 const clean=v=>String(v??'').trim();
 const num=v=>{
   if(typeof v==='number'&&Number.isFinite(v))return v;
@@ -12,6 +13,7 @@ const num=v=>{
   return Number.isFinite(n)?n:0;
 };
 const monthKey=i=>`2027-${String(i+1).padStart(2,'0')}`;
+const blankMonths=()=>Object.fromEntries(MONTHS.map((_,i)=>[monthKey(i),0]));
 
 function indexOfHeader(headers,names){
   const wanted=(Array.isArray(names)?names:[names]).map(x=>clean(x).toLowerCase());
@@ -32,41 +34,49 @@ function sourceRowMap(headers,row){
     cc:clean(get('Fund Center')),
     departmentName:clean(get('Department')),
     gl:clean(get('G/L Account')),
-    accountName:clean(get('Subscription Account')),
-    details:clean(get(['Item Details / شرح البند','Details','Item Details','شرح البند'])),
-    landing:num(get('Landing')),
-    months:Object.fromEntries(MONTHS.map((m,i)=>[monthKey(i),num(get(m))]))
+    accountName:clean(get('Subscription Account'))
   };
 }
 function buildBudgetRows(sourceHeaders,sourceRows,cc){
   const source=sourceRows.map(r=>sourceRowMap(sourceHeaders,r)).filter(r=>r.cc&&r.gl);
-  const sourceByGl=new Map(source.map(r=>[r.gl,r]));
   const plan=readCachedPlan(cc);
   const planRows=Array.isArray(plan?.rows)?plan.rows:[];
-  const rows=[];
+  const accounts=new Map();
 
+  source.forEach(r=>{
+    if(!accounts.has(r.gl))accounts.set(r.gl,{cc:r.cc||cc,departmentName:r.departmentName,gl:r.gl,accountName:r.accountName||r.gl});
+  });
   planRows.forEach(r=>{
-    const gl=clean(r?.gl);
-    if(!gl)return;
-    const base=sourceByGl.get(gl)||{};
-    const months=Object.fromEntries(MONTHS.map((_,i)=>[monthKey(i),num(r?.newBudgetByMonth?.[monthKey(i)])]));
-    rows.push({
-      cc:clean(r?.cc||cc||base.cc),
-      departmentName:clean(r?.departmentName||base.departmentName),
+    const gl=clean(r?.gl);if(!gl)return;
+    const old=accounts.get(gl)||{};
+    accounts.set(gl,{
+      cc:clean(r?.cc||old.cc||cc),
+      departmentName:clean(r?.departmentName||old.departmentName),
       gl,
-      accountName:clean(r?.accountName||base.accountName||gl),
-      details:clean(r?.details),
-      landing:num(r?.landing),
-      months
+      accountName:clean(r?.accountName||old.accountName||gl)
     });
   });
+  if(!accounts.size){
+    accounts.set('6140006',{cc,departmentName:'',gl:'6140006',accountName:'Subscriptions, Books and Magazines'});
+  }
 
-  const represented=new Set(rows.map(r=>r.gl));
-  source.forEach(r=>{
-    if(represented.has(r.gl))return;
-    rows.push({...r,details:r.details||'',months:{...r.months}});
+  const rows=[];
+  accounts.forEach(base=>{
+    const saved=planRows.filter(r=>clean(r?.gl)===base.gl);
+    saved.forEach(r=>{
+      rows.push({
+        ...base,
+        details:clean(r?.details),
+        landing:num(r?.landing),
+        months:Object.fromEntries(MONTHS.map((_,i)=>[monthKey(i),num(r?.newBudgetByMonth?.[monthKey(i)])]))
+      });
+    });
+    const current=saved.length;
+    const blankCount=Math.max(0,MIN_ITEM_ROWS_PER_ACCOUNT-current);
+    for(let i=0;i<blankCount;i++){
+      rows.push({...base,details:'',landing:0,months:blankMonths()});
+    }
   });
-
   return rows;
 }
 function makeBudgetSheet(sourceHeaders,sourceRows,cc){
