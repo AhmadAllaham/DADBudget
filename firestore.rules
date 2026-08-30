@@ -437,12 +437,16 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isSignedIn()
                    && (
+                     (document == 'central_opex_reference_fy2026'
+                      && isMainAdmin())
+                     ||
                      ((document == 'utilities_budget_fy2027'
                        || document == 'maintenance_budget_fy2027')
                       && (isMainAdmin() || isEngineeringPlanner())
                       && request.resource.data.sourceCc == '1000100301')
                      ||
                      ((!document.matches('subscription_budget_.*'))
+                      && document != 'central_opex_reference_fy2026'
                       && document != 'utilities_budget_fy2027'
                       && document != 'maintenance_budget_fy2027')
                      ||
