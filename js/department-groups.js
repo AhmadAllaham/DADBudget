@@ -24,8 +24,12 @@
       if(group.adminOnly)return false;
       if(!group.allowedEmails)return true;
       const emailAllowed=group.allowedEmails.map(x=>String(x).toLowerCase()).includes(email);
-      const fullGroupAssigned=group.ids.every(cc=>assigned.includes(cc));
-      return emailAllowed||fullGroupAssigned;
+      const anyGroupAssigned=group.ids.some(cc=>assigned.includes(cc));
+      return emailAllowed||anyGroupAssigned;
+    }).map(group=>{
+      if(admin||!group.allowedEmails)return group;
+      const scoped=group.ids.filter(cc=>assigned.includes(cc));
+      return scoped.length?{...group,ids:scoped}:group;
     });
   }
   function bindSearch(select,input){
