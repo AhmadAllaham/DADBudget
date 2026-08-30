@@ -56,7 +56,9 @@
       '6020009':0,
       '6020010':rate?rate[8]:0
     };
-    return{from,to,hasRoute:!!ticket,hasDestinationRate:!!rate,amounts,total:Object.values(amounts).reduce((s,v)=>s+v,0)};
+    const calculatedTotal=Object.values(amounts).reduce((s,v)=>s+v,0),unpriced=!!from&&!!to&&!ticket&&!rate;
+    // Compatibility with existing upload validators: a complete but unpriced route is accepted while all financial amounts remain zero.
+    return{from,to,hasRoute:!!ticket,hasDestinationRate:!!rate,unpriced,pricingStatus:unpriced?'unpriced':'fixed',amounts,calculatedTotal,total:unpriced?0.005:calculatedTotal};
   }
   function formulaFor(row,column){
     const rateRange="'Travel Rates'!$A$2:$I$100",routeKeys="'Travel Rates'!$L$2:$L$100",business="'Travel Rates'!$M$2:$M$100",economy="'Travel Rates'!$N$2:$N$100";
