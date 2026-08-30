@@ -29,6 +29,7 @@
     if(href.includes('opex-summary'))return'opex_summary';
     if(href.includes('training-expense'))return'training';
     if(href.includes('travel-budget'))return'travel';
+    if(href.includes('hr-salaries'))return'hr';
     if(href.includes('hr-budget'))return'hr';
     if(href.includes('ap-budget'))return'ap';
     if(href.includes('opex'))return'opex_detail';
@@ -82,6 +83,8 @@
     if(nav&&!nav.querySelector('.hr-subnav')){
       const headcount=nav.querySelector('a[href="hr-budget.html"]')||document.createElement('a'),parent=document.createElement('a'),subnav=document.createElement('div'),capex=nav.querySelector('a[href="capex.html"]');headcount.href='hr-budget.html';headcount.textContent='Headcount';parent.href='#';parent.textContent='HR Planning';subnav.className='hr-subnav';subnav.appendChild(headcount);if(capex){nav.insertBefore(parent,capex);nav.insertBefore(subnav,capex)}else nav.append(parent,subnav)
     }
+    const globalHrSub=side.querySelector('.hr-subnav');
+    if(globalHrSub&&!globalHrSub.querySelector('a[href="hr-salaries.html"]')){const salaries=document.createElement('a');salaries.href='hr-salaries.html';salaries.textContent='Salaries Budget';globalHrSub.appendChild(salaries)}
     const sub=side.querySelector('.opex-subnav');
     if(sub){
       const parent=sub.previousElementSibling;
@@ -104,7 +107,7 @@
       if(parent&&parent.tagName==='A'){
         parent.href='#';parent.classList.add('hr-parent-toggle');
         if(!parent.querySelector('.hr-nav-caret')){const c=document.createElement('span');c.className='hr-nav-caret';c.textContent='▾';parent.appendChild(c)}
-        const path=(location.pathname.split('/').pop()||'').toLowerCase(),hrPage=path==='hr-budget.html',stored=localStorage.getItem('dadBudgetHRNavOpen'),open=stored===null?hrPage:stored==='true';
+        const path=(location.pathname.split('/').pop()||'').toLowerCase(),hrPage=['hr-budget.html','hr-salaries.html'].includes(path),stored=localStorage.getItem('dadBudgetHRNavOpen'),open=stored===null?hrPage:stored==='true';
         hrSub.classList.toggle('hr-subnav-open',open);parent.classList.toggle('hr-parent-open',open);
         parent.addEventListener('click',e=>{e.preventDefault();const next=!hrSub.classList.contains('hr-subnav-open');hrSub.classList.toggle('hr-subnav-open',next);parent.classList.toggle('hr-parent-open',next);localStorage.setItem('dadBudgetHRNavOpen',next?'true':'false')});
         const st=document.createElement('style');st.textContent='.hr-parent-toggle{display:flex!important;align-items:center;justify-content:space-between}.hr-nav-caret{font-size:10px;transition:transform .18s ease}.hr-parent-open .hr-nav-caret{transform:rotate(180deg)}.hr-subnav{display:none!important;margin:-3px 10px 6px 22px;padding-left:10px;border-left:1px solid rgba(255,255,255,.18)}.hr-subnav.hr-subnav-open{display:block!important}.hr-subnav a{display:block;padding:8px 10px;margin:2px 0;font-size:12px;border-radius:7px;color:rgba(255,255,255,.76)}';document.head.appendChild(st);
