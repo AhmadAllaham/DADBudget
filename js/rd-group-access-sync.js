@@ -6,6 +6,8 @@ const firebaseConfig={apiKey:'AIzaSyDAMLbm1ngqtzKjnDp6AMz8ucyhqNSnfBY',authDomai
 const MAIN_ADMIN_UID='PST3chwdZmaQGeG25t4ym9Vlixe2';
 const MANAR_EMAIL='manar.alasaad@dadgroup.com';
 const GROUP_IDS=['1000401101','1000401105','1000401106'];
+const MEDICAL_CC='1000200105',MEDICAL_NAME='Medical Department';
+const MANAGED_IDS=[...GROUP_IDS,MEDICAL_CC];
 const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);
 const auth=getAuth(app),db=getFirestore(app);
 const clean=v=>String(v??'').trim();
@@ -36,39 +38,50 @@ async function findManarProfile(){
  try{
   const exact=await getDocs(query(collection(db,'users'),where('email','==',MANAR_EMAIL)));
   if(!exact.empty)return exact.docs[0];
- }catch(error){console.warn('R&D group exact email lookup failed',error)}
+ }catch(error){console.warn('Manar exact email lookup failed',error)}
  const rememberedUid=localManarUid();
  if(rememberedUid){
-  try{const remembered=await getDoc(doc(db,'users',rememberedUid));if(remembered.exists())return remembered}catch(error){console.warn('R&D group saved UID lookup failed',error)}
+  try{const remembered=await getDoc(doc(db,'users',rememberedUid));if(remembered.exists())return remembered}catch(error){console.warn('Manar saved UID lookup failed',error)}
  }
- const all=await getDocs(collection(db,'users'));
- const byEmail=all.docs.find(x=>email(x.data()?.email)===MANAR_EMAIL);
- if(byEmail)return byEmail;
- const candidates=all.docs.filter(x=>{
-  const deps=departmentsOf(x.data()||{});
-  return deps.includes('1000401101')&&deps.includes('1000401105');
- });
- return candidates.length===1?candidates[0]:null;
+ return null;
+}
+async function syncMedicalApprovalRoute(adminUser,userDoc){
+ const managerUid=userDoc.id,assignment={fundCenter:MEDICAL_CC,departmentName:MEDICAL_NAME,managerUid,managerEmail:MANAR_EMAIL,managerAssignedClientAt:new Date().toISOString()};
+ await setDoc(doc(db,'budget_submission_status',MEDICAL_CC),{...assignment,managerStatus:'assigned'},{merge:true});
+ const ref=doc(db,'opex_budget_submissions',MEDICAL_CC),snap=await getDoc(ref);
+ if(!snap.exists())return;
+ const current=snap.data()||{},workflow=clean(current.workflowStatus||current.status).toLowerCase(),hasUpload=!!clean(current.payload)||!!clean(current.fileName);
+ const update={...assignment,workflowUpdatedAt:serverTimestamp()};
+ if(workflow==='uploaded'&&hasUpload){
+  update.workflowStatus='pending_manager';
+  update.status='pending_manager';
+  update.financeStatus='waiting_manager';
+  update.managerStatus='pending';
+ }
+ await setDoc(ref,update,{merge:true});
+ console.info('Medical approval route synchronized for Manar:',managerUid,workflow||'no-status');
 }
 async function ensureManarGroupAccess(user,profile){
  const isMainAdmin=user.uid===MAIN_ADMIN_UID||profile?.isMainAdmin===true;
  if(!isMainAdmin)return false;
  const userDoc=await findManarProfile();
  if(!userDoc){
-  console.warn('R&D group access sync: Manar profile was not uniquely found.');
+  console.warn('Manar access sync: profile was not found by exact email or saved UID.');
   try{sessionStorage.setItem('dadBudgetRdGroupSyncStatus','profile-not-found')}catch(_){}
   return false;
  }
- const data=userDoc.data()||{},current=departmentsOf(data),merged=[...new Set([...current,...GROUP_IDS])];
+ const data=userDoc.data()||{},current=departmentsOf(data),merged=[...new Set([...current,...MANAGED_IDS])];
  await setDoc(doc(db,'users',userDoc.id),{
   email:email(data.email)||MANAR_EMAIL,
   department:clean(data.department)||merged[0]||GROUP_IDS[0],
   departments:merged,
   rdAnalyticalPackagingGroup:true,
   rdGroupFundCenters:GROUP_IDS,
+  medicalApprovalFundCenter:MEDICAL_CC,
   rdGroupUpdatedAt:serverTimestamp(),
   rdGroupUpdatedBy:user.uid
  },{merge:true});
+ await syncMedicalApprovalRoute(user,userDoc);
  try{
   const rows=JSON.parse(localStorage.getItem('dadBudgetUserProfiles')||'[]')||[],i=rows.findIndex(x=>x.uid===userDoc.id||email(x.email)===MANAR_EMAIL);
   const patched={...(i>=0?rows[i]:{}),uid:userDoc.id,email:MANAR_EMAIL,departments:merged,department:clean(data.department)||merged[0]};
@@ -76,7 +89,7 @@ async function ensureManarGroupAccess(user,profile){
   localStorage.setItem('dadBudgetUserProfiles',JSON.stringify(rows));
   sessionStorage.setItem('dadBudgetRdGroupSyncStatus',`ok:${userDoc.id}:${merged.join(',')}`);
  }catch(_){}
- console.info('R&D group access synced for Manar:',userDoc.id,merged.join(', '));
+ console.info('R&D / Medical access synced for Manar:',userDoc.id,merged.join(', '));
  return true;
 }
 async function run(user){
@@ -92,7 +105,7 @@ async function run(user){
    window.dispatchEvent(new CustomEvent('dad-rd-group-access-ready',{detail:{departments:departmentsOf(fresh)}}));
   }
  }catch(error){
-  console.warn('R&D group access sync failed',error);
+  console.warn('R&D / Medical access sync failed',error);
   try{sessionStorage.setItem('dadBudgetRdGroupSyncStatus',`error:${error.code||error.message||error}`)}catch(_){}
  }
 }
