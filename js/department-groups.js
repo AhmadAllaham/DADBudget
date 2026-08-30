@@ -67,6 +67,15 @@
 
 (function(){
   if(!/opex\.html$/i.test((location.pathname||'').split('?')[0]))return;
+  const subnav=document.querySelector('.opex-subnav');
+  if(subnav&&!subnav.querySelector('a[href="subscriptions.html"]')){
+    const a=document.createElement('a');a.href='subscriptions.html';a.textContent='Subscriptions';
+    const travel=[...subnav.querySelectorAll('a')].find(x=>/travel/i.test(String(x.textContent||'')));
+    travel?travel.insertAdjacentElement('afterend',a):subnav.appendChild(a)
+  }
+  if(!document.querySelector('script[data-subscriptions-opex-bridge]')){
+    const bridge=document.createElement('script');bridge.type='module';bridge.src='js/subscriptions-opex-bridge.js?v=20260830-subscriptions-1';bridge.dataset.subscriptionsOpexBridge='1';document.head.appendChild(bridge)
+  }
   if(!document.querySelector('script[data-rd-group-access-sync]')){
     const access=document.createElement('script');access.type='module';access.src='js/rd-group-access-sync.js?v=20260830-rd-group-3';access.dataset.rdGroupAccessSync='1';document.head.appendChild(access)
   }
