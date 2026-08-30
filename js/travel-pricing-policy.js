@@ -1,7 +1,19 @@
 (function(){
   const USD_TO_JD=0.709;
   const norm=value=>String(value??'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
-  const aliases={KSA:'Saudi Arabia',SAUDIARABIA:'Saudi Arabia',UAE:'United Arab Emirates',UNITEDARABEMIRATES:'United Arab Emirates',ENGLAND:'United Kingdom',UNITEDKINGDOM:'United Kingdom',PHILIPPINE:'Philippines',PHILIPPINES:'Philippines',SPHI:'SPHI'};
+  const aliases={
+    KSA:'Saudi Arabia',SAUDIARABIA:'Saudi Arabia',RIYADH:'Saudi Arabia',JEDDAH:'Saudi Arabia',DAMMAM:'Saudi Arabia',KHOBAR:'Saudi Arabia',ALKHOBAR:'Saudi Arabia',
+    UAE:'United Arab Emirates',UNITEDARABEMIRATES:'United Arab Emirates',DUBAI:'United Arab Emirates',ABUDHABI:'United Arab Emirates',SHARJAH:'United Arab Emirates',
+    ENGLAND:'United Kingdom',UNITEDKINGDOM:'United Kingdom',LONDON:'United Kingdom',
+    PHILIPPINE:'Philippines',PHILIPPINES:'Philippines',MANILA:'Philippines',
+    SPHI:'SPHI',
+    AMMAN:'Jordan',AQABA:'Jordan',IRBID:'Jordan',ZARQA:'Jordan',MADABA:'Jordan',SALT:'Jordan',ALSALT:'Jordan',JERASH:'Jordan',KARAK:'Jordan',ALKARAK:'Jordan',MAAN:'Jordan',AJLOUN:'Jordan',TAFILA:'Jordan',JORDAN:'Jordan',
+    ALGIERS:'Algeria',ALGERIA:'Algeria',DOHA:'Qatar',QATAR:'Qatar',MUSCAT:'Oman',OMAN:'Oman',KUWAITCITY:'Kuwait',KUWAIT:'Kuwait',MANAMA:'Bahrain',BAHRAIN:'Bahrain',
+    BAGHDAD:'Iraq',ERBIL:'Iraq',IRAQ:'Iraq',BEIRUT:'Lebanon',LEBANON:'Lebanon',CAIRO:'Egypt',EGYPT:'Egypt',ISTANBUL:'Turkey',ANKARA:'Turkey',TURKEY:'Turkey',
+    CASABLANCA:'Morocco',RABAT:'Morocco',MOROCCO:'Morocco',TUNIS:'Tunisia',TUNISIA:'Tunisia',TRIPOLI:'Libya',LIBYA:'Libya',
+    ROME:'Italy',MILAN:'Italy',ITALY:'Italy',BUCHAREST:'Romania',ROMANIA:'Romania',DUBLIN:'Ireland',IRELAND:'Ireland',
+    DELHI:'India',NEWDELHI:'India',MUMBAI:'India',INDIA:'India',BERLIN:'Germany',FRANKFURT:'Germany',MUNICH:'Germany',GERMANY:'Germany'
+  };
   const country=value=>aliases[norm(value)]||String(value??'').trim();
   const jd=value=>Math.round((Number(value)||0)*USD_TO_JD);
   const sourceRates=[
@@ -71,4 +83,3 @@
   }
   window.DADTravelPricing={USD_TO_JD,countries,rates,tickets,country,quote,configureExcelJs};
 })();
-
