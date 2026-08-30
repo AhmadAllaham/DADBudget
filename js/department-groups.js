@@ -74,7 +74,7 @@
     travel?travel.insertAdjacentElement('afterend',a):subnav.appendChild(a)
   }
   if(!document.querySelector('script[data-subscriptions-opex-bridge]')){
-    const bridge=document.createElement('script');bridge.type='module';bridge.src='js/subscriptions-opex-bridge.js?v=20260830-subscriptions-1';bridge.dataset.subscriptionsOpexBridge='1';document.head.appendChild(bridge)
+    const bridge=document.createElement('script');bridge.type='module';bridge.src='js/subscriptions-opex-bridge.js?v=20260830-subscriptions-2';bridge.dataset.subscriptionsOpexBridge='1';document.head.appendChild(bridge)
   }
   if(!document.querySelector('script[data-rd-group-access-sync]')){
     const access=document.createElement('script');access.type='module';access.src='js/rd-group-access-sync.js?v=20260830-rd-group-3';access.dataset.rdGroupAccessSync='1';document.head.appendChild(access)
