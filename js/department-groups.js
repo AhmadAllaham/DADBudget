@@ -9,7 +9,7 @@
   ];
   const groups={
     PRODUCTION:{key:'PRODUCTION',value:'GROUP:PRODUCTION',label:'Production',ids:productionIds,adminOnly:true},
-    RD_ANALYTICAL:{key:'RD_ANALYTICAL',value:'GROUP:RD_ANALYTICAL',label:'R&D + Analytical Research',ids:['1000401101','1000401105'],allowedEmails:['manar.alasaad@dadgroup.com']}
+    RD_ANALYTICAL:{key:'RD_ANALYTICAL',value:'GROUP:RD_ANALYTICAL',label:'R&D + Analytical + Packaging Development',ids:['1000401101','1000401105','1000401106'],allowedEmails:['manar.alasaad@dadgroup.com']}
   };
   const byValue=Object.fromEntries(Object.values(groups).map(group=>[group.value,group]));
   const groupFor=value=>byValue[String(value||'').trim()]||null;
