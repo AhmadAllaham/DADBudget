@@ -19,11 +19,14 @@
   const userEmail=profile=>String(profile?.email||cachedProfile()?.email||window.DADFirebase?.auth?.currentUser?.email||'').trim().toLowerCase();
   function visibleGroups(profile=cachedProfile()){
     const admin=profile?.isMainAdmin===true||profile?.role==='admin',email=userEmail(profile),assigned=Array.isArray(profile?.departments)?profile.departments.map(x=>String(x||'').trim()):(profile?.department?[String(profile.department).trim()]:[]);
-    return Object.values(groups).filter(group=>admin||(!group.adminOnly&&(!group.allowedEmails||group.allowedEmails.map(x=>String(x).toLowerCase()).includes(email)))).map(group=>{
-      if(admin||!group.allowedEmails)return group;
-      const present=group.ids.filter(cc=>assigned.includes(cc));
-      return present.length?{...group,ids:present}:group;
-    })
+    return Object.values(groups).filter(group=>{
+      if(admin)return true;
+      if(group.adminOnly)return false;
+      if(!group.allowedEmails)return true;
+      const emailAllowed=group.allowedEmails.map(x=>String(x).toLowerCase()).includes(email);
+      const fullGroupAssigned=group.ids.every(cc=>assigned.includes(cc));
+      return emailAllowed||fullGroupAssigned;
+    });
   }
   function bindSearch(select,input){
     if(!select||!input||input.dataset.departmentSearchBound==='1')return;
@@ -61,7 +64,7 @@
 (function(){
   if(!/opex\.html$/i.test((location.pathname||'').split('?')[0]))return;
   if(!document.querySelector('script[data-rd-group-access-sync]')){
-    const access=document.createElement('script');access.type='module';access.src='js/rd-group-access-sync.js?v=20260830-rd-group-2';access.dataset.rdGroupAccessSync='1';document.head.appendChild(access)
+    const access=document.createElement('script');access.type='module';access.src='js/rd-group-access-sync.js?v=20260830-rd-group-3';access.dataset.rdGroupAccessSync='1';document.head.appendChild(access)
   }
   if(document.querySelector('script[data-hr-salary-opex-sync]'))return;
   const script=document.createElement('script');script.type='module';script.src='js/hr-salary-opex-sync.js?v=20260824-hr-salary-2';script.dataset.hrSalaryOpexSync='1';document.head.appendChild(script);
