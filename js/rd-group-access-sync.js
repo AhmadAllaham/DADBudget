@@ -22,26 +22,42 @@ function writeCachedProfile(profile,user){
   localStorage.setItem('dadBudgetCurrentProfile',JSON.stringify({...cached,...profile,uid:user.uid,email:email(profile.email||user.email)}));
  }catch(_){}
 }
+function localManarUid(){
+ try{
+  const rows=JSON.parse(localStorage.getItem('dadBudgetUserProfiles')||'[]')||[];
+  return clean(rows.find(x=>email(x?.email)===MANAR_EMAIL)?.uid);
+ }catch(_){return''}
+}
 async function currentProfile(user){
  const snap=await getDoc(doc(db,'users',user.uid));
  return snap.exists()?snap.data()||{}:{};
 }
 async function findManarProfile(){
- // Fast path first. Firestore equality is case-sensitive, so fall back to one
- // Admin-only directory read and compare the saved email case-insensitively.
  try{
   const exact=await getDocs(query(collection(db,'users'),where('email','==',MANAR_EMAIL)));
   if(!exact.empty)return exact.docs[0];
  }catch(error){console.warn('R&D group exact email lookup failed',error)}
+ const rememberedUid=localManarUid();
+ if(rememberedUid){
+  try{const remembered=await getDoc(doc(db,'users',rememberedUid));if(remembered.exists())return remembered}catch(error){console.warn('R&D group saved UID lookup failed',error)}
+ }
  const all=await getDocs(collection(db,'users'));
- return all.docs.find(x=>email(x.data()?.email)===MANAR_EMAIL)||null;
+ const byEmail=all.docs.find(x=>email(x.data()?.email)===MANAR_EMAIL);
+ if(byEmail)return byEmail;
+ // Last safe fallback: locate the R&D/Analytical user only when the profile is
+ // uniquely identifiable by having both legacy Fund Centers already assigned.
+ const candidates=all.docs.filter(x=>{
+  const deps=departmentsOf(x.data()||{});
+  return deps.includes('1000401101')&&deps.includes('1000401105');
+ });
+ return candidates.length===1?candidates[0]:null;
 }
 async function ensureManarGroupAccess(user,profile){
  const isMainAdmin=user.uid===MAIN_ADMIN_UID||profile?.isMainAdmin===true;
  if(!isMainAdmin)return false;
  const userDoc=await findManarProfile();
  if(!userDoc){
-  console.warn('R&D group access sync: Manar profile was not found.');
+  console.warn('R&D group access sync: Manar profile was not uniquely found.');
   try{sessionStorage.setItem('dadBudgetRdGroupSyncStatus','profile-not-found')}catch(_){}
   return false;
  }
@@ -55,8 +71,14 @@ async function ensureManarGroupAccess(user,profile){
   rdGroupUpdatedAt:serverTimestamp(),
   rdGroupUpdatedBy:user.uid
  },{merge:true});
- try{sessionStorage.setItem('dadBudgetRdGroupSyncStatus',`ok:${merged.join(',')}`)}catch(_){}
- console.info('R&D group access synced for Manar:',merged.join(', '));
+ try{
+  const rows=JSON.parse(localStorage.getItem('dadBudgetUserProfiles')||'[]')||[],i=rows.findIndex(x=>x.uid===userDoc.id||email(x.email)===MANAR_EMAIL);
+  const patched={...(i>=0?rows[i]:{}),uid:userDoc.id,email:MANAR_EMAIL,departments:merged,department:clean(data.department)||merged[0]};
+  if(i>=0)rows[i]=patched;else rows.push(patched);
+  localStorage.setItem('dadBudgetUserProfiles',JSON.stringify(rows));
+  sessionStorage.setItem('dadBudgetRdGroupSyncStatus',`ok:${userDoc.id}:${merged.join(',')}`);
+ }catch(_){}
+ console.info('R&D group access synced for Manar:',userDoc.id,merged.join(', '));
  return true;
 }
 async function run(user){
