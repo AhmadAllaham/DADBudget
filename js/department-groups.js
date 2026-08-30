@@ -80,7 +80,7 @@
     const access=document.createElement('script');access.type='module';access.src='js/rd-group-access-sync.js?v=20260830-rd-group-3';access.dataset.rdGroupAccessSync='1';document.head.appendChild(access)
   }
   if(document.querySelector('script[data-hr-salary-opex-sync]'))return;
-  const script=document.createElement('script');script.type='module';script.src='js/hr-salary-opex-sync.js?v=20260824-hr-salary-2';script.dataset.hrSalaryOpexSync='1';document.head.appendChild(script);
+  const script=document.createElement('script');script.type='module';script.src='js/hr-salary-opex-sync.js?v=20260830-hr-salary-cache-1';script.dataset.hrSalaryOpexSync='1';document.head.appendChild(script);
 })();
 
 (function(){
