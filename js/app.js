@@ -24,6 +24,7 @@
     if(href.includes('user-settings'))return'admin_only';
     if(href.includes('data-admin'))return'main_admin';
     if(href.includes('ims-sales'))return'ims';
+    if(href.includes('subscriptions'))return'subscriptions';
     if(href.includes('it-planning')||href.includes('projects')||label==='projects')return'capex_it';
     if(href.includes('capex'))return'capex';
     if(href.includes('opex-summary'))return'opex_summary';
@@ -40,7 +41,7 @@
   }
   function applyCachedAccess(){
     const p=currentProfile();if(!p)return;
-    const isAdmin=p.isMainAdmin===true||p.role==='admin',mainAdmin=p.isMainAdmin===true,mods=new Set(Array.isArray(p.modules)?p.modules:[]),departmentAccess=(Array.isArray(p.departments)?p.departments:[p.department]).some(x=>x&&x!=='ALL'),trainingReportViewer=String(p.email||'').trim().toLowerCase()==='nouralhuda.hasan@dadgroup.com',allowedModule=req=>mods.has(req)||(req==='training'&&trainingReportViewer)||(req==='capex'&&mods.has('capex_it'))||(req==='hr'&&(mods.has('hr_it')||departmentAccess))||(mods.has('opex')&&(req==='opex_detail'||req==='opex_summary'));
+    const isAdmin=p.isMainAdmin===true||p.role==='admin',mainAdmin=p.isMainAdmin===true,mods=new Set(Array.isArray(p.modules)?p.modules:[]),departmentAccess=(Array.isArray(p.departments)?p.departments:[p.department]).some(x=>x&&x!=='ALL'),trainingReportViewer=String(p.email||'').trim().toLowerCase()==='nouralhuda.hasan@dadgroup.com',allowedModule=req=>mods.has(req)||(req==='subscriptions'&&(mods.has('capex_it')||mods.has('opex')||mods.has('opex_detail')||departmentAccess))||(req==='training'&&trainingReportViewer)||(req==='capex'&&mods.has('capex_it'))||(req==='hr'&&(mods.has('hr_it')||departmentAccess))||(mods.has('opex')&&(req==='opex_detail'||req==='opex_summary'));
     const nav=document.querySelector('.sidebar-nav');
     if(nav){
       nav.querySelectorAll('a').forEach(a=>{const req=moduleForLink(a);if(!req)return;const allowed=req==='main_admin'?mainAdmin:req==='admin_only'?isAdmin:(isAdmin||allowedModule(req));if(allowed)a.style.removeProperty('display');else a.style.setProperty('display','none','important')});
@@ -81,6 +82,7 @@
     if(nav&&!nav.querySelector('a[href="data-admin.html"]')){const s=document.createElement('div');s.className='nav-section';s.textContent='ADMIN';const a=document.createElement('a');a.href='data-admin.html';a.textContent='Data Admin';nav.append(s,a)}
     if(nav&&!nav.querySelector('a[href="it-planning.html"]')){const capex=nav.querySelector('a[href="capex.html"]'),a=document.createElement('a');a.href='it-planning.html';a.textContent='IT Planning';if(capex)capex.after(a);else nav.appendChild(a)}
     if(nav&&!nav.querySelector('a[href="projects.html"]')){const it=nav.querySelector('a[href="it-planning.html"]'),a=document.createElement('a');a.href='projects.html';a.textContent='Projects';if(it)it.after(a);else nav.appendChild(a)}
+    if(nav&&!nav.querySelector('a[href="subscriptions.html"]')){const opexSub=nav.querySelector('.opex-subnav'),a=document.createElement('a');a.href='subscriptions.html';a.textContent='Subscriptions';if(opexSub)opexSub.appendChild(a);else{const it=nav.querySelector('a[href="it-planning.html"]'),opex=nav.querySelector('a[href="opex.html"]');(it||opex)?.after(a)}}
     if(nav&&!nav.querySelector('.hr-subnav')){
       const headcount=nav.querySelector('a[href="hr-budget.html"]')||document.createElement('a'),parent=document.createElement('a'),subnav=document.createElement('div'),capex=nav.querySelector('a[href="capex.html"]');headcount.href='hr-budget.html';headcount.textContent='Headcount';parent.href='#';parent.textContent='HR Planning';subnav.className='hr-subnav';subnav.appendChild(headcount);if(capex){nav.insertBefore(parent,capex);nav.insertBefore(subnav,capex)}else nav.append(parent,subnav)
     }
@@ -94,7 +96,7 @@
         if(!sub.querySelector('a[href="training-expense.html"]')){const training=document.createElement('a');training.href='training-expense.html';training.textContent='Training Expense';sub.append(training)}
         parent.classList.add('opex-parent-toggle');
         if(!parent.querySelector('.opex-nav-caret')){const c=document.createElement('span');c.className='opex-nav-caret';c.textContent='▾';parent.appendChild(c)}
-        const path=(location.pathname.split('/').pop()||'').toLowerCase(),opexPage=['opex.html','opex-summary.html','ap-budget.html','travel-budget.html','training-expense.html'].includes(path);
+        const path=(location.pathname.split('/').pop()||'').toLowerCase(),opexPage=['opex.html','opex-summary.html','ap-budget.html','travel-budget.html','training-expense.html','subscriptions.html'].includes(path);
         const stored=localStorage.getItem('dadBudgetOPEXNavOpen');
         const open=stored===null?opexPage:stored==='true';
         sub.classList.toggle('opex-subnav-open',open);parent.classList.toggle('opex-parent-open',open);
