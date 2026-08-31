@@ -6,6 +6,8 @@ const app=getApps()[0],auth=getAuth(app),db=getFirestore(app),MAIN='PST3chwdZmaQ
 const clean=v=>String(v??'').trim();
 function cachedProfile(){try{return JSON.parse(localStorage.getItem('dadBudgetCurrentProfile')||'null')||{}}catch(_){return{}}}
 function isAdminUser(user=auth.currentUser,profile=cachedProfile()){return !!user&&(user.uid===MAIN||profile?.isMainAdmin===true||profile?.role==='admin')}
+function profileDepartments(profile={}){const ids=Array.isArray(profile?.departments)?profile.departments:(profile?.department?[profile.department]:[]);return ids.map(clean).filter(Boolean)}
+function managerOwnsDepartment(profile,cc){return profile?.role==='manager'&&profileDepartments(profile).includes(clean(cc))}
 function currentDepartment(){const sel=document.getElementById('deptFilter'),cc=clean(sel?.value),label=clean(sel?.selectedOptions?.[0]?.textContent||''),name=label.includes('·')?clean(label.split('·').slice(1).join('·')):label||cc;return{cc,name}}
 function submitButton(){return[...document.querySelectorAll('button')].find(b=>{const t=clean(b.textContent).toLowerCase();return ['submit budget','submit','under review','sending for review...','submitting...'].includes(t)})||null}
 function suppressForAdmin(){const btn=submitButton();if(!btn||!isAdminUser())return false;btn.dataset.financeReviewWorkflow='admin-auto-approved';btn.disabled=true;btn.hidden=true;btn.style.setProperty('display','none','important');return true}
@@ -24,7 +26,7 @@ async function sendUnderReview(btn){
   if(!submissionSnap.exists()||!submissionSnap.data()?.payload)throw new Error('Upload the department workbook before submitting it.');
   const submission=submissionSnap.data()||{};
   if(clean(submission.workflowStatus)==='manager_returned'&&Number(submission.revision||0)<=Number(submission.managerReturnedRevision||0))throw new Error('The Manager returned this budget. Upload the revised workbook before submitting again.');
-  const assignment=assignmentSnap.exists()?assignmentSnap.data()||{}:{},managerUid=clean(assignment.managerUid),managerEmail=clean(assignment.managerEmail).toLowerCase(),needsManager=!!managerUid&&managerUid!==user.uid;
+  const assignment=assignmentSnap.exists()?assignmentSnap.data()||{}:{},configuredManagerUid=clean(assignment.managerUid),configuredManagerEmail=clean(assignment.managerEmail).toLowerCase(),selfManager=managerOwnsDepartment(profile,cc),managerUid=selfManager?user.uid:configuredManagerUid,managerEmail=selfManager?clean(user.email).toLowerCase():configuredManagerEmail,needsManager=!selfManager&&!!configuredManagerUid&&configuredManagerUid!==user.uid;
   const next=needsManager?'pending_manager':'under_review';
   await setDoc(doc(db,'opex_budget_submissions',cc),{fundCenter:cc,name,departmentName:name,workflowStatus:next,financeStatus:needsManager?'waiting_manager':'under_review',managerUid:managerUid||null,managerEmail:managerEmail||null,managerStatus:needsManager?'pending':'not_required',submittedBy:user.uid,submittedByEmail:clean(user.email).toLowerCase(),workflowSubmittedAt:serverTimestamp(),workflowClientSubmittedAt:new Date().toISOString(),workflowUpdatedAt:serverTimestamp()},{merge:true});
   if(needsManager)await notify(managerEmail,{cc,name,status:next});else try{await window.DADFirebase?.notifyAdminBudgetUpload({module:'OPEX',cc,departmentName:name,fileName:submission.fileName||'OPEX workbook',revision:submission.revision||0,submittedEmail:user.email})}catch(error){console.warn('Finance notification failed:',error)}
