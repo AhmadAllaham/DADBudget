@@ -95,3 +95,8 @@
   if(document.querySelector('script[data-capex-report]'))return;
   const script=document.createElement('script');script.src='js/capex-report.js?v=20260824-capex-report-1';script.dataset.capexReport='1';document.head.appendChild(script);
 })();
+
+(function(){
+  if(document.querySelector('script[data-ui-stability-pass]'))return;
+  const script=document.createElement('script');script.src='js/ui-stability-pass.js?v=20260831-stability-1';script.dataset.uiStabilityPass='1';document.head.appendChild(script);
+})();
