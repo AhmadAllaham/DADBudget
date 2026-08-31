@@ -21,10 +21,19 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
+    function isManarPlanner() {
+      return hasUserProfile()
+        && currentUserProfile().enabled != false
+        && (request.auth.token.email == 'manar.alasaad@dadgroup.com'
+            || currentUserProfile().email == 'manar.alasaad@dadgroup.com');
+    }
+
     function hasDepartment(fundCenter) {
       return hasUserProfile()
         && currentUserProfile().departments is list
         && (fundCenter in currentUserProfile().departments
+            || (isManarPlanner()
+                && fundCenter in ['1000401101', '1000401104', '1000401105', '1000401106'])
             || (fundCenter == '1000100301'
                 && '100100301' in currentUserProfile().departments));
     }

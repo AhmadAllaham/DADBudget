@@ -12,6 +12,8 @@ const checks=[
   ['Subscriptions All Departments option remains present',read('js/subscriptions-complete-filter.js').includes("out.push({value:'ALL',label:'All Departments'})")],
   ['Formulation is included in Manar department group',read('js/department-groups.js').includes("ids:['1000401101','1000401104','1000401105','1000401106']")],
   ['Formulation approval route is assigned to Manar',read('js/rd-group-access-sync.js').includes('syncApprovalRoute(user,userDoc,FORMULATION_CC,FORMULATION_NAME)')],
+  ['Manar OPEX profile always includes all four departments',read('js/opex-sync-v2.js').includes("MANAR_GROUP_IDS=['1000401101','1000401104','1000401105','1000401106']")],
+  ['Firestore grants Manar the same four-department scope',read('firestore.rules').includes("fundCenter in ['1000401101', '1000401104', '1000401105', '1000401106']")],
   ['Central comparison snapshot writes are Main Admin only',read('firestore.rules').includes("document == 'central_opex_reference_fy2026'\n                      && isMainAdmin()")],
 ];
 

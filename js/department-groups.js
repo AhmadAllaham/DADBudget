@@ -28,7 +28,7 @@
       const anyGroupAssigned=group.ids.some(cc=>assigned.includes(cc));
       return emailAllowed||anyGroupAssigned;
     }).map(group=>{
-      if(admin||!group.allowedEmails)return group;
+      if(admin||!group.allowedEmails||group.allowedEmails.map(x=>String(x).toLowerCase()).includes(email))return group;
       const scoped=group.ids.filter(cc=>assigned.includes(cc));
       return scoped.length?{...group,ids:scoped}:group;
     });
