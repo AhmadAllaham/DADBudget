@@ -100,3 +100,13 @@
   if(document.querySelector('script[data-ui-stability-pass]'))return;
   const script=document.createElement('script');script.src='js/ui-stability-pass.js?v=20260831-stability-1';script.dataset.uiStabilityPass='1';document.head.appendChild(script);
 })();
+
+(function(){
+  const page=(location.pathname.split('/').pop()||'').toLowerCase();
+  if(page==='training-expense.html'&&!document.querySelector('script[data-training-landing-enhancement]')){
+    const script=document.createElement('script');script.type='module';script.src='js/training-landing-enhancement.js?v=20260831-training-landing-1';script.dataset.trainingLandingEnhancement='1';document.head.appendChild(script)
+  }
+  if(['opex.html','opex-summary.html'].includes(page)&&!document.querySelector('script[data-training-landing-opex-bridge]')){
+    const script=document.createElement('script');script.type='module';script.src='js/training-landing-opex-bridge.js?v=20260831-training-landing-1';script.dataset.trainingLandingOpexBridge='1';document.head.appendChild(script)
+  }
+})();
