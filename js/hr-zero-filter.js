@@ -63,3 +63,8 @@ function install(){
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
 })();
+
+(function(){
+ if(document.querySelector('script[data-ui-stability-pass]'))return;
+ const script=document.createElement('script');script.src='js/ui-stability-pass.js?v=20260831-stability-1';script.dataset.uiStabilityPass='1';document.head.appendChild(script);
+})();
