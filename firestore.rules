@@ -510,6 +510,7 @@ service cloud.firestore {
     match /opex_it_allocations/{fundCenter} {
       allow read: if isMainAdmin()
                   || isExecutiveViewer()
+                  || isCapexItViewer()
                   || hasDepartment(fundCenter);
 
       allow create, update: if validItOpexAllocation(fundCenter)
