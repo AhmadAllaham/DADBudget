@@ -96,12 +96,9 @@
         if(!sub.querySelector('a[href="training-expense.html"]')){const training=document.createElement('a');training.href='training-expense.html';training.textContent='Training Expense';sub.append(training)}
         parent.classList.add('opex-parent-toggle');
         if(!parent.querySelector('.opex-nav-caret')){const c=document.createElement('span');c.className='opex-nav-caret';c.textContent='▾';parent.appendChild(c)}
-        const path=(location.pathname.split('/').pop()||'').toLowerCase(),opexPage=['opex.html','opex-summary.html','ap-budget.html','travel-budget.html','training-expense.html','subscriptions.html'].includes(path);
-        const stored=localStorage.getItem('dadBudgetOPEXNavOpen');
-        const open=stored===null?opexPage:stored==='true';
-        sub.classList.toggle('opex-subnav-open',open);parent.classList.toggle('opex-parent-open',open);
-        parent.addEventListener('click',e=>{const href=parent.getAttribute('href');if(href&&href!=='#')return;e.preventDefault();const next=!sub.classList.contains('opex-subnav-open');sub.classList.toggle('opex-subnav-open',next);parent.classList.toggle('opex-parent-open',next);localStorage.setItem('dadBudgetOPEXNavOpen',next?'true':'false')});
-        const st=document.createElement('style');st.textContent='.opex-parent-toggle{display:flex!important;align-items:center;justify-content:space-between}.opex-nav-caret{font-size:10px;transition:transform .18s ease}.opex-parent-open .opex-nav-caret{transform:rotate(180deg)}.opex-subnav{display:none!important}.opex-subnav.opex-subnav-open{display:block!important}';document.head.appendChild(st);
+        sub.classList.add('opex-subnav-open');parent.classList.add('opex-parent-open');
+        try{localStorage.removeItem('dadBudgetOPEXNavOpen')}catch(_){}
+        const st=document.createElement('style');st.textContent='.opex-parent-toggle{display:flex!important;align-items:center;justify-content:space-between}.opex-nav-caret{font-size:10px;transform:rotate(180deg)}.opex-subnav{display:block!important}';document.head.appendChild(st);
       }
     }
     const hrSub=side.querySelector('.hr-subnav');
