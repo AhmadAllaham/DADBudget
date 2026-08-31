@@ -10,6 +10,8 @@ const checks=[
   ['Finance Admin has a bounded full-read cache',read('js/opex-sync-v2.js').includes('ADMIN_VIEW_CACHE_MS=10*60*1000')],
   ['OPEX Admin filter includes All Departments',read('js/opex-sync-v2.js').includes("all.textContent='All Departments'")],
   ['Subscriptions All Departments option remains present',read('js/subscriptions-complete-filter.js').includes("out.push({value:'ALL',label:'All Departments'})")],
+  ['Formulation is included in Manar department group',read('js/department-groups.js').includes("ids:['1000401101','1000401104','1000401105','1000401106']")],
+  ['Formulation approval route is assigned to Manar',read('js/rd-group-access-sync.js').includes('syncApprovalRoute(user,userDoc,FORMULATION_CC,FORMULATION_NAME)')],
   ['Central comparison snapshot writes are Main Admin only',read('firestore.rules').includes("document == 'central_opex_reference_fy2026'\n                      && isMainAdmin()")],
 ];
 

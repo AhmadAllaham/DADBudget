@@ -7,6 +7,7 @@ window.DADCanonicalDepartmentDirectory=allDirectory;
 // department groups. The Finance/meta directory still controls which other
 // beneficiary departments are included, so this fixes names without inflating
 // the Training page beyond its intended 68 Fund Centers.
+CANONICAL['1000401104']='Formulation Department';
 const groupIds=new Set();
 Object.values(window.DADDepartmentGroups?.groups||{}).forEach(group=>(group?.ids||[]).forEach(cc=>groupIds.add(String(cc||'').trim())));
 const groupedDirectory=[...groupIds].filter(Boolean).map(cc=>({cc,name:CANONICAL[cc]||cc}));

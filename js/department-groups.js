@@ -9,12 +9,13 @@
   ];
   const groups={
     PRODUCTION:{key:'PRODUCTION',value:'GROUP:PRODUCTION',label:'Production',ids:productionIds,adminOnly:true},
-    RD_ANALYTICAL:{key:'RD_ANALYTICAL',value:'GROUP:RD_ANALYTICAL',label:'R&D + Analytical + Packaging Development',ids:['1000401101','1000401105','1000401106'],allowedEmails:['manar.alasaad@dadgroup.com']}
+    RD_ANALYTICAL:{key:'RD_ANALYTICAL',value:'GROUP:RD_ANALYTICAL',label:'R&D + Analytical + Packaging Development + Formulation',ids:['1000401101','1000401104','1000401105','1000401106'],names:{'1000401104':'Formulation Department'},allowedEmails:['manar.alasaad@dadgroup.com']}
   };
   const byValue=Object.fromEntries(Object.values(groups).map(group=>[group.value,group]));
   const groupFor=value=>byValue[String(value||'').trim()]||null;
   const idsFor=value=>groupFor(value)?.ids.slice()||[];
   const includes=(value,fundCenter)=>idsFor(value).includes(String(fundCenter||'').trim());
+  const nameFor=(fundCenter,fallback='')=>{const cc=String(fundCenter||'').trim(),group=Object.values(groups).find(item=>item.names?.[cc]);return group?.names?.[cc]||fallback||cc};
   const cachedProfile=()=>{try{return JSON.parse(localStorage.getItem('dadBudgetCurrentProfile')||'null')}catch(_){return null}};
   const userEmail=profile=>String(profile?.email||cachedProfile()?.email||window.DADFirebase?.auth?.currentUser?.email||'').trim().toLowerCase();
   function visibleGroups(profile=cachedProfile()){
@@ -50,7 +51,7 @@
     input.addEventListener('keydown',event=>{if(event.key==='Escape'){close();trigger.focus();return}if(event.key!=='Enter')return;const first=[...list.querySelectorAll('.department-combo-option')].find(item=>!item.hidden&&!item.disabled);if(!first)return;first.click();event.preventDefault()});
     select.addEventListener('change',()=>{sync();close()});document.addEventListener('click',event=>{if(!host.contains(event.target))close()});new MutationObserver(rebuild).observe(select,{childList:true,subtree:true,attributes:true,attributeFilter:['disabled']});rebuild();
   }
-  window.DADDepartmentGroups={groups,all:Object.values(groups),visibleGroups,groupFor,idsFor,includes,bindSearch};
+  window.DADDepartmentGroups={groups,all:Object.values(groups),visibleGroups,groupFor,idsFor,includes,nameFor,bindSearch};
 })();
 
 (function(){
@@ -77,7 +78,7 @@
     const bridge=document.createElement('script');bridge.type='module';bridge.src='js/subscriptions-opex-bridge.js?v=20260830-subscriptions-2';bridge.dataset.subscriptionsOpexBridge='1';document.head.appendChild(bridge)
   }
   if(!document.querySelector('script[data-rd-group-access-sync]')){
-    const access=document.createElement('script');access.type='module';access.src='js/rd-group-access-sync.js?v=20260830-rd-group-3';access.dataset.rdGroupAccessSync='1';document.head.appendChild(access)
+    const access=document.createElement('script');access.type='module';access.src='js/rd-group-access-sync.js?v=20260831-formulation-1';access.dataset.rdGroupAccessSync='1';document.head.appendChild(access)
   }
   if(document.querySelector('script[data-hr-salary-opex-sync]'))return;
   const script=document.createElement('script');script.type='module';script.src='js/hr-salary-opex-sync.js?v=20260830-hr-salary-cache-1';script.dataset.hrSalaryOpexSync='1';document.head.appendChild(script);

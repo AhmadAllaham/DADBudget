@@ -5,8 +5,8 @@ import {getFirestore,collection,query,where,getDocs,doc,getDoc,setDoc,serverTime
 const firebaseConfig={apiKey:'AIzaSyDAMLbm1ngqtzKjnDp6AMz8ucyhqNSnfBY',authDomain:'budget-8c575.firebaseapp.com',projectId:'budget-8c575',storageBucket:'budget-8c575.firebasestorage.app',messagingSenderId:'990142203884',appId:'1:990142203884:web:5c22dc2c14855528a022c9'};
 const MAIN_ADMIN_UID='PST3chwdZmaQGeG25t4ym9Vlixe2';
 const MANAR_EMAIL='manar.alasaad@dadgroup.com';
-const GROUP_IDS=['1000401101','1000401105','1000401106'];
-const MEDICAL_CC='1000200105',MEDICAL_NAME='Medical Department';
+const GROUP_IDS=['1000401101','1000401104','1000401105','1000401106'];
+const MEDICAL_CC='1000200105',MEDICAL_NAME='Medical Department',FORMULATION_CC='1000401104',FORMULATION_NAME='Formulation Department';
 const MANAGED_IDS=[...GROUP_IDS,MEDICAL_CC];
 const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);
 const auth=getAuth(app),db=getFirestore(app);
@@ -45,10 +45,10 @@ async function findManarProfile(){
  }
  return null;
 }
-async function syncMedicalApprovalRoute(adminUser,userDoc){
- const managerUid=userDoc.id,assignment={fundCenter:MEDICAL_CC,departmentName:MEDICAL_NAME,managerUid,managerEmail:MANAR_EMAIL,managerAssignedClientAt:new Date().toISOString()};
- await setDoc(doc(db,'budget_submission_status',MEDICAL_CC),{...assignment,managerStatus:'assigned'},{merge:true});
- const ref=doc(db,'opex_budget_submissions',MEDICAL_CC),snap=await getDoc(ref);
+async function syncApprovalRoute(adminUser,userDoc,fundCenter,departmentName){
+ const managerUid=userDoc.id,assignment={fundCenter,departmentName,managerUid,managerEmail:MANAR_EMAIL,managerAssignedClientAt:new Date().toISOString()};
+ await setDoc(doc(db,'budget_submission_status',fundCenter),{...assignment,managerStatus:'assigned'},{merge:true});
+ const ref=doc(db,'opex_budget_submissions',fundCenter),snap=await getDoc(ref);
  if(!snap.exists())return;
  const current=snap.data()||{},workflow=clean(current.workflowStatus||current.status).toLowerCase(),hasUpload=!!clean(current.payload)||!!clean(current.fileName);
  const update={...assignment,workflowUpdatedAt:serverTimestamp()};
@@ -59,7 +59,7 @@ async function syncMedicalApprovalRoute(adminUser,userDoc){
   update.managerStatus='pending';
  }
  await setDoc(ref,update,{merge:true});
- console.info('Medical approval route synchronized for Manar:',managerUid,workflow||'no-status');
+ console.info(`${departmentName} approval route synchronized for Manar:`,managerUid,workflow||'no-status');
 }
 async function ensureManarGroupAccess(user,profile){
  const isMainAdmin=user.uid===MAIN_ADMIN_UID||profile?.isMainAdmin===true;
@@ -76,12 +76,16 @@ async function ensureManarGroupAccess(user,profile){
   department:clean(data.department)||merged[0]||GROUP_IDS[0],
   departments:merged,
   rdAnalyticalPackagingGroup:true,
+  formulationFundCenter:FORMULATION_CC,
   rdGroupFundCenters:GROUP_IDS,
   medicalApprovalFundCenter:MEDICAL_CC,
   rdGroupUpdatedAt:serverTimestamp(),
   rdGroupUpdatedBy:user.uid
  },{merge:true});
- await syncMedicalApprovalRoute(user,userDoc);
+ await Promise.all([
+  syncApprovalRoute(user,userDoc,MEDICAL_CC,MEDICAL_NAME),
+  syncApprovalRoute(user,userDoc,FORMULATION_CC,FORMULATION_NAME)
+ ]);
  try{
   const rows=JSON.parse(localStorage.getItem('dadBudgetUserProfiles')||'[]')||[],i=rows.findIndex(x=>x.uid===userDoc.id||email(x.email)===MANAR_EMAIL);
   const patched={...(i>=0?rows[i]:{}),uid:userDoc.id,email:MANAR_EMAIL,departments:merged,department:clean(data.department)||merged[0]};
