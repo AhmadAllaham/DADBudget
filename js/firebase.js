@@ -13,7 +13,7 @@ const pathNow=()=>((location.pathname.split('/').pop()||'index.html').toLowerCas
 const clean=v=>String(v??'').trim();
 const isAdmin=p=>p?.isMainAdmin===true||p?.role==='admin';
 const isBusinessDevelopment=p=>[p?.departmentLabel,...(Array.isArray(p?.departmentLabels)?p.departmentLabels:[])].map(clean).join(' ').toUpperCase().includes('BUSINESS DEVELOPMENT');
-const isTrainingReportViewer=p=>clean(p?.email||auth.currentUser?.email).toLowerCase()==='nouralhuda.hasan@dadgroup.com'||p?.role==='manager';
+const isTrainingReportViewer=p=>['nouralhuda.hasan@dadgroup.com','hazem.amyreh@dadgroup.com'].includes(clean(p?.email||auth.currentUser?.email).toLowerCase())||p?.role==='manager';
 const departmentsOf=p=>Array.isArray(p?.departments)?p.departments.map(clean).filter(Boolean):(p?.department?[clean(p.department)]:[]);
 
 function ensureSidebarTheme(){if(document.querySelector('link[data-dad-sidebar-theme]'))return;const l=document.createElement('link');l.rel='stylesheet';l.href='css/sidebar-neon.css?v=20260817-1';l.dataset.dadSidebarTheme='1';document.head.appendChild(l)}
