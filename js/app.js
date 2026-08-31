@@ -48,11 +48,11 @@
       const hrSub=nav.querySelector('.hr-subnav'),hrParent=hrSub?.previousElementSibling;if(hrSub&&hrParent?.tagName==='A'){const anyChild=[...hrSub.querySelectorAll('a')].some(a=>getComputedStyle(a).display!=='none');if(isAdmin||anyChild)hrParent.style.removeProperty('display');else hrParent.style.setProperty('display','none','important')}
       nav.querySelectorAll('.nav-section').forEach(s=>{if(String(s.textContent||'').trim().toUpperCase()==='ADMIN'){let el=s.nextElementSibling,show=false;while(el&&!el.classList.contains('nav-section')){if(el.tagName==='A'&&el.style.display!=='none')show=true;el=el.nextElementSibling}s.style.display=show?'':'none'}});
     }
-    const allowed=Array.isArray(p.departments)?p.departments.filter(Boolean):(p.department?[p.department]:[]),all=isAdmin||allowed.includes('ALL');
+    const allowed=Array.isArray(p.departments)?p.departments.filter(Boolean):(p.department?[p.department]:[]),all=isAdmin||allowed.includes('ALL'),scopedAll=String(p.email||'').trim().toLowerCase()==='maen.jardaneh@dadgroup.com';
     const restrictDepartmentSelect=()=>{
       const sel=document.getElementById('deptFilter');if(!sel||all||!allowed.length)return;
       const allowedSet=new Set(allowed.map(String));
-      const optionAllowed=value=>{const key=String(value||'');if(!key)return true;if(allowedSet.has(key))return true;const group=window.DADDepartmentGroups?.groupFor?.(key);return !!group&&group.ids.every(id=>allowedSet.has(String(id)))};
+      const optionAllowed=value=>{const key=String(value||'');if(!key)return true;if(key==='ALL'&&scopedAll)return true;if(allowedSet.has(key))return true;const group=window.DADDepartmentGroups?.groupFor?.(key);return !!group&&group.ids.every(id=>allowedSet.has(String(id)))};
       [...sel.options].forEach(o=>{if(!optionAllowed(o.value))o.remove()});
       if(!optionAllowed(sel.value)){const next=[...sel.options].find(o=>o.value&&optionAllowed(o.value));if(next){sel.value=next.value;sel.dispatchEvent(new Event('change',{bubbles:true}))}}
       if(allowed.length===1)sel.disabled=true;
