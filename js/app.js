@@ -52,8 +52,9 @@
     const restrictDepartmentSelect=()=>{
       const sel=document.getElementById('deptFilter');if(!sel||all||!allowed.length)return;
       const allowedSet=new Set(allowed.map(String));
-      [...sel.options].forEach(o=>{if(o.value&&!allowedSet.has(String(o.value)))o.remove()});
-      if(!allowedSet.has(String(sel.value||''))){const next=[...sel.options].find(o=>o.value&&allowedSet.has(String(o.value)));if(next){sel.value=next.value;sel.dispatchEvent(new Event('change',{bubbles:true}))}}
+      const optionAllowed=value=>{const key=String(value||'');if(!key)return true;if(allowedSet.has(key))return true;const group=window.DADDepartmentGroups?.groupFor?.(key);return !!group&&group.ids.every(id=>allowedSet.has(String(id)))};
+      [...sel.options].forEach(o=>{if(!optionAllowed(o.value))o.remove()});
+      if(!optionAllowed(sel.value)){const next=[...sel.options].find(o=>o.value&&optionAllowed(o.value));if(next){sel.value=next.value;sel.dispatchEvent(new Event('change',{bubbles:true}))}}
       if(allowed.length===1)sel.disabled=true;
     };
     restrictDepartmentSelect();
