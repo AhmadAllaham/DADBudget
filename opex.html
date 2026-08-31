@@ -86,22 +86,27 @@ function renderGroupDetailsChunked(m,selection,group){
   const token=++allRenderToken,combined={cc:selection,name:group.label,items:{}},departments=Object.values(m.departments||{}).filter(d=>d&&group.ids.includes(String(d.cc)));
   body.innerHTML=`<tr><td class="empty-row" colspan="14">Preparing ${group.label} details · 0 / ${departments.length} departments</td></tr>`;
   $('sheetTitle').textContent=group.label;$('summaryToggle').disabled=true;
-  let index=0;
+  let departmentIndex=0,itemIndex=0,skipped=0;
   function next(){
     if(token!==allRenderToken||dept.value!==selection)return;
-    const end=Math.min(index+4,departments.length);
-    for(;index<end;index++){
-      Object.values(departments[index]?.items||{}).forEach(source=>{
-        const code=String(source?.code||'').trim();if(!code)return;
-        const item=ensureItem(combined,code,source.name);
-        ['budgetByMonth','actualByMonth','lyByMonth','newBudgetByMonth'].forEach(key=>Object.entries(source[key]||{}).forEach(([month,value])=>add(item[key],month,num(value))));
-        item.fyBudget+=num(source.fyBudget);item.landing+=num(source.landing);item.actualUnperiodized+=num(source.actualUnperiodized);item.lyUnperiodized+=num(source.lyUnperiodized);item.hasLY=item.hasLY||source.hasLY;
-      });
+    let processed=0;
+    while(departmentIndex<departments.length&&processed<240){
+      const department=departments[departmentIndex],sources=Object.values(department?.items||{});
+      while(itemIndex<sources.length&&processed<240){
+        const source=sources[itemIndex++];processed++;
+        try{
+          const code=String(source?.code||'').trim();if(!code){skipped++;continue}
+          const item=ensureItem(combined,code,source.name);
+          ['budgetByMonth','actualByMonth','lyByMonth','newBudgetByMonth'].forEach(key=>{const values=source?.[key];if(!values||typeof values!=='object'||Array.isArray(values))return;Object.entries(values).forEach(([month,value])=>add(item[key],month,num(value)))});
+          item.fyBudget+=num(source.fyBudget);item.landing+=num(source.landing);item.actualUnperiodized+=num(source.actualUnperiodized);item.lyUnperiodized+=num(source.lyUnperiodized);item.hasLY=item.hasLY||source.hasLY;
+        }catch(error){skipped++;console.warn('OPEX All Departments skipped invalid account',{department:department?.cc,account:source?.code,error})}
+      }
+      if(itemIndex>=sources.length){departmentIndex++;itemIndex=0}
     }
-    if(index<departments.length){body.innerHTML=`<tr><td class="empty-row" colspan="14">Preparing ${group.label} details · ${index} / ${departments.length} departments</td></tr>`;setTimeout(next,0);return}
-    totalsOnly=true;$('summaryToggle').disabled=false;renderDepartment({departments:{[selection]:combined}});
+    if(departmentIndex<departments.length){body.innerHTML=`<tr><td class="empty-row" colspan="14">Preparing ${group.label} details · ${departmentIndex} / ${departments.length} departments</td></tr>`;setTimeout(next,0);return}
+    totalsOnly=true;$('summaryToggle').disabled=false;renderDepartment({departments:{[selection]:combined}});if(skipped)console.warn(`OPEX ${group.label}: skipped ${skipped} invalid account row(s)`);
   }
-  next();
+  try{next()}catch(error){console.error('OPEX grouped details failed',error);body.innerHTML=`<tr><td class="empty-row" colspan="14">Could not prepare ${group.label} details. Select another department and try again.</td></tr>`;$('summaryToggle').disabled=false}
 }
 function renderCombinedChunked(m,selection){const selectedGroup=window.DADDepartmentGroups?.groupFor(selection);if(selection==='ALL'){const ids=Object.values(m.departments||{}).filter(d=>d&&!(String(d.cc).trim()==='16'&&String(d.name).trim()==='16')).map(d=>String(d.cc));renderGroupDetailsChunked(m,selection,{label:'All Departments',ids});return}if(selectedGroup){renderGroupDetailsChunked(m,selection,selectedGroup);return}const token=++allRenderToken,r=range(),groups={},items=[],group=window.DADDepartmentGroups?.groupFor(selection),ids=new Set(group?.ids||[]),labelName=group?.label||selection;CATS.forEach(([c])=>groups[c]={b:0,a:0,fy:0,n:0,l:0,ly:0,hasLy:false});Object.values(m.departments||{}).filter(d=>!(String(d.cc).trim()==='16'&&String(d.name).trim()==='16')).filter(d=>!ids||ids.has(String(d.cc))).forEach(d=>items.push(...Object.values(d.items||{})));body.innerHTML=`<tr><td class="empty-row" colspan="14">Loading ${labelName} in chunks...</td></tr>`;$('sheetTitle').textContent=labelName;$('summaryToggle').disabled=true;let index=0;function next(){if(token!==allRenderToken||dept.value!==selection)return;const end=Math.min(index+250,items.length);for(;index<end;index++){const x=items[index],g=groups[cat(x.code)]||groups['Other Expenses'],b=sum(x.budgetByMonth,r.f,r.t),a=sum(x.actualByMonth,r.f,r.t)+(Object.keys(x.actualByMonth||{}).length?0:num(x.actualUnperiodized)),n=sum(x.newBudgetByMonth,r.f,r.t,1),ly=sum(x.lyByMonth,r.f,r.t,-1)+(Object.keys(x.lyByMonth||{}).length?0:num(x.lyUnperiodized)),h=x.hasLY&&(Object.keys(x.lyByMonth||{}).length||Math.abs(num(x.lyUnperiodized))>.005);g.b+=b;g.a+=a;g.fy+=num(x.fyBudget);g.n+=n;g.l+=num(x.landing);if(h){g.ly+=ly;g.hasLy=true}}if(index<items.length){setTimeout(next,0);return}finishAllRender(groups,r,token,selection,labelName)}next()}
 render=function(m){if(dept.value==='ALL'||window.DADDepartmentGroups?.groupFor(dept.value)){renderCombinedChunked(m,dept.value);return}allRenderToken++;totalsOnly=false;$('summaryToggle').disabled=false;return renderDepartment(m)};
