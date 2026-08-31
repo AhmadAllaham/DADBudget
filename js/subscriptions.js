@@ -48,6 +48,9 @@ function departmentsOf(p={}){
 function isAdmin(user=auth.currentUser,p=profile){
   return !!user&&(user.uid===MAIN_ADMIN_UID||p?.isMainAdmin===true||p?.role==='admin');
 }
+function isItViewer(p=profile){
+  return Array.isArray(p?.modules)&&p.modules.includes('capex_it');
+}
 function cachedProfile(){
   try{return JSON.parse(localStorage.getItem('dadBudgetCurrentProfile')||'null')||null}catch(_){return null}
 }
@@ -116,7 +119,7 @@ async function loadMeta(force=false){
     const cached=cacheRead(metaCacheKey);
     if(cached){
       const allowed=new Set(departmentsOf(profile));
-      directory=(cached.directory||[]).filter(x=>isAdmin()||allowed.has('ALL')||allowed.has(clean(x?.cc)));
+      directory=(cached.directory||[]).filter(x=>isAdmin()||isItViewer()||allowed.has('ALL')||allowed.has(clean(x?.cc)));
       masterAccounts=cached.masterAccounts||[];
       return;
     }
@@ -133,7 +136,7 @@ async function loadMeta(force=false){
   const allowed=new Set(departmentsOf(profile));
   directory=rawDir
     .map(x=>({cc:clean(x.cc),name:clean(x.name||x.departmentName||x.cc)}))
-    .filter(x=>x.cc&&x.cc!=='16'&&(isAdmin()||allowed.has('ALL')||allowed.has(x.cc)))
+    .filter(x=>x.cc&&x.cc!=='16'&&(isAdmin()||isItViewer()||allowed.has('ALL')||allowed.has(x.cc)))
     .sort((a,b)=>a.name.localeCompare(b.name)||a.cc.localeCompare(b.cc,undefined,{numeric:true}));
   masterAccounts=rawMaster
     .map(x=>({code:clean(x.code),name:clean(x.name||x.code)}))
@@ -142,7 +145,7 @@ async function loadMeta(force=false){
   cacheWrite(metaCacheKey,{directory,masterAccounts});
 }
 function canReadBaseline(cc){
-  return isAdmin()||departmentsOf(profile).includes('ALL')||departmentsOf(profile).includes(cc);
+  return isAdmin()||isItViewer()||departmentsOf(profile).includes('ALL')||departmentsOf(profile).includes(cc);
 }
 function canEdit(cc){
   return isAdmin()||departmentsOf(profile).includes('ALL')||departmentsOf(profile).includes(cc);
