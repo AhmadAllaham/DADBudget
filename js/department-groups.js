@@ -110,3 +110,8 @@
     const script=document.createElement('script');script.type='module';script.src='js/training-landing-opex-bridge.js?v=20260831-training-landing-1';script.dataset.trainingLandingOpexBridge='1';document.head.appendChild(script)
   }
 })();
+
+(function(){
+  if(document.querySelector('script[data-opex-submodule-access]'))return;
+  const script=document.createElement('script');script.src='js/opex-submodule-access.js?v=20260901-opex-granular-1';script.dataset.opexSubmoduleAccess='1';document.head.appendChild(script)
+})();
