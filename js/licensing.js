@@ -5,7 +5,7 @@ const PROJECTS=['Sorafenib','PALBOCICLIB','Semaglutide Pen (Injectable) + Bemped
 const DEFAULT_ROWS=PROJECTS.map(projectName=>({department:'Corporate strategic (Licensing)',projectName,unitValue:null,months2027:{},fy2028Total:null}));
 const $=id=>document.getElementById(id),clean=v=>String(v??'').trim(),num=v=>{const x=Number(String(v??'').replace(/,/g,''));return Number.isFinite(x)?x:0},fmt=v=>Math.abs(num(v))<.005?'—':num(v).toLocaleString(undefined,{maximumFractionDigits:0});
 const profile=()=>{try{return JSON.parse(localStorage.getItem('dadBudgetCurrentProfile')||'null')}catch(_){return null}};
-function isAllowed(p){const labels=[p?.departmentLabel,...(Array.isArray(p?.departmentLabels)?p.departmentLabels:[])].map(clean).join(' ').toUpperCase();return p?.isMainAdmin===true||p?.role==='admin'||labels.includes('BUSINESS DEVELOPMENT')}
+function isAllowed(p){return p?.isMainAdmin===true||p?.role==='admin'||(Array.isArray(p?.modules)&&p.modules.includes('licensing'))}
 function esc(v){return clean(v).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]))}
 function normalizeMonths(raw={}){const out={};MONTHS.forEach((m,i)=>{const key=`${YEAR}-${String(i+1).padStart(2,'0')}`,v=raw?.[key]??raw?.[m]??raw?.[`${m} ${YEAR}`];if(v!==undefined&&v!==null&&clean(v)!=='')out[key]=num(v)});return out}
 function monthsTotal(raw={}){return Object.values(normalizeMonths(raw)).reduce((sum,v)=>sum+num(v),0)}
