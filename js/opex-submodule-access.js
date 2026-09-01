@@ -58,4 +58,5 @@ window.addEventListener('dad-user-ready',()=>setTimeout(start,0));
 window.addEventListener('dad-firebase-ready',()=>setTimeout(start,0));
 window.addEventListener('storage',e=>{if(e.key==='dadBudgetCurrentProfile')setTimeout(run,0)});
 let tries=0;const settle=setInterval(()=>{tries++;start();if(tries>=40)clearInterval(settle)},250);
+if(currentPage()==='subscriptions.html')import('./subscriptions-loading-guard.js?v=20260901-murad-loading-1').catch(e=>console.warn('Subscriptions fail-safe unavailable',e));
 })();
