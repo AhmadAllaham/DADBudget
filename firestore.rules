@@ -60,17 +60,9 @@ service cloud.firestore {
         && moduleName in currentUserProfile().modules;
     }
 
-    function isCapexItViewer() {
-      return hasModule('capex_it');
-    }
-
-    function isHrPlanner() {
-      return hasModule('hr');
-    }
-
-    function isHrItViewer() {
-      return hasModule('hr_it');
-    }
+    function isCapexItViewer() { return hasModule('capex_it'); }
+    function isHrPlanner() { return hasModule('hr'); }
+    function isHrItViewer() { return hasModule('hr_it'); }
 
     function isEngineeringPlanner() {
       return hasUserProfile()
@@ -108,27 +100,7 @@ service cloud.firestore {
     }
 
     function validCapexItMirror(fundCenter) {
-      return request.resource.data.keys().hasOnly([
-          'cc',
-          'departmentName',
-          'rows',
-          'payments',
-          'total',
-          'paymentTotal',
-          'sourceFile',
-          'sourceRevision',
-          'workflowStatus',
-          'itStatus',
-          'itNote',
-          'itRevision',
-          'itFileName',
-          'managerUid',
-          'managerEmail',
-          'submittedEmail',
-          'updatedBy',
-          'updatedByEmail',
-          'updatedAt'
-        ])
+      return request.resource.data.keys().hasOnly(['cc','departmentName','rows','payments','total','paymentTotal','sourceFile','sourceRevision','workflowStatus','itStatus','itNote','itRevision','itFileName','managerUid','managerEmail','submittedEmail','updatedBy','updatedByEmail','updatedAt'])
         && request.resource.data.cc == fundCenter
         && request.resource.data.departmentName is string
         && request.resource.data.rows is list
@@ -137,37 +109,20 @@ service cloud.firestore {
         && request.resource.data.paymentTotal is number
         && request.resource.data.sourceFile is string
         && request.resource.data.sourceRevision is int
-        && (!('workflowStatus' in request.resource.data)
-            || request.resource.data.workflowStatus is string)
-        && (!('itStatus' in request.resource.data)
-            || request.resource.data.itStatus is string)
-        && (!('itNote' in request.resource.data)
-            || request.resource.data.itNote is string)
-        && (!('itRevision' in request.resource.data)
-            || request.resource.data.itRevision is int)
-        && (!('itFileName' in request.resource.data)
-            || request.resource.data.itFileName is string)
-        && (!('managerUid' in request.resource.data)
-            || request.resource.data.managerUid is string)
-        && (!('managerEmail' in request.resource.data)
-            || request.resource.data.managerEmail is string)
-        && (!('submittedEmail' in request.resource.data)
-            || request.resource.data.submittedEmail is string)
+        && (!('workflowStatus' in request.resource.data) || request.resource.data.workflowStatus is string)
+        && (!('itStatus' in request.resource.data) || request.resource.data.itStatus is string)
+        && (!('itNote' in request.resource.data) || request.resource.data.itNote is string)
+        && (!('itRevision' in request.resource.data) || request.resource.data.itRevision is int)
+        && (!('itFileName' in request.resource.data) || request.resource.data.itFileName is string)
+        && (!('managerUid' in request.resource.data) || request.resource.data.managerUid is string)
+        && (!('managerEmail' in request.resource.data) || request.resource.data.managerEmail is string)
+        && (!('submittedEmail' in request.resource.data) || request.resource.data.submittedEmail is string)
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedByEmail == request.auth.token.email;
     }
 
     function validItBudgetPlan() {
-      return request.resource.data.keys().hasOnly([
-          'fiscalYear',
-          'sheets',
-          'revision',
-          'sourceFile',
-          'updatedBy',
-          'updatedByEmail',
-          'updatedAt',
-          'clientUpdatedAt'
-        ])
+      return request.resource.data.keys().hasOnly(['fiscalYear','sheets','revision','sourceFile','updatedBy','updatedByEmail','updatedAt','clientUpdatedAt'])
         && request.resource.data.fiscalYear == 2027
         && request.resource.data.sheets is map
         && request.resource.data.revision is int
@@ -179,17 +134,7 @@ service cloud.firestore {
     }
 
     function validItOpexAllocation(fundCenter) {
-      return request.resource.data.keys().hasOnly([
-          'cc',
-          'departmentName',
-          'fiscalYear',
-          'revision',
-          'sourceFile',
-          'items',
-          'updatedBy',
-          'updatedByEmail',
-          'updatedAt'
-        ])
+      return request.resource.data.keys().hasOnly(['cc','departmentName','fiscalYear','revision','sourceFile','items','updatedBy','updatedByEmail','updatedAt'])
         && request.resource.data.cc == fundCenter
         && request.resource.data.departmentName is string
         && request.resource.data.fiscalYear == 2027
@@ -209,16 +154,7 @@ service cloud.firestore {
     }
 
     function validLicensingBudget() {
-      return request.resource.data.keys().hasOnly([
-          'fiscalYear',
-          'currency',
-          'rows',
-          'total',
-          'updatedBy',
-          'updatedByEmail',
-          'updatedAt',
-          'clientUpdatedAt'
-        ])
+      return request.resource.data.keys().hasOnly(['fiscalYear','currency','rows','total','updatedBy','updatedByEmail','updatedAt','clientUpdatedAt'])
         && request.resource.data.fiscalYear == 2027
         && request.resource.data.currency == 'JOD'
         && request.resource.data.rows is list
@@ -236,21 +172,7 @@ service cloud.firestore {
     }
 
     function validTrainingAllocation(fundCenter) {
-      return request.resource.data.keys().hasOnly([
-          'cc',
-          'departmentName',
-          'sourceCc',
-          'fiscalYear',
-          'trainingAccount',
-          'trainingAnnual',
-          'trainingByMonth',
-          'travelRows',
-          'travelByGl',
-          'updatedBy',
-          'updatedByEmail',
-          'updatedAt',
-          'clientUpdatedAt'
-        ])
+      return request.resource.data.keys().hasOnly(['cc','departmentName','sourceCc','fiscalYear','trainingAccount','trainingAnnual','trainingByMonth','travelRows','travelByGl','updatedBy','updatedByEmail','updatedAt','clientUpdatedAt'])
         && request.resource.data.cc == fundCenter
         && request.resource.data.departmentName is string
         && request.resource.data.sourceCc == '1000300118'
@@ -267,32 +189,14 @@ service cloud.firestore {
     }
 
     function validHrHeadcount(fundCenter) {
-      return request.resource.data.keys().hasOnly([
-          'cc',
-          'departmentName',
-          'currentEmployees',
-          'newHeadcount',
-          'replacement',
-          'paidTrainees',
-          'unpaidTrainees',
-          'details',
-          'sourceFile',
-          'updatedBy',
-          'updatedByEmail',
-          'updatedAt'
-        ])
+      return request.resource.data.keys().hasOnly(['cc','departmentName','currentEmployees','newHeadcount','replacement','paidTrainees','unpaidTrainees','details','sourceFile','updatedBy','updatedByEmail','updatedAt'])
         && request.resource.data.cc == fundCenter
         && request.resource.data.departmentName is string
-        && request.resource.data.currentEmployees is int
-        && request.resource.data.currentEmployees >= 0
-        && request.resource.data.newHeadcount is int
-        && request.resource.data.newHeadcount >= 0
-        && request.resource.data.replacement is int
-        && request.resource.data.replacement >= 0
-        && request.resource.data.paidTrainees is int
-        && request.resource.data.paidTrainees >= 0
-        && request.resource.data.unpaidTrainees is int
-        && request.resource.data.unpaidTrainees >= 0
+        && request.resource.data.currentEmployees is int && request.resource.data.currentEmployees >= 0
+        && request.resource.data.newHeadcount is int && request.resource.data.newHeadcount >= 0
+        && request.resource.data.replacement is int && request.resource.data.replacement >= 0
+        && request.resource.data.paidTrainees is int && request.resource.data.paidTrainees >= 0
+        && request.resource.data.unpaidTrainees is int && request.resource.data.unpaidTrainees >= 0
         && request.resource.data.details is list
         && request.resource.data.sourceFile is string
         && request.resource.data.updatedBy == request.auth.uid
@@ -301,16 +205,9 @@ service cloud.firestore {
 
     function validDepartmentNextState(fundCenter) {
       return request.resource.data.workflowStatus == 'uploaded'
-        || (request.resource.data.workflowStatus == 'pending_it'
-            && request.resource.data.itReviewRequired == true
-            && request.resource.data.itStatus == 'pending')
-        || (request.resource.data.workflowStatus == 'pending_manager'
-            && hasConfiguredManager(fundCenter)
-            && request.resource.data.managerUid == configuredManagerUid(fundCenter)
-            && configuredManagerUid(fundCenter) != request.auth.uid)
-        || (request.resource.data.workflowStatus == 'under_review'
-            && (!hasConfiguredManager(fundCenter)
-                || configuredManagerUid(fundCenter) == request.auth.uid));
+        || (request.resource.data.workflowStatus == 'pending_it' && request.resource.data.itReviewRequired == true && request.resource.data.itStatus == 'pending')
+        || (request.resource.data.workflowStatus == 'pending_manager' && hasConfiguredManager(fundCenter) && request.resource.data.managerUid == configuredManagerUid(fundCenter) && configuredManagerUid(fundCenter) != request.auth.uid)
+        || (request.resource.data.workflowStatus == 'under_review' && (!hasConfiguredManager(fundCenter) || configuredManagerUid(fundCenter) == request.auth.uid));
     }
 
     function departmentSubmissionIsOpen() {
@@ -321,24 +218,14 @@ service cloud.firestore {
     }
 
     function validManagerDecision() {
-      return resource.data.workflowStatus == 'pending_manager'
-        && request.resource.data.workflowStatus in ['manager_approved', 'manager_returned']
+      return (
+          (resource.data.workflowStatus == 'pending_manager'
+            && request.resource.data.workflowStatus in ['manager_approved', 'manager_returned'])
+          || (resource.data.workflowStatus == 'manager_approved'
+            && request.resource.data.workflowStatus == 'manager_returned')
+        )
         && request.resource.data.managerDecisionBy == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'workflowStatus',
-          'status',
-          'financeStatus',
-          'managerStatus',
-          'managerNote',
-          'managerReturnedRevision',
-          'managerApprovedAt',
-          'managerApprovedBy',
-          'managerApprovedByEmail',
-          'managerDecisionAt',
-          'managerDecisionBy',
-          'managerDecisionEmail',
-          'workflowUpdatedAt'
-        ]);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['workflowStatus','status','financeStatus','managerStatus','managerNote','managerReturnedRevision','managerApprovedAt','managerApprovedBy','managerApprovedByEmail','managerDecisionAt','managerDecisionBy','managerDecisionEmail','workflowUpdatedAt']);
     }
 
     function validManagerOpexRevision() {
@@ -346,17 +233,7 @@ service cloud.firestore {
         && request.resource.data.workflowStatus == 'pending_manager'
         && request.resource.data.managerEditedBy == request.auth.uid
         && request.resource.data.revision == resource.data.revision + 1
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'encoding',
-          'payload',
-          'travelBudgetByGl',
-          'fileName',
-          'revision',
-          'managerEditedAt',
-          'managerEditedBy',
-          'managerEditedByEmail',
-          'workflowUpdatedAt'
-        ]);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['encoding','payload','travelBudgetByGl','fileName','revision','managerEditedAt','managerEditedBy','managerEditedByEmail','workflowUpdatedAt']);
     }
 
     function validManagerOpexUtilityPayload() {
@@ -364,11 +241,7 @@ service cloud.firestore {
         && request.resource.data.workflowStatus == 'pending_manager'
         && request.resource.data.revision == resource.data.revision
         && request.resource.data.managerEditedBy == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'encoding',
-          'payload',
-          'workflowUpdatedAt'
-        ]);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['encoding','payload','workflowUpdatedAt']);
     }
 
     function validManagerCapexRevision() {
@@ -377,20 +250,7 @@ service cloud.firestore {
         && request.resource.data.status == 'pending_manager'
         && request.resource.data.managerEditedBy == request.auth.uid
         && request.resource.data.revision == resource.data.revision + 1
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'rows',
-          'payments',
-          'total',
-          'paymentTotal',
-          'payment2027Total',
-          'paymentScheduleVersion',
-          'fileName',
-          'revision',
-          'managerEditedAt',
-          'managerEditedBy',
-          'managerEditedByEmail',
-          'workflowUpdatedAt'
-        ]);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rows','payments','total','paymentTotal','payment2027Total','paymentScheduleVersion','fileName','revision','managerEditedAt','managerEditedBy','managerEditedByEmail','workflowUpdatedAt']);
     }
 
     function validItCapexDecision(fundCenter) {
@@ -399,71 +259,21 @@ service cloud.firestore {
         && request.resource.data.status == request.resource.data.workflowStatus
         && request.resource.data.itReviewedBy == request.auth.uid
         && request.resource.data.itReviewedByEmail == request.auth.token.email
-        && (
-          (request.resource.data.workflowStatus == 'returned'
-            && request.resource.data.itStatus == 'returned')
-          || (request.resource.data.workflowStatus == 'pending_manager'
-            && request.resource.data.itStatus == 'approved'
-            && hasConfiguredManager(fundCenter))
-          || (request.resource.data.workflowStatus == 'under_review'
-            && request.resource.data.itStatus == 'approved'
-            && !hasConfiguredManager(fundCenter))
-        )
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'rows',
-          'payments',
-          'total',
-          'paymentTotal',
-          'payment2027Total',
-          'fileName',
-          'revision',
-          'workflowStatus',
-          'status',
-          'financeStatus',
-          'managerStatus',
-          'itStatus',
-          'itNote',
-          'itRevision',
-          'itReviewedAt',
-          'itReviewedBy',
-          'itReviewedByEmail',
-          'workflowUpdatedAt',
-          'returnedAt',
-          'returnNote'
-        ]);
+        && ((request.resource.data.workflowStatus == 'returned' && request.resource.data.itStatus == 'returned')
+          || (request.resource.data.workflowStatus == 'pending_manager' && request.resource.data.itStatus == 'approved' && hasConfiguredManager(fundCenter))
+          || (request.resource.data.workflowStatus == 'under_review' && request.resource.data.itStatus == 'approved' && !hasConfiguredManager(fundCenter)))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rows','payments','total','paymentTotal','payment2027Total','fileName','revision','workflowStatus','status','financeStatus','managerStatus','itStatus','itNote','itRevision','itReviewedAt','itReviewedBy','itReviewedByEmail','workflowUpdatedAt','returnedAt','returnNote']);
     }
 
-    function myEmail() {
-      return request.auth.token.email;
-    }
-
-    function submissionIsApproved() {
-      return ('workflowStatus' in resource.data)
-        && resource.data.workflowStatus == 'approved';
-    }
+    function myEmail() { return request.auth.token.email; }
+    function submissionIsApproved() { return ('workflowStatus' in resource.data) && resource.data.workflowStatus == 'approved'; }
 
     match /system_status/{document} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn()
-                   && (
-                     (document == 'central_opex_reference_fy2026'
-                      && isMainAdmin())
-                     ||
-                     ((document == 'utilities_budget_fy2027'
-                       || document == 'maintenance_budget_fy2027')
-                      && (isMainAdmin() || isEngineeringPlanner())
-                      && request.resource.data.sourceCc == '1000100301')
-                     ||
-                     ((!document.matches('subscription_budget_.*'))
-                      && document != 'central_opex_reference_fy2026'
-                      && document != 'utilities_budget_fy2027'
-                      && document != 'maintenance_budget_fy2027')
-                     ||
-                     (request.resource.data.cc is string
-                      && document == 'subscription_budget_' + request.resource.data.cc
-                      && (isMainAdmin()
-                          || hasDepartment(request.resource.data.cc)))
-                   );
+      allow write: if isSignedIn() && ((document == 'central_opex_reference_fy2026' && isMainAdmin())
+        || ((document == 'utilities_budget_fy2027' || document == 'maintenance_budget_fy2027') && (isMainAdmin() || isEngineeringPlanner()) && request.resource.data.sourceCc == '1000100301')
+        || ((!document.matches('subscription_budget_.*')) && document != 'central_opex_reference_fy2026' && document != 'utilities_budget_fy2027' && document != 'maintenance_budget_fy2027')
+        || (request.resource.data.cc is string && document == 'subscription_budget_' + request.resource.data.cc && (isMainAdmin() || hasDepartment(request.resource.data.cc))));
     }
 
     match /users/{userId} {
@@ -471,170 +281,71 @@ service cloud.firestore {
       allow read: if isSignedIn() && request.auth.uid == userId;
     }
 
-    match /opex_baseline_meta/{document} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isMainAdmin();
-    }
+    match /opex_baseline_meta/{document} { allow read: if isSignedIn(); allow create, update, delete: if isMainAdmin(); }
 
     match /opex_baseline_departments/{fundCenter} {
-      allow read: if isMainAdmin()
-                  || isExecutiveViewer()
-                  || isTrainingReportViewer()
-                  || isCapexItViewer()
-                  || isHrPlanner()
-                  || isHrItViewer()
-                  || isEngineeringPlanner()
-                  || hasDepartment(fundCenter);
+      allow read: if isMainAdmin() || isExecutiveViewer() || isTrainingReportViewer() || isCapexItViewer() || isHrPlanner() || isHrItViewer() || isEngineeringPlanner() || hasDepartment(fundCenter);
       allow create, update, delete: if isMainAdmin();
     }
 
-    // Utilities Budget 2027 is entered only by Engineering (1000100301).
-    // Finance publishes the approved allocation separately for each target
-    // Fund Center. Departments can read only their own allocated values.
     match /opex_utilities_allocations/{fundCenter} {
-      allow read: if isMainAdmin()
-                  || isExecutiveViewer()
-                  || hasDepartment(fundCenter);
-
-      allow create, update: if isMainAdmin()
-                            && request.resource.data.cc == fundCenter
-                            && request.resource.data.sourceCc == '1000100301'
-                            && request.resource.data.items is map;
-
+      allow read: if isMainAdmin() || isExecutiveViewer() || hasDepartment(fundCenter);
+      allow create, update: if isMainAdmin() && request.resource.data.cc == fundCenter && request.resource.data.sourceCc == '1000100301' && request.resource.data.items is map;
       allow delete: if false;
     }
 
-    // IT publishes one isolated OPEX allocation document per Fund Center.
-    // A department can read only its own assigned values.
     match /opex_it_allocations/{fundCenter} {
-      allow read: if isMainAdmin()
-                  || isExecutiveViewer()
-                  || isCapexItViewer()
-                  || hasDepartment(fundCenter);
-
-      allow create, update: if validItOpexAllocation(fundCenter)
-                            && (isMainAdmin()
-                                || isCapexItViewer());
-
+      allow read: if isMainAdmin() || isExecutiveViewer() || isCapexItViewer() || hasDepartment(fundCenter);
+      allow create, update: if validItOpexAllocation(fundCenter) && (isMainAdmin() || isCapexItViewer());
       allow delete: if false;
     }
 
-    // Licensing Budget 2027 is owned by Business Development.
     match /licensing_budget/{planId} {
       allow read: if isMainAdmin() || isBusinessDevelopmentPlanner();
-      allow create, update: if validLicensingBudget()
-                            && (isMainAdmin() || isBusinessDevelopmentPlanner());
+      allow create, update: if validLicensingBudget() && (isMainAdmin() || isBusinessDevelopmentPlanner());
       allow delete: if false;
     }
 
-    // L&D distributes Training (6010020) and training-related Travel
-    // to beneficiary departments without granting L&D access to edit
-    // the departments' own OPEX submissions.
     match /opex_training_allocations/{fundCenter} {
-      allow read: if isMainAdmin()
-                  || isExecutiveViewer()
-                  || isLndPlanner()
-                  || hasDepartment(fundCenter);
-
-      allow create, update: if validTrainingAllocation(fundCenter)
-                            && (isMainAdmin() || isLndPlanner());
-
+      allow read: if isMainAdmin() || isExecutiveViewer() || isLndPlanner() || hasDepartment(fundCenter);
+      allow create, update: if validTrainingAllocation(fundCenter) && (isMainAdmin() || isLndPlanner());
       allow delete: if false;
     }
-
-    // =========================
-    // HR HEADCOUNT
-    // =========================
 
     match /hr_headcount/{fundCenter} {
-      allow read: if isMainAdmin()
-                  || isExecutiveViewer()
-                  || isHrPlanner()
-                  || isHrItViewer()
-                  || hasDepartment(fundCenter);
-
-      allow create, update: if validHrHeadcount(fundCenter)
-                            && (isMainAdmin()
-                                || isHrPlanner());
-
+      allow read: if isMainAdmin() || isExecutiveViewer() || isHrPlanner() || isHrItViewer() || hasDepartment(fundCenter);
+      allow create, update: if validHrHeadcount(fundCenter) && (isMainAdmin() || isHrPlanner());
       allow delete: if false;
     }
 
     match /opex_budget_submissions/{fundCenter} {
       allow read: if isMainAdmin() || isExecutiveViewer() || isTrainingReportViewer() || hasDepartment(fundCenter);
-      allow create: if isMainAdmin()
-                    || (hasDepartment(fundCenter)
-                        && request.resource.data.submittedBy == request.auth.uid
-                        && validDepartmentNextState(fundCenter));
+      allow create: if isMainAdmin() || (hasDepartment(fundCenter) && request.resource.data.submittedBy == request.auth.uid && validDepartmentNextState(fundCenter));
       allow update: if isMainAdmin()
-                    || (isAssignedManager(fundCenter)
-                        && (validManagerDecision()
-                            || validManagerOpexRevision()
-                            || validManagerOpexUtilityPayload()))
-                    || (hasDepartment(fundCenter)
-                        && departmentSubmissionIsOpen()
-                        && request.resource.data.submittedBy == request.auth.uid
-                        && validDepartmentNextState(fundCenter));
+        || (isAssignedManager(fundCenter) && (validManagerDecision() || validManagerOpexRevision() || validManagerOpexUtilityPayload()))
+        || (hasDepartment(fundCenter) && departmentSubmissionIsOpen() && request.resource.data.submittedBy == request.auth.uid && validDepartmentNextState(fundCenter));
       allow delete: if false;
     }
 
     match /capex_budget_submissions/{fundCenter} {
-      allow read: if isMainAdmin()
-                  || isExecutiveViewer()
-                  || isCapexItViewer()
-                  || hasDepartment(fundCenter);
-      allow create: if isMainAdmin()
-                    || (hasDepartment(fundCenter)
-                        && request.resource.data.submittedBy == request.auth.uid
-                        && request.resource.data.status == request.resource.data.workflowStatus
-                        && request.resource.data.workflowStatus != 'uploaded'
-                        && validDepartmentNextState(fundCenter));
+      allow read: if isMainAdmin() || isExecutiveViewer() || isCapexItViewer() || hasDepartment(fundCenter);
+      allow create: if isMainAdmin() || (hasDepartment(fundCenter) && request.resource.data.submittedBy == request.auth.uid && request.resource.data.status == request.resource.data.workflowStatus && request.resource.data.workflowStatus != 'uploaded' && validDepartmentNextState(fundCenter));
       allow update: if isMainAdmin()
-                    || (isCapexItViewer()
-                        && validItCapexDecision(fundCenter))
-                    || (isAssignedManager(fundCenter)
-                        && (validManagerDecision()
-                            || validManagerCapexRevision())
-                        && request.resource.data.status == request.resource.data.workflowStatus)
-                    || (hasDepartment(fundCenter)
-                        && resource.data.workflowStatus in ['returned', 'manager_returned']
-                        && request.resource.data.submittedBy == request.auth.uid
-                        && request.resource.data.status == request.resource.data.workflowStatus
-                        && request.resource.data.workflowStatus != 'uploaded'
-                        && validDepartmentNextState(fundCenter));
+        || (isCapexItViewer() && validItCapexDecision(fundCenter))
+        || (isAssignedManager(fundCenter) && (validManagerDecision() || validManagerCapexRevision()) && request.resource.data.status == request.resource.data.workflowStatus)
+        || (hasDepartment(fundCenter) && resource.data.workflowStatus in ['returned', 'manager_returned'] && request.resource.data.submittedBy == request.auth.uid && request.resource.data.status == request.resource.data.workflowStatus && request.resource.data.workflowStatus != 'uploaded' && validDepartmentNextState(fundCenter));
       allow delete: if false;
     }
 
-    // IT receives only the CAPEX rows copied from the two IT categories.
-    // The original Fund Center remains the owner of every request.
     match /capex_it_requests/{fundCenter} {
-      allow read: if isMainAdmin()
-                  || isExecutiveViewer()
-                  || isCapexItViewer()
-                  || hasDepartment(fundCenter);
-
-      allow create, update: if validCapexItMirror(fundCenter)
-                            && (isMainAdmin()
-                                || isCapexItViewer()
-                                || hasDepartment(fundCenter)
-                                || isConfiguredManagerFor(fundCenter));
-
+      allow read: if isMainAdmin() || isExecutiveViewer() || isCapexItViewer() || hasDepartment(fundCenter);
+      allow create, update: if validCapexItMirror(fundCenter) && (isMainAdmin() || isCapexItViewer() || hasDepartment(fundCenter) || isConfiguredManagerFor(fundCenter));
       allow delete: if false;
     }
-
-    // =========================
-    // IT OPERATING BUDGET 2027
-    // =========================
 
     match /it_budget_plans/{planId} {
-      allow read: if isMainAdmin()
-                  || isExecutiveViewer()
-                  || isCapexItViewer();
-
-      allow create, update: if validItBudgetPlan()
-                            && (isMainAdmin()
-                                || isCapexItViewer());
-
+      allow read: if isMainAdmin() || isExecutiveViewer() || isCapexItViewer();
+      allow create, update: if validItBudgetPlan() && (isMainAdmin() || isCapexItViewer());
       allow delete: if false;
     }
 
@@ -645,49 +356,17 @@ service cloud.firestore {
     }
 
     match /messages/{messageId} {
-      allow create: if isSignedIn()
-        && request.resource.data.fromUid == request.auth.uid
-        && request.resource.data.fromEmail == myEmail()
-        && request.resource.data.toEmail is string
-        && request.resource.data.body is string
-        && request.resource.data.subject is string;
-
-      allow read: if isSignedIn()
-        && (resource.data.fromEmail == myEmail()
-            || resource.data.toEmail == myEmail());
-
-      allow update: if isSignedIn()
-        && resource.data.toEmail == myEmail()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read','readAt']);
-
+      allow create: if isSignedIn() && request.resource.data.fromUid == request.auth.uid && request.resource.data.fromEmail == myEmail() && request.resource.data.toEmail is string && request.resource.data.body is string && request.resource.data.subject is string;
+      allow read: if isSignedIn() && (resource.data.fromEmail == myEmail() || resource.data.toEmail == myEmail());
+      allow update: if isSignedIn() && resource.data.toEmail == myEmail() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read','readAt']);
       allow delete: if false;
     }
 
-    match /audit_logs/{logId} {
-      allow create: if isSignedIn()
-                    && request.resource.data.uid == request.auth.uid;
-      allow read: if isMainAdmin();
-      allow update, delete: if false;
-    }
-
-    match /audit_counters/{counterId} {
-      allow read, create, update: if isSignedIn();
-      allow delete: if false;
-    }
+    match /audit_logs/{logId} { allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid; allow read: if isMainAdmin(); allow update, delete: if false; }
+    match /audit_counters/{counterId} { allow read, create, update: if isSignedIn(); allow delete: if false; }
 
     match /mail/{mailId} {
-      allow create: if isMainAdmin()
-                    || (isSignedIn()
-                        && request.resource.data.notificationType == 'budget_upload'
-                        && request.resource.data.createdBy == request.auth.uid
-                        && request.resource.data.createdByEmail == myEmail()
-                        && request.resource.data.to is list
-                        && request.resource.data.to.size() == 1
-                        && request.resource.data.to[0] == 'allaham@dadgroup.com'
-                        && request.resource.data.message is map
-                        && request.resource.data.message.subject is string
-                        && request.resource.data.message.text is string
-                        && request.resource.data.message.html is string);
+      allow create: if isMainAdmin() || (isSignedIn() && request.resource.data.notificationType == 'budget_upload' && request.resource.data.createdBy == request.auth.uid && request.resource.data.createdByEmail == myEmail() && request.resource.data.to is list && request.resource.data.to.size() == 1 && request.resource.data.to[0] == 'allaham@dadgroup.com' && request.resource.data.message is map && request.resource.data.message.subject is string && request.resource.data.message.text is string && request.resource.data.message.html is string);
       allow read: if isMainAdmin();
       allow update, delete: if false;
     }
