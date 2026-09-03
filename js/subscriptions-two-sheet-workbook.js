@@ -141,4 +141,34 @@ if(!install()){
   let tries=0;
   const timer=setInterval(()=>{tries++;if(install()||tries>80)clearInterval(timer)},50);
 }
+
+// Central-control guard: Subscriptions, Books and Magazines is maintained by IT/Admin only.
+const MAIN_ADMIN_UID='PST3chwdZmaQGeG25t4ym9Vlixe2';
+function currentProfile(){try{return JSON.parse(localStorage.getItem('dadBudgetCurrentProfile')||'null')||{}}catch(_){return{}}}
+function centralEditor(){
+  const p=currentProfile(),u=window.DADFirebase?.auth?.currentUser,uid=clean(u?.uid||p?.uid),mods=Array.isArray(p?.modules)?p.modules:[];
+  return uid===MAIN_ADMIN_UID||p?.isMainAdmin===true||p?.role==='admin'||mods.includes('capex_it');
+}
+function applyCentralOnly(){
+  if(!/subscriptions\.html$/i.test((location.pathname||'').split('?')[0]))return;
+  const editor=centralEditor(),upload=document.getElementById('subscriptionUpload'),download=document.getElementById('subscriptionDownload'),pill=document.querySelector('.sub-pill'),note=document.querySelector('.sub-note'),head=document.querySelector('.sub-head p'),toolbar=document.querySelector('.sub-toolbar p');
+  if(upload){upload.disabled=!editor;upload.title=editor?'':'Subscriptions are centrally controlled by IT / Admin.'}
+  if(download){download.disabled=!editor;download.title=editor?'':'Subscriptions are centrally controlled by IT / Admin.'}
+  if(pill)pill.textContent='Central IT Allocation';
+  if(head)head.textContent='Subscriptions, Books and Magazines are allocated centrally by IT and distributed to beneficiary departments in OPEX.';
+  if(toolbar)toolbar.textContent=editor?'Central IT/Admin allocation input by beneficiary department.':'Read-only central IT allocations by beneficiary department.';
+  if(note)note.innerHTML='<b>Central allocation:</b> <b>Subscriptions, Books and Magazines</b> is controlled by IT / Admin. Department users are read-only. Values are distributed by beneficiary Fund Center and reflected automatically in OPEX.';
+  document.body.dataset.subscriptionsCentralEditor=editor?'1':'0';
+}
+document.addEventListener('click',event=>{
+  const target=event.target?.closest?.('#subscriptionUpload,#subscriptionDownload');
+  if(target&&!centralEditor()){event.preventDefault();event.stopImmediatePropagation();applyCentralOnly()}
+},true);
+document.addEventListener('change',event=>{
+  if(event.target?.id==='subscriptionUploadInput'&&!centralEditor()){event.preventDefault();event.stopImmediatePropagation();event.target.value='';applyCentralOnly()}
+},true);
+window.addEventListener('dad-user-ready',()=>setTimeout(applyCentralOnly,0));
+window.addEventListener('dad-firebase-ready',()=>setTimeout(applyCentralOnly,50));
+window.addEventListener('load',()=>{applyCentralOnly();setTimeout(applyCentralOnly,500);setTimeout(applyCentralOnly,1500)});
+new MutationObserver(()=>applyCentralOnly()).observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['disabled']});
 })();
