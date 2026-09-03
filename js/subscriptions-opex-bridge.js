@@ -8,7 +8,8 @@ const OPEX_KEY='dadBudgetOPEXBaselineV17',DOC_PREFIX='subscription_budget_',REFR
 const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
 const clean=v=>String(v??'').trim(),num=v=>Number.isFinite(Number(v))?Number(v):0,key=v=>clean(v).toUpperCase().replace(/[^A-Z0-9]/g,'');
 const DEPARTMENT_ALIASES={'100100301':'1000100301'},normalizeCc=v=>DEPARTMENT_ALIASES[clean(v)]||clean(v);
-let profile=null,planUnsubs=[],localReapplyTimer=null,renderTimer=null;
+let profile=null,planUnsubs=[],localReapplyTimer=null,renderTimer=null,selectedBound=false;
+const selectedRefreshAt=new Map(),selectedRefreshBusy=new Set();
 
 function readModel(){try{const m=JSON.parse(localStorage.getItem(OPEX_KEY)||'null');return m?.departments?m:null}catch(_){return null}}
 function rerenderOpex(){clearTimeout(renderTimer);renderTimer=setTimeout(()=>{const select=document.getElementById('deptFilter');if(select)select.dispatchEvent(new Event('change',{bubbles:true}))},0)}
@@ -31,6 +32,15 @@ function applyPlansToLocal(plans={}){const model=readModel();if(!model)return fa
 function cachePlans(plans={}){const cache=readCache();Object.entries(plans).forEach(([cc,plan])=>cache[normalizeCc(cc)]=normalizePlan(plan,normalizeCc(cc)));writeCache(cache)}
 function reapplyCached(delay=80){clearTimeout(localReapplyTimer);localReapplyTimer=setTimeout(()=>applyPlansToLocal(readCache()),delay)}
 
+async function refreshSelectedDepartment(force=false){
+  const select=document.getElementById('deptFilter'),raw=clean(select?.value),cc=normalizeCc(raw);
+  if(!cc||cc==='ALL'||cc.startsWith('GROUP:')||!auth.currentUser)return;
+  const now=Date.now();if(!force&&now-Number(selectedRefreshAt.get(cc)||0)<5000)return;if(selectedRefreshBusy.has(cc))return;
+  selectedRefreshBusy.add(cc);selectedRefreshAt.set(cc,now);
+  try{const snap=await getDoc(doc(db,'system_status',`${DOC_PREFIX}${cc}`));if(!snap.exists())return;const plan=normalizePlan(snap.data()||{},cc);cachePlans({[cc]:plan});applyPlansToLocal({[cc]:plan});if(departmentMatchesPlan(readModel()?.departments?.[cc],plan))rerenderOpex()}catch(e){console.warn('Subscriptions selected department refresh failed',cc,e)}finally{selectedRefreshBusy.delete(cc)}
+}
+function bindSelectedDepartmentRefresh(){if(selectedBound)return;const select=document.getElementById('deptFilter');if(!select){setTimeout(bindSelectedDepartmentRefresh,120);return}selectedBound=true;select.addEventListener('change',()=>setTimeout(()=>refreshSelectedDepartment(false),0));setTimeout(()=>refreshSelectedDepartment(true),250)}
+
 function watchPlanChanges(){planUnsubs.forEach(fn=>{try{fn()}catch(_){}});planUnsubs=[];if(!auth.currentUser)return;if(isAdmin(auth.currentUser,profile)){const q=query(collection(db,'system_status'),orderBy(documentId()),startAt(DOC_PREFIX),endAt(`${DOC_PREFIX}\uf8ff`));planUnsubs.push(onSnapshot(q,snap=>{const changed={};snap.docChanges().forEach(change=>{if(change.type==='removed'||change.doc.id===REFRESH_DOC)return;const cc=normalizeCc(clean(change.doc.id).slice(DOC_PREFIX.length));if(cc)changed[cc]=normalizePlan(change.doc.data()||{},cc)});if(Object.keys(changed).length){cachePlans(changed);applyPlansToLocal(changed)}},e=>console.warn('Subscriptions OPEX live sync failed',e)))}else{departmentsOf(profile).filter(cc=>cc&&cc!=='ALL'&&!cc.startsWith('GROUP:')).forEach(cc=>{planUnsubs.push(onSnapshot(doc(db,'system_status',`${DOC_PREFIX}${cc}`),snap=>{if(!snap.exists())return;const plans={[cc]:normalizePlan(snap.data()||{},cc)};cachePlans(plans);applyPlansToLocal(plans)},e=>console.warn('Subscriptions OPEX department sync failed',cc,e)))})}}
 
 function base64ToBytes(s){const raw=atob(s||''),out=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);return out}
@@ -40,10 +50,10 @@ async function encodeSubmission(data){const raw=JSON.stringify(data);if(typeof C
 async function patchOpenSubmission(cc,plan){if(!cc||!plan||!auth.currentUser)return;try{const ref=doc(db,'opex_budget_submissions',cc),s=await getDoc(ref);if(!s.exists())return;const raw=s.data()||{},state=clean(raw.workflowStatus||raw.status).toLowerCase();if(!['uploaded','manager_returned','returned'].includes(state))return;const decoded=await decodeSubmission(raw,cc);if(!decoded?.items||departmentMatchesPlan(decoded,plan))return;const patched=applyPlan(decoded,plan),encoded=await encodeSubmission(patched);await setDoc(ref,{encoding:encoded.encoding,payload:encoded.payload,workflowStatus:'uploaded',status:'uploaded',financeStatus:'not_submitted',subscriptionRows:patched.subscriptionRows||[],subscriptionUpdatedAt:serverTimestamp(),subscriptionUpdatedBy:auth.currentUser.uid,subscriptionUpdatedByEmail:clean(auth.currentUser.email).toLowerCase()},{merge:true})}catch(e){console.warn('Subscriptions could not patch the open OPEX submission',cc,e)}}
 async function patchFromLatest(cc){cc=normalizeCc(cc);let plan=readCache()?.[cc];if(!plan){try{const s=await getDoc(doc(db,'system_status',`${DOC_PREFIX}${cc}`));if(s.exists()){plan=normalizePlan(s.data()||{},cc);cachePlans({[cc]:plan})}}catch(e){console.warn('Subscriptions submission patch read failed',cc,e)}}if(plan)await patchOpenSubmission(cc,normalizePlan(plan,cc))}
 async function loadProfile(user){const local=cachedProfile();if(local&&clean(local.uid)===user.uid)return local;const s=await getDoc(doc(db,'users',user.uid));return s.exists()?s.data()||{}:{}}
-async function boot(user){if(!user)return;try{profile=await loadProfile(user);clearOldCaches();watchPlanChanges();reapplyCached(100);const input=document.getElementById('opexUploadInput');if(input&&!input.dataset.subscriptionBridgeBound){input.dataset.subscriptionBridgeBound='1';input.addEventListener('change',()=>reapplyCached(140))}}catch(e){console.warn('Subscriptions OPEX bridge failed to start',e)}}
+async function boot(user){if(!user)return;try{profile=await loadProfile(user);clearOldCaches();watchPlanChanges();bindSelectedDepartmentRefresh();reapplyCached(100);const input=document.getElementById('opexUploadInput');if(input&&!input.dataset.subscriptionBridgeBound){input.dataset.subscriptionBridgeBound='1';input.addEventListener('change',()=>reapplyCached(140))}}catch(e){console.warn('Subscriptions OPEX bridge failed to start',e)}}
 
 onAuthStateChanged(auth,boot);
-window.addEventListener('dad-opex-cloud-ready',()=>reapplyCached(100));
+window.addEventListener('dad-opex-cloud-ready',()=>{reapplyCached(100);setTimeout(()=>refreshSelectedDepartment(false),220)});
 window.addEventListener('dad-opex-refresh-departments',()=>reapplyCached(180));
 window.addEventListener('dad-opex-submission-saved',e=>{const cc=clean(e.detail?.cc);if(cc)setTimeout(()=>patchFromLatest(cc),100)});
-window.addEventListener('dad-subscriptions-updated',e=>{const cc=clean(e.detail?.cc);if(cc)setTimeout(()=>patchFromLatest(cc),80)});
+window.addEventListener('dad-subscriptions-updated',e=>{const cc=clean(e.detail?.cc);if(cc){setTimeout(()=>patchFromLatest(cc),80);if(normalizeCc(clean(document.getElementById('deptFilter')?.value))===normalizeCc(cc))setTimeout(()=>refreshSelectedDepartment(true),100)}});
