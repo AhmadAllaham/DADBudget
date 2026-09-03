@@ -115,3 +115,25 @@
   if(document.querySelector('script[data-opex-submodule-access]'))return;
   const script=document.createElement('script');script.src='js/opex-submodule-access.js?v=20260901-opex-granular-1';script.dataset.opexSubmoduleAccess='1';document.head.appendChild(script)
 })();
+
+(function(){
+  if(!/capex\.html$/i.test((location.pathname||'').split('?')[0]))return;
+  const COMMUNICATION_CC='1000300116',COMMUNICATION_NAME='Communication Department';
+  const readProfile=()=>{try{return JSON.parse(localStorage.getItem('dadBudgetCurrentProfile')||'null')}catch(_){return null}};
+  function assigned(profile){const list=Array.isArray(profile?.departments)?profile.departments.map(x=>String(x||'').trim()).filter(Boolean):(profile?.department?[String(profile.department).trim()]:[]);return list.filter(x=>x&&x!=='ALL'&&!x.startsWith('GROUP:'))}
+  function ensureSelection(){
+    const profile=readProfile();if(!profile||profile?.isMainAdmin===true||profile?.role==='admin')return false;
+    const select=document.getElementById('deptFilter');if(!select)return false;
+    const ids=assigned(profile);if(!ids.length)return false;
+    const primary=String(profile?.department||'').trim(),preferred=ids.includes(primary)?primary:(ids.includes(COMMUNICATION_CC)?COMMUNICATION_CC:ids[0]);
+    let option=[...select.options].find(o=>String(o.value)===preferred);
+    if(!option){option=document.createElement('option');option.value=preferred;option.textContent=`${preferred} · ${preferred===COMMUNICATION_CC?COMMUNICATION_NAME:preferred}`;select.appendChild(option)}
+    if(!select.value){select.value=preferred;select.dispatchEvent(new Event('change',{bubbles:true}))}
+    return !!select.value
+  }
+  function bind(){const select=document.getElementById('deptFilter');if(!select)return;ensureSelection();if(select.dataset.capexTemplateAccessFix==='1')return;select.dataset.capexTemplateAccessFix='1';new MutationObserver(()=>ensureSelection()).observe(select,{childList:true,subtree:true})}
+  document.addEventListener('click',event=>{if(event.target.closest?.('#downloadTemplate'))ensureSelection()},true);
+  window.addEventListener('dad-user-ready',()=>setTimeout(bind,0));window.addEventListener('dad-firebase-ready',()=>setTimeout(bind,100));
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(bind,50));else setTimeout(bind,50);
+  setTimeout(bind,800);
+})();
