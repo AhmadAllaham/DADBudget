@@ -1,59 +1,85 @@
 import {getApps,initializeApp} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
 import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
-import {getFirestore,doc,getDoc,collection,query,orderBy,startAt,endAt,documentId,setDoc,serverTimestamp,onSnapshot} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
+import {getFirestore,doc,getDoc,collection,query,orderBy,startAt,endAt,documentId,onSnapshot} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 
 const firebaseConfig={apiKey:'AIzaSyDAMLbm1ngqtzKjnDp6AMz8ucyhqNSnfBY',authDomain:'budget-8c575.firebaseapp.com',projectId:'budget-8c575',storageBucket:'budget-8c575.firebasestorage.app',messagingSenderId:'990142203884',appId:'1:990142203884:web:5c22dc2c14855528a022c9'};
 const MAIN_ADMIN_UID='PST3chwdZmaQGeG25t4ym9Vlixe2';
-const OPEX_KEY='dadBudgetOPEXBaselineV17',DOC_PREFIX='subscription_budget_',REFRESH_DOC='subscription_budget_refresh_fy2027',CACHE_KEY='dadBudgetSubscriptionsBridgeCacheV4';
+const OPEX_KEY='dadBudgetOPEXBaselineV17',DOC_PREFIX='subscription_budget_';
 const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
 const clean=v=>String(v??'').trim(),num=v=>Number.isFinite(Number(v))?Number(v):0,key=v=>clean(v).toUpperCase().replace(/[^A-Z0-9]/g,'');
 const DEPARTMENT_ALIASES={'100100301':'1000100301'},normalizeCc=v=>DEPARTMENT_ALIASES[clean(v)]||clean(v);
-let profile=null,planUnsubs=[],localReapplyTimer=null,renderTimer=null,selectedBound=false;
-const selectedRefreshAt=new Map(),selectedRefreshBusy=new Set();
+let profile=null,unsubs=[],plans=new Map(),applying=false,renderQueued=false,selectBound=false;
 
 function readModel(){try{const m=JSON.parse(localStorage.getItem(OPEX_KEY)||'null');return m?.departments?m:null}catch(_){return null}}
-function rerenderOpex(){clearTimeout(renderTimer);renderTimer=setTimeout(()=>{const select=document.getElementById('deptFilter');if(select)select.dispatchEvent(new Event('change',{bubbles:true}))},0)}
-function writeModel(m){try{localStorage.setItem(OPEX_KEY,JSON.stringify(m));window.dispatchEvent(new CustomEvent('dad-opex-refresh-departments'));rerenderOpex()}catch(e){console.warn('Subscriptions OPEX bridge local save failed',e)}}
 function cachedProfile(){try{return JSON.parse(localStorage.getItem('dadBudgetCurrentProfile')||'null')||null}catch(_){return null}}
-function departmentsOf(p={}){const out=Array.isArray(p.departments)?p.departments.map(normalizeCc).filter(Boolean):[],primary=normalizeCc(p.department);if(primary&&!out.includes(primary))out.push(primary);return[...new Set(out)]}
+function departmentsOf(p={}){const out=Array.isArray(p?.departments)?p.departments.map(normalizeCc).filter(Boolean):[],primary=normalizeCc(p?.department);if(primary&&!out.includes(primary))out.push(primary);return[...new Set(out)]}
 function isAdmin(user=auth.currentUser,p=profile){return!!user&&(user.uid===MAIN_ADMIN_UID||p?.isMainAdmin===true||p?.role==='admin')}
-function normalizePlan(raw={},cc=''){return{...raw,cc:clean(raw.cc||cc),rows:Array.isArray(raw.rows)?raw.rows:[],items:raw.items&&typeof raw.items==='object'?raw.items:{}}}
-function readCache(){try{const x=JSON.parse(sessionStorage.getItem(CACHE_KEY)||'null');return x&&x.uid===clean(auth.currentUser?.uid)&&x.plans?x.plans:{} }catch(_){return{}}}
-function writeCache(plans){try{sessionStorage.setItem(CACHE_KEY,JSON.stringify({uid:clean(auth.currentUser?.uid),ts:Date.now(),plans}))}catch(_){}}
-function clearOldCaches(){try{['dadBudgetSubscriptionsBridgeCacheV1','dadBudgetSubscriptionsBridgeCacheV2','dadBudgetSubscriptionsBridgeCacheV3'].forEach(k=>sessionStorage.removeItem(k))}catch(_){}}
-function subscriptionMatch(item={},code=''){const c=clean(item?.code||code),n=key(item?.name||item?.accountName);return['6140006','6141410'].includes(c)||(n.includes('SUBSCRIPTION')&&(n.includes('BOOK')||n.includes('MAGAZINE')))}
-function addMonthMaps(...maps){const out={};maps.forEach(map=>Object.entries(map||{}).forEach(([month,value])=>out[month]=num(out[month])+num(value)));return out}
-function monthMapsEqual(a={},b={}){const keys=new Set([...Object.keys(a||{}),...Object.keys(b||{})]);for(const month of keys)if(Math.abs(num(a?.[month])-num(b?.[month]))>.00001)return false;return true}
-function planItems(plan={}){if(plan.items&&Object.keys(plan.items).length)return plan.items;const out={};(plan.rows||[]).forEach(r=>{const gl=clean(r?.gl);if(!gl)return;const x=out[gl]||(out[gl]={code:gl,name:clean(r?.accountName||gl),landing:0,newBudgetByMonth:{}});x.landing+=num(r?.landing);Object.entries(r?.newBudgetByMonth||{}).forEach(([m,v])=>x.newBudgetByMonth[m]=num(x.newBudgetByMonth[m])+num(v))});return out}
-function departmentMatchesPlan(department,plan){if(!department||!plan)return false;const incoming=planItems(plan),items=department.items||{},touched=new Set();for(const[raw,v]of Object.entries(incoming)){const gl=clean(v?.code||raw);if(!gl)continue;touched.add(gl);let found=Object.entries(items).find(([k,item])=>clean(item?.code||k)===gl);if(!found)found=Object.entries(items).find(([k,item])=>subscriptionMatch(item,k));if(!found)return false;const item=found[1]||{};if(item.subscriptionControlled!==true)return false;if(Math.abs(num(item.departmentSubscriptionLanding??item.landing)-num(v?.landing))>.00001)return false;if(!monthMapsEqual(item.departmentSubscriptionByMonth||{},v?.newBudgetByMonth||{}))return false}for(const[k,item]of Object.entries(items)){const code=clean(item?.code||k);if(item?.subscriptionControlled===true&&!touched.has(code)){if(Math.abs(num(item.departmentSubscriptionLanding))>.00001)return false;if(Object.values(item.departmentSubscriptionByMonth||{}).some(v=>Math.abs(num(v))>.00001))return false}}return true}
-function applyPlan(department,plan){if(!department||!plan)return department;const merged={...department,items:{...(department.items||{})},subscriptionRows:(plan.rows||[]).map(r=>({...r,newBudgetByMonth:{...(r?.newBudgetByMonth||{})}}))},incoming=planItems(plan),touched=new Set();Object.entries(incoming).forEach(([raw,v])=>{const gl=clean(v?.code||raw);if(!gl)return;touched.add(gl);let foundKey=Object.keys(merged.items).find(k=>clean(merged.items[k]?.code||k)===gl);if(!foundKey)foundKey=Object.keys(merged.items).find(k=>subscriptionMatch(merged.items[k],k));const existing=foundKey?merged.items[foundKey]:{code:gl,name:clean(v?.name||gl),budgetByMonth:{},actualByMonth:{},lyByMonth:{},newBudgetByMonth:{},fyBudget:0,actualUnperiodized:0,lyUnperiodized:0,hasLY:false},targetKey=foundKey||gl,departmentMonths={...(v?.newBudgetByMonth||{})},itMonths={...(existing?.itSubscriptionAllocatedByMonth||{})};merged.items[targetKey]={...existing,code:clean(existing?.code||gl),name:clean(existing?.name||v?.name)||gl,landing:num(v?.landing),newBudgetByMonth:addMonthMaps(departmentMonths,itMonths),departmentSubscriptionByMonth:departmentMonths,departmentSubscriptionLanding:num(v?.landing),subscriptionControlled:true,subscriptionSource:'department',subscriptionDetailsCount:(plan.rows||[]).filter(r=>clean(r?.gl)===gl).length}});Object.entries(merged.items).forEach(([k,item])=>{const c=clean(item?.code||k);if(item?.subscriptionControlled===true&&!touched.has(c)){const itMonths={...(item?.itSubscriptionAllocatedByMonth||{})};merged.items[k]={...item,landing:0,newBudgetByMonth:itMonths,departmentSubscriptionByMonth:{},departmentSubscriptionLanding:0,subscriptionDetailsCount:0}});return merged}
+function normalizePlan(raw={},cc=''){return{...raw,cc:normalizeCc(raw?.cc||cc),rows:Array.isArray(raw?.rows)?raw.rows:[],items:raw?.items&&typeof raw.items==='object'?raw.items:{}}}
+function subscriptionMatch(item={},raw=''){const code=clean(item?.code||raw),name=key(item?.name||item?.accountName);return['6140006','6141410'].includes(code)||(name.includes('SUBSCRIPTION')&&(name.includes('BOOK')||name.includes('MAGAZINE')))}
+function monthMap(map={}){const out={};Object.entries(map||{}).forEach(([m,v])=>out[m]=num(v));return out}
+function addMaps(a={},b={}){const out={};new Set([...Object.keys(a||{}),...Object.keys(b||{})]).forEach(m=>out[m]=num(a?.[m])+num(b?.[m]));return out}
+function mapsEqual(a={},b={}){const keys=new Set([...Object.keys(a||{}),...Object.keys(b||{})]);for(const m of keys)if(Math.abs(num(a?.[m])-num(b?.[m]))>.00001)return false;return true}
+function planItems(plan={}){if(plan?.items&&Object.keys(plan.items).length)return plan.items;const out={};(plan?.rows||[]).forEach(r=>{const gl=clean(r?.gl);if(!gl)return;const x=out[gl]||(out[gl]={code:gl,name:clean(r?.accountName||gl),landing:0,newBudgetByMonth:{}});x.landing+=num(r?.landing);Object.entries(r?.newBudgetByMonth||{}).forEach(([m,v])=>x.newBudgetByMonth[m]=num(x.newBudgetByMonth[m])+num(v))});return out}
+function planDetails(plan,gl){return(plan?.rows||[]).filter(r=>clean(r?.gl)===gl).map(r=>clean(r?.details)).filter(Boolean).join(' | ')}
 
-function applyPlansToLocal(plans={}){const model=readModel();if(!model)return false;let changed=false;Object.entries(plans).forEach(([rawCc,rawPlan])=>{const cc=normalizeCc(rawCc),current=model.departments?.[cc];if(!current)return;const plan=normalizePlan(rawPlan,cc);if(departmentMatchesPlan(current,plan))return;model.departments[cc]=applyPlan(current,plan);changed=true});if(changed)writeModel(model);return changed}
-function cachePlans(plans={}){const cache=readCache();Object.entries(plans).forEach(([cc,plan])=>cache[normalizeCc(cc)]=normalizePlan(plan,normalizeCc(cc)));writeCache(cache)}
-function reapplyCached(delay=80){clearTimeout(localReapplyTimer);localReapplyTimer=setTimeout(()=>applyPlansToLocal(readCache()),delay)}
-
-async function refreshSelectedDepartment(force=false){
-  const select=document.getElementById('deptFilter'),raw=clean(select?.value),cc=normalizeCc(raw);
-  if(!cc||cc==='ALL'||cc.startsWith('GROUP:')||!auth.currentUser)return;
-  const now=Date.now();if(!force&&now-Number(selectedRefreshAt.get(cc)||0)<5000)return;if(selectedRefreshBusy.has(cc))return;
-  selectedRefreshBusy.add(cc);selectedRefreshAt.set(cc,now);
-  try{const snap=await getDoc(doc(db,'system_status',`${DOC_PREFIX}${cc}`));if(!snap.exists())return;const plan=normalizePlan(snap.data()||{},cc);cachePlans({[cc]:plan});applyPlansToLocal({[cc]:plan});if(departmentMatchesPlan(readModel()?.departments?.[cc],plan))rerenderOpex()}catch(e){console.warn('Subscriptions selected department refresh failed',cc,e)}finally{selectedRefreshBusy.delete(cc)}
+function projectDepartment(department,plan){
+  if(!department)return{department,changed:false};
+  const merged={...department,items:{...(department.items||{})}},incoming=planItems(plan||{}),touched=new Set();
+  let changed=false;
+  Object.entries(incoming).forEach(([raw,v])=>{
+    const gl=clean(v?.code||raw);if(!gl)return;touched.add(gl);
+    let targetKey=Object.keys(merged.items).find(k=>clean(merged.items[k]?.code||k)===gl);
+    if(!targetKey)targetKey=gl;
+    const existing=merged.items[targetKey]||{code:gl,name:clean(v?.name||gl),budgetByMonth:{},actualByMonth:{},lyByMonth:{},newBudgetByMonth:{},fyBudget:0,actualUnperiodized:0,lyUnperiodized:0,hasLY:false};
+    const departmentMonths=monthMap(v?.newBudgetByMonth||{}),itMonths=monthMap(existing?.itSubscriptionAllocatedByMonth||{}),combined=addMaps(departmentMonths,itMonths),landing=num(v?.landing),details=planDetails(plan,gl);
+    const needs=existing.subscriptionControlled!==true||!mapsEqual(existing.departmentSubscriptionByMonth||{},departmentMonths)||!mapsEqual(existing.newBudgetByMonth||{},combined)||Math.abs(num(existing.departmentSubscriptionLanding)-landing)>.00001||clean(existing.subscriptionDetails)!==details;
+    if(!needs)return;
+    merged.items[targetKey]={...existing,code:clean(existing?.code||gl),name:clean(existing?.name||v?.name)||'Subscriptions, Books and Magazines',landing,newBudgetByMonth:combined,departmentSubscriptionByMonth:departmentMonths,departmentSubscriptionLanding:landing,subscriptionControlled:true,subscriptionSource:'department',subscriptionDetails:details,subscriptionDetailsCount:(plan?.rows||[]).filter(r=>clean(r?.gl)===gl).length};
+    changed=true;
+  });
+  Object.entries(merged.items).forEach(([k,item])=>{
+    if(item?.subscriptionControlled!==true)return;
+    const code=clean(item?.code||k);if(touched.has(code))return;
+    const itMonths=monthMap(item?.itSubscriptionAllocatedByMonth||{});
+    const needs=Math.abs(num(item?.departmentSubscriptionLanding))>.00001||Object.values(item?.departmentSubscriptionByMonth||{}).some(v=>Math.abs(num(v))>.00001)||!mapsEqual(item?.newBudgetByMonth||{},itMonths);
+    if(!needs)return;
+    merged.items[k]={...item,landing:0,newBudgetByMonth:itMonths,departmentSubscriptionByMonth:{},departmentSubscriptionLanding:0,subscriptionDetails:'',subscriptionDetailsCount:0};changed=true;
+  });
+  if(plan)merged.subscriptionRows=(plan.rows||[]).map(r=>({...r,newBudgetByMonth:monthMap(r?.newBudgetByMonth||{})}));
+  return{department:merged,changed};
 }
-function bindSelectedDepartmentRefresh(){if(selectedBound)return;const select=document.getElementById('deptFilter');if(!select){setTimeout(bindSelectedDepartmentRefresh,120);return}selectedBound=true;select.addEventListener('change',()=>setTimeout(()=>refreshSelectedDepartment(false),0));setTimeout(()=>refreshSelectedDepartment(true),250)}
 
-function watchPlanChanges(){planUnsubs.forEach(fn=>{try{fn()}catch(_){}});planUnsubs=[];if(!auth.currentUser)return;if(isAdmin(auth.currentUser,profile)){const q=query(collection(db,'system_status'),orderBy(documentId()),startAt(DOC_PREFIX),endAt(`${DOC_PREFIX}\uf8ff`));planUnsubs.push(onSnapshot(q,snap=>{const changed={};snap.docChanges().forEach(change=>{if(change.type==='removed'||change.doc.id===REFRESH_DOC)return;const cc=normalizeCc(clean(change.doc.id).slice(DOC_PREFIX.length));if(cc)changed[cc]=normalizePlan(change.doc.data()||{},cc)});if(Object.keys(changed).length){cachePlans(changed);applyPlansToLocal(changed)}},e=>console.warn('Subscriptions OPEX live sync failed',e)))}else{departmentsOf(profile).filter(cc=>cc&&cc!=='ALL'&&!cc.startsWith('GROUP:')).forEach(cc=>{planUnsubs.push(onSnapshot(doc(db,'system_status',`${DOC_PREFIX}${cc}`),snap=>{if(!snap.exists())return;const plans={[cc]:normalizePlan(snap.data()||{},cc)};cachePlans(plans);applyPlansToLocal(plans)},e=>console.warn('Subscriptions OPEX department sync failed',cc,e)))})}}
+function projectCurrentModel(){
+  if(applying)return false;const model=readModel();if(!model?.departments)return false;applying=true;let changed=false;
+  try{
+    Object.entries(model.departments).forEach(([rawCc,department])=>{const cc=normalizeCc(rawCc),plan=plans.get(cc)||null;if(!plan&&!Object.values(department?.items||{}).some(item=>item?.subscriptionControlled===true))return;const result=projectDepartment(department,plan);if(result.changed){model.departments[rawCc]=result.department;changed=true}});
+    if(changed)localStorage.setItem(OPEX_KEY,JSON.stringify(model));
+  }catch(e){console.warn('Subscriptions OPEX projection failed',e)}finally{applying=false}
+  return changed;
+}
+function queueRender(){if(renderQueued)return;renderQueued=true;queueMicrotask(()=>{renderQueued=false;const select=document.getElementById('deptFilter');if(select)select.dispatchEvent(new Event('change',{bubbles:true}))})}
+function projectAndRender(){if(projectCurrentModel())queueRender()}
+function bindSelect(){if(selectBound)return;const select=document.getElementById('deptFilter');if(!select){setTimeout(bindSelect,80);return}selectBound=true;select.addEventListener('change',()=>{projectCurrentModel()},true)}
+function putPlan(cc,data){cc=normalizeCc(cc);if(!cc)return;plans.set(cc,normalizePlan(data||{},cc))}
+function removePlan(cc){cc=normalizeCc(cc);if(cc)plans.delete(cc)}
 
-function base64ToBytes(s){const raw=atob(s||''),out=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);return out}
-async function decodeSubmission(data,id){if(!data?.payload)return null;if(data.encoding==='json-v1')return{...JSON.parse(data.payload||'{}'),cc:id};if(data.encoding==='gzip-base64-v1'){if(typeof DecompressionStream==='undefined')return null;const stream=new Blob([base64ToBytes(data.payload)]).stream().pipeThrough(new DecompressionStream('gzip'));return{...JSON.parse(await new Response(stream).text()),cc:id}}return{...data,cc:id}}
-function bytesToBase64(bytes){let s='';for(let i=0;i<bytes.length;i+=32768)s+=String.fromCharCode(...bytes.subarray(i,i+32768));return btoa(s)}
-async function encodeSubmission(data){const raw=JSON.stringify(data);if(typeof CompressionStream!=='undefined'){const stream=new Blob([raw]).stream().pipeThrough(new CompressionStream('gzip'));const bytes=new Uint8Array(await new Response(stream).arrayBuffer()),payload=bytesToBase64(bytes);if(new Blob([payload]).size<900000)return{encoding:'gzip-base64-v1',payload}}if(new Blob([raw]).size<900000)return{encoding:'json-v1',payload:raw};throw new Error('OPEX subscription payload is too large')}
-async function patchOpenSubmission(cc,plan){if(!cc||!plan||!auth.currentUser)return;try{const ref=doc(db,'opex_budget_submissions',cc),s=await getDoc(ref);if(!s.exists())return;const raw=s.data()||{},state=clean(raw.workflowStatus||raw.status).toLowerCase();if(!['uploaded','manager_returned','returned'].includes(state))return;const decoded=await decodeSubmission(raw,cc);if(!decoded?.items||departmentMatchesPlan(decoded,plan))return;const patched=applyPlan(decoded,plan),encoded=await encodeSubmission(patched);await setDoc(ref,{encoding:encoded.encoding,payload:encoded.payload,workflowStatus:'uploaded',status:'uploaded',financeStatus:'not_submitted',subscriptionRows:patched.subscriptionRows||[],subscriptionUpdatedAt:serverTimestamp(),subscriptionUpdatedBy:auth.currentUser.uid,subscriptionUpdatedByEmail:clean(auth.currentUser.email).toLowerCase()},{merge:true})}catch(e){console.warn('Subscriptions could not patch the open OPEX submission',cc,e)}}
-async function patchFromLatest(cc){cc=normalizeCc(cc);let plan=readCache()?.[cc];if(!plan){try{const s=await getDoc(doc(db,'system_status',`${DOC_PREFIX}${cc}`));if(s.exists()){plan=normalizePlan(s.data()||{},cc);cachePlans({[cc]:plan})}}catch(e){console.warn('Subscriptions submission patch read failed',cc,e)}}if(plan)await patchOpenSubmission(cc,normalizePlan(plan,cc))}
-async function loadProfile(user){const local=cachedProfile();if(local&&clean(local.uid)===user.uid)return local;const s=await getDoc(doc(db,'users',user.uid));return s.exists()?s.data()||{}:{}}
-async function boot(user){if(!user)return;try{profile=await loadProfile(user);clearOldCaches();watchPlanChanges();bindSelectedDepartmentRefresh();reapplyCached(100);const input=document.getElementById('opexUploadInput');if(input&&!input.dataset.subscriptionBridgeBound){input.dataset.subscriptionBridgeBound='1';input.addEventListener('change',()=>reapplyCached(140))}}catch(e){console.warn('Subscriptions OPEX bridge failed to start',e)}}
+function watchPlans(){
+  unsubs.forEach(fn=>{try{fn()}catch(_){}});unsubs=[];
+  if(!auth.currentUser)return;
+  if(isAdmin()){
+    const q=query(collection(db,'system_status'),orderBy(documentId()),startAt(DOC_PREFIX),endAt(`${DOC_PREFIX}\uf8ff`));
+    unsubs.push(onSnapshot(q,snap=>{snap.docChanges().forEach(change=>{const id=clean(change.doc.id);if(!id.startsWith(DOC_PREFIX))return;const cc=normalizeCc(id.slice(DOC_PREFIX.length));if(!cc||cc==='refresh_fy2027')return;if(change.type==='removed')removePlan(cc);else putPlan(cc,change.doc.data()||{})});projectAndRender()},e=>console.warn('Subscriptions OPEX source watch failed',e)));
+  }else{
+    departmentsOf(profile).filter(cc=>cc&&cc!=='ALL'&&!cc.startsWith('GROUP:')).forEach(cc=>unsubs.push(onSnapshot(doc(db,'system_status',`${DOC_PREFIX}${cc}`),snap=>{if(snap.exists())putPlan(cc,snap.data()||{});else removePlan(cc);projectAndRender()},e=>console.warn('Subscriptions OPEX department watch failed',cc,e))));
+  }
+}
+async function loadProfile(user){const local=cachedProfile();if(local&&clean(local.uid)===user.uid)return local;const snap=await getDoc(doc(db,'users',user.uid));return snap.exists()?snap.data()||{}:{}}
+async function boot(user){if(!user)return;try{profile=await loadProfile(user);bindSelect();watchPlans();projectAndRender()}catch(e){console.warn('Subscriptions OPEX source failed to start',e)}}
 
 onAuthStateChanged(auth,boot);
-window.addEventListener('dad-opex-cloud-ready',()=>{reapplyCached(100);setTimeout(()=>refreshSelectedDepartment(false),220)});
-window.addEventListener('dad-opex-refresh-departments',()=>reapplyCached(180));
-window.addEventListener('dad-opex-submission-saved',e=>{const cc=clean(e.detail?.cc);if(cc)setTimeout(()=>patchFromLatest(cc),100)});
-window.addEventListener('dad-subscriptions-updated',e=>{const cc=clean(e.detail?.cc);if(cc){setTimeout(()=>patchFromLatest(cc),80);if(normalizeCc(clean(document.getElementById('deptFilter')?.value))===normalizeCc(cc))setTimeout(()=>refreshSelectedDepartment(true),100)}});
+// OPEX rebuilds its canonical baseline/submission model through opex-sync-v2.
+// Re-project subscriptions synchronously after every canonical rebuild so there is one stable final view.
+window.addEventListener('dad-opex-cloud-ready',projectAndRender);
+window.addEventListener('dad-opex-baseline-published',projectAndRender);
+window.addEventListener('dad-opex-submission-saved',projectAndRender);
+window.addEventListener('dad-subscriptions-updated',projectAndRender);
