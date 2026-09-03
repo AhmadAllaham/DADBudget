@@ -8,10 +8,11 @@ const OPEX_KEY='dadBudgetOPEXBaselineV17',DOC_PREFIX='subscription_budget_',REFR
 const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
 const clean=v=>String(v??'').trim(),num=v=>Number.isFinite(Number(v))?Number(v):0,key=v=>clean(v).toUpperCase().replace(/[^A-Z0-9]/g,'');
 const DEPARTMENT_ALIASES={'100100301':'1000100301'},normalizeCc=v=>DEPARTMENT_ALIASES[clean(v)]||clean(v);
-let profile=null,planUnsubs=[],localReapplyTimer=null;
+let profile=null,planUnsubs=[],localReapplyTimer=null,renderTimer=null;
 
 function readModel(){try{const m=JSON.parse(localStorage.getItem(OPEX_KEY)||'null');return m?.departments?m:null}catch(_){return null}}
-function writeModel(m){try{localStorage.setItem(OPEX_KEY,JSON.stringify(m));window.dispatchEvent(new CustomEvent('dad-opex-refresh-departments'))}catch(e){console.warn('Subscriptions OPEX bridge local save failed',e)}}
+function rerenderOpex(){clearTimeout(renderTimer);renderTimer=setTimeout(()=>{const select=document.getElementById('deptFilter');if(select)select.dispatchEvent(new Event('change',{bubbles:true}))},0)}
+function writeModel(m){try{localStorage.setItem(OPEX_KEY,JSON.stringify(m));window.dispatchEvent(new CustomEvent('dad-opex-refresh-departments'));rerenderOpex()}catch(e){console.warn('Subscriptions OPEX bridge local save failed',e)}}
 function cachedProfile(){try{return JSON.parse(localStorage.getItem('dadBudgetCurrentProfile')||'null')||null}catch(_){return null}}
 function departmentsOf(p={}){const out=Array.isArray(p.departments)?p.departments.map(normalizeCc).filter(Boolean):[],primary=normalizeCc(p.department);if(primary&&!out.includes(primary))out.push(primary);return[...new Set(out)]}
 function isAdmin(user=auth.currentUser,p=profile){return!!user&&(user.uid===MAIN_ADMIN_UID||p?.isMainAdmin===true||p?.role==='admin')}
