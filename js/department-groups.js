@@ -75,7 +75,7 @@
     travel?travel.insertAdjacentElement('afterend',a):subnav.appendChild(a)
   }
   if(!document.querySelector('script[data-subscriptions-opex-bridge]')){
-    const bridge=document.createElement('script');bridge.type='module';bridge.src='js/subscriptions-opex-bridge.js?v=20260830-subscriptions-2';bridge.dataset.subscriptionsOpexBridge='1';document.head.appendChild(bridge)
+    const bridge=document.createElement('script');bridge.type='module';bridge.src='js/subscriptions-opex-bridge.js?v=20260903-realtime-1';bridge.dataset.subscriptionsOpexBridge='1';document.head.appendChild(bridge)
   }
   if(!document.querySelector('script[data-rd-group-access-sync]')){
     const access=document.createElement('script');access.type='module';access.src='js/rd-group-access-sync.js?v=20260831-formulation-1';access.dataset.rdGroupAccessSync='1';document.head.appendChild(access)
@@ -87,18 +87,18 @@
 (function(){
   if(!/(?:opex|capex)\.html$/i.test((location.pathname||'').split('?')[0]))return;
   if(document.querySelector('script[data-admin-direct-approval]'))return;
-  const script=document.createElement('script');script.type='module';script.src='js/admin-direct-approval.js?v=20260824-admin-approved-4';script.dataset.adminDirectApproval='1';document.head.appendChild(script);
+  const script=document.createElement('script');script.type='module';script.src='js/admin-direct-approval.js?v=20260824-admin-approved-4';script.dataset.adminDirectApproval='1';document.head.appendChild(script)
 })();
 
 (function(){
   if(!/capex\.html$/i.test((location.pathname||'').split('?')[0]))return;
   if(document.querySelector('script[data-capex-report]'))return;
-  const script=document.createElement('script');script.src='js/capex-report.js?v=20260824-capex-report-1';script.dataset.capexReport='1';document.head.appendChild(script);
+  const script=document.createElement('script');script.src='js/capex-report.js?v=20260824-capex-report-1';script.dataset.capexReport='1';document.head.appendChild(script)
 })();
 
 (function(){
   if(document.querySelector('script[data-ui-stability-pass]'))return;
-  const script=document.createElement('script');script.src='js/ui-stability-pass.js?v=20260831-stability-1';script.dataset.uiStabilityPass='1';document.head.appendChild(script);
+  const script=document.createElement('script');script.src='js/ui-stability-pass.js?v=20260831-stability-1';script.dataset.uiStabilityPass='1';document.head.appendChild(script)
 })();
 
 (function(){
