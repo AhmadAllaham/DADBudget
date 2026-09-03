@@ -7,7 +7,7 @@ const MIN_ITEM_ROWS_PER_ACCOUNT=30;
 const clean=v=>String(v??'').trim();
 const num=v=>{
   if(typeof v==='number'&&Number.isFinite(v))return v;
-  let s=clean(v).replace(/,/g,'');
+  let s=clean(v).replace(/,/g,'').trim();
   if(/^\(.*\)$/.test(s))s='-'+s.slice(1,-1);
   const n=Number(s);
   return Number.isFinite(n)?n:0;
@@ -142,3 +142,7 @@ if(!install()){
   const timer=setInterval(()=>{tries++;if(install()||tries>80)clearInterval(timer)},50);
 }
 })();
+
+if(/subscriptions\.html$/i.test((location.pathname||'').split('?')[0])){
+  import('./subscriptions-refresh-signal.js?v=20260903-realtime-1').catch(e=>console.warn('Subscriptions refresh signal load failed',e));
+}
