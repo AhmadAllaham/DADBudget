@@ -18,6 +18,35 @@
   const marketNorm=v=>{const z=norm(v);return z==='KSA'?'SAUDI':z==='SAUDIARABIA'?'SAUDI':z};
 
   function currentProfile(){try{return JSON.parse(localStorage.getItem('dadBudgetCurrentProfile')||'null')}catch(e){return null}}
+  // One policy for the OPEX links; match the explicit module settings guard.
+  const OPEX_MODULES=new Set(['opex_detail','opex_summary','ap','travel','subscriptions','training','licensing']);
+  function allowedOpexModule(key,p=currentProfile()){
+    return !!p&&(p.isMainAdmin===true||p.role==='admin'||(Array.isArray(p.modules)&&p.modules.includes(key)));
+  }
+  window.DADOpexAccess={isModule:key=>OPEX_MODULES.has(key),allowed:allowedOpexModule};
+  let departmentObserver=null,observedDepartmentSelect=null,departmentTimer=null;
+  function restrictDepartmentSelect(){
+    const p=currentProfile(),sel=document.getElementById('deptFilter');if(!p||!sel)return;
+    const allowed=(Array.isArray(p.departments)?p.departments:(p.department?[p.department]:[])).map(x=>String(x??'').trim()).filter(Boolean);
+    if(p.isMainAdmin===true||p.role==='admin'||allowed.includes('ALL'))return;
+    const allowedSet=new Set(allowed),scopedAll=String(p.email||'').trim().toLowerCase()==='maen.jardaneh@dadgroup.com';
+    const optionAllowed=value=>{const key=String(value||'').trim();if(!key)return true;if(key==='ALL'&&scopedAll)return true;if(allowedSet.has(key))return true;const group=window.DADDepartmentGroups?.groupFor?.(key);return !!group&&group.ids.every(id=>allowedSet.has(String(id).trim()))};
+    const previous=sel.value;
+    [...sel.options].forEach(o=>{if(!optionAllowed(o.value))o.remove()});
+    [...sel.querySelectorAll('optgroup')].forEach(group=>{if(!group.children.length)group.remove()});
+    const choices=[...sel.options].filter(o=>o.value&&!o.disabled&&optionAllowed(o.value));
+    if(![...sel.options].some(o=>o.value===previous))sel.value=choices[0]?.value||'';
+    // A previous single-department session must not leave a multi-choice filter locked.
+    const disabled=choices.length===0;if(sel.disabled!==disabled)sel.disabled=disabled;
+    if(sel.value!==previous)sel.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  function bindDepartmentScope(){
+    const sel=document.getElementById('deptFilter');
+    if(sel!==observedDepartmentSelect){departmentObserver?.disconnect();observedDepartmentSelect=sel;
+      if(sel){departmentObserver=new MutationObserver(()=>{clearTimeout(departmentTimer);departmentTimer=setTimeout(restrictDepartmentSelect,0)});departmentObserver.observe(sel,{childList:true,subtree:true})}
+    }
+    restrictDepartmentSelect();
+  }
   function moduleForLink(link){
     const href=(link.getAttribute('href')||'').split('?')[0].toLowerCase(),label=String(link.textContent||'').trim().toLowerCase();
     if(href.includes('executive-command-center'))return'executive';
@@ -29,6 +58,7 @@
     if(href.includes('capex'))return'capex';
     if(href.includes('opex-summary'))return'opex_summary';
     if(href.includes('training-expense'))return'training';
+    if(href.includes('licensing'))return'licensing';
     if(href.includes('travel-budget'))return'travel';
     if(href.includes('hr-salaries'))return'hr';
     if(href.includes('hr-budget'))return'hr';
@@ -41,7 +71,7 @@
   }
   function applyCachedAccess(){
     const p=currentProfile();if(!p)return;
-    const isAdmin=p.isMainAdmin===true||p.role==='admin',mainAdmin=p.isMainAdmin===true,mods=new Set(Array.isArray(p.modules)?p.modules:[]),departmentAccess=(Array.isArray(p.departments)?p.departments:[p.department]).some(x=>x&&x!=='ALL'),trainingReportViewer=['nouralhuda.hasan@dadgroup.com','hazem.amyreh@dadgroup.com'].includes(String(p.email||'').trim().toLowerCase())||p.role==='manager',allowedModule=req=>mods.has(req)||(req==='subscriptions'&&(mods.has('capex_it')||mods.has('opex')||mods.has('opex_detail')||departmentAccess))||(req==='training'&&trainingReportViewer)||(req==='capex'&&mods.has('capex_it'))||(req==='hr'&&(mods.has('hr_it')||departmentAccess))||(mods.has('opex')&&(req==='opex_detail'||req==='opex_summary'));
+    const isAdmin=p.isMainAdmin===true||p.role==='admin',mainAdmin=p.isMainAdmin===true,mods=new Set(Array.isArray(p.modules)?p.modules:[]),departmentAccess=(Array.isArray(p.departments)?p.departments:[p.department]).some(x=>x&&x!=='ALL'),allowedModule=req=>OPEX_MODULES.has(req)?allowedOpexModule(req,p):mods.has(req)||(req==='capex'&&mods.has('capex_it'))||(req==='hr'&&(mods.has('hr_it')||departmentAccess));
     const nav=document.querySelector('.sidebar-nav');
     if(nav){
       nav.querySelectorAll('a').forEach(a=>{const req=moduleForLink(a);if(!req)return;const allowed=req==='main_admin'?mainAdmin:req==='admin_only'?isAdmin:(isAdmin||allowedModule(req));if(allowed)a.style.removeProperty('display');else a.style.setProperty('display','none','important')});
@@ -49,22 +79,13 @@
       const hrSub=nav.querySelector('.hr-subnav'),hrParent=hrSub?.previousElementSibling;if(hrSub&&hrParent?.tagName==='A'){const anyChild=[...hrSub.querySelectorAll('a')].some(a=>getComputedStyle(a).display!=='none');if(isAdmin||anyChild)hrParent.style.removeProperty('display');else hrParent.style.setProperty('display','none','important')}
       nav.querySelectorAll('.nav-section').forEach(s=>{if(String(s.textContent||'').trim().toUpperCase()==='ADMIN'){let el=s.nextElementSibling,show=false;while(el&&!el.classList.contains('nav-section')){if(el.tagName==='A'&&el.style.display!=='none')show=true;el=el.nextElementSibling}s.style.display=show?'':'none'}});
     }
-    const allowed=Array.isArray(p.departments)?p.departments.filter(Boolean):(p.department?[p.department]:[]),all=isAdmin||allowed.includes('ALL'),scopedAll=String(p.email||'').trim().toLowerCase()==='maen.jardaneh@dadgroup.com';
-    const restrictDepartmentSelect=()=>{
-      const sel=document.getElementById('deptFilter');if(!sel||all||!allowed.length)return;
-      const allowedSet=new Set(allowed.map(String));
-      const optionAllowed=value=>{const key=String(value||'');if(!key)return true;if(key==='ALL'&&scopedAll)return true;if(allowedSet.has(key))return true;const group=window.DADDepartmentGroups?.groupFor?.(key);return !!group&&group.ids.every(id=>allowedSet.has(String(id)))};
-      [...sel.options].forEach(o=>{if(!optionAllowed(o.value))o.remove()});
-      if(!optionAllowed(sel.value)){const next=[...sel.options].find(o=>o.value&&optionAllowed(o.value));if(next){sel.value=next.value;sel.dispatchEvent(new Event('change',{bubbles:true}))}}
-      if(allowed.length===1)sel.disabled=true;
-    };
-    restrictDepartmentSelect();
-    const sel=document.getElementById('deptFilter');if(sel&&!all){let timer;new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(restrictDepartmentSelect,0)}).observe(sel,{childList:true})}
+    bindDepartmentScope();
   }
+
   function ensureFirebaseSession(){
     const path=(location.pathname.split('/').pop()||'').toLowerCase();if(path==='login.html'||path==='')return;
     if(document.querySelector('script[src*="js/firebase.js"]'))return;
-    const s=document.createElement('script');s.type='module';s.src='js/firebase.js?v=20260817-budget-notifications-9';document.head.appendChild(s);
+    const s=document.createElement('script');s.type='module';s.src='js/firebase.js?v=20260909-navigation-filters-1';document.head.appendChild(s);
   }
 
   function setupShell(){

@@ -6,7 +6,7 @@ let rows=[],hideZero=true,productionIds=new Set(),departmentObserver=null,depart
 async function ensureProductionIds(){
  if(productionIds.size)return productionIds;
  if(window.DADDepartmentGroups?.groups?.PRODUCTION?.ids){productionIds=new Set(window.DADDepartmentGroups.groups.PRODUCTION.ids.map(String));return productionIds}
- await new Promise(resolve=>{let script=document.querySelector('script[data-cfo-department-groups]');if(script){script.addEventListener('load',resolve,{once:true});setTimeout(resolve,700);return}script=document.createElement('script');script.src='js/department-groups.js?v=20260824-cfo-production-1';script.dataset.cfoDepartmentGroups='1';script.onload=resolve;script.onerror=resolve;document.head.appendChild(script)});
+ await new Promise(resolve=>{let script=document.querySelector('script[data-cfo-department-groups]');if(script){script.addEventListener('load',resolve,{once:true});setTimeout(resolve,700);return}script=document.createElement('script');script.src='js/department-groups.js?v=20260909-navigation-filters-1';script.dataset.cfoDepartmentGroups='1';script.onload=resolve;script.onerror=resolve;document.head.appendChild(script)});
  productionIds=new Set((window.DADDepartmentGroups?.groups?.PRODUCTION?.ids||[]).map(String));return productionIds
 }
 

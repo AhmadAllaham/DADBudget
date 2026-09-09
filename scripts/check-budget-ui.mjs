@@ -17,7 +17,7 @@ const checks=[
   ['OPEX page forcibly keeps Manar four-department group in the filter',read('opex.html').includes('manarReady=manarGroup?.ids?.every')],
   ['Final OPEX runtime restores Manar group after later filter rebuilds',read('js/manar-group-filter-runtime.js').includes("select.insertBefore(option,select.firstChild)")],
   ['Firestore grants Manar the same four-department scope',read('firestore.rules').includes("fundCenter in ['1000401101', '1000401104', '1000401105', '1000401106']")],
-  ['Central comparison snapshot writes are Main Admin only',read('firestore.rules').includes("document == 'central_opex_reference_fy2026'\n                      && isMainAdmin()")],
+  ['Central comparison snapshot writes are Main Admin only',/document\s*==\s*'central_opex_reference_fy2026'\s*&&\s*isMainAdmin\(\)/.test(read('firestore.rules'))],
 ];
 
 const failed=checks.filter(([,ok])=>!ok);

@@ -14,7 +14,7 @@ let applying=false,queued=false,observer=null;
 function profile(){try{return JSON.parse(localStorage.getItem('dadBudgetCurrentProfile')||'null')||null}catch(_){return null}}
 function isAdmin(p){return p?.isMainAdmin===true||p?.role==='admin'}
 function modules(p){return new Set(Array.isArray(p?.modules)?p.modules:[])}
-function allowed(key,p=profile()){if(!p)return true;return isAdmin(p)||modules(p).has(key)}
+function allowed(key,p=profile()){if(!p)return true;return window.DADOpexAccess?window.DADOpexAccess.allowed(key,p):isAdmin(p)||modules(p).has(key)}
 function currentPage(){return (location.pathname.split('/').pop()||'').toLowerCase()}
 function addUserSettingsOptions(){
   if(currentPage()!=='user-settings.html')return;
@@ -36,7 +36,8 @@ function applyNav(){
   if(sub&&parent?.tagName==='A'){
     const any=ITEMS.some(item=>allowed(item.key,p)&&sub.querySelector(`a[href^="${item.page}"]`));
     setVisible(parent,any||isAdmin(p));
-    parent.href=allowed('opex_detail',p)?'opex.html':'#';
+    const href=allowed('opex_detail',p)?'opex.html':'#';
+    if(parent.getAttribute('href')!==href)parent.setAttribute('href',href);
   }
 }
 function enforcePage(){
@@ -45,11 +46,11 @@ function enforcePage(){
 }
 function run(){
   if(applying){queued=true;return}applying=true;
-  try{addUserSettingsOptions();applyNav();enforcePage()}finally{applying=false;if(queued){queued=false;setTimeout(run,0)}}
+  try{observer?.disconnect();addUserSettingsOptions();applyNav();enforcePage()}finally{applying=false;observeNav();if(queued){queued=false;setTimeout(run,0)}}
 }
 function observeNav(){
-  if(observer)return;const nav=document.querySelector('.sidebar-nav');if(!nav)return;
-  let timer=null;observer=new MutationObserver(()=>{if(applying)return;clearTimeout(timer);timer=setTimeout(run,0)});
+  const nav=document.querySelector('.sidebar-nav');if(!nav)return;
+  let timer=null;if(!observer)observer=new MutationObserver(()=>{if(applying)return;clearTimeout(timer);timer=setTimeout(run,0)});
   observer.observe(nav,{subtree:true,childList:true,attributes:true,attributeFilter:['style','href']});
 }
 function start(){run();observeNav()}
@@ -57,6 +58,6 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 window.addEventListener('dad-user-ready',()=>setTimeout(start,0));
 window.addEventListener('dad-firebase-ready',()=>setTimeout(start,0));
 window.addEventListener('storage',e=>{if(e.key==='dadBudgetCurrentProfile')setTimeout(run,0)});
-let tries=0;const settle=setInterval(()=>{tries++;start();if(tries>=40)clearInterval(settle)},250);
+// DOM and profile events replace polling that repeatedly rewrote the navigation.
 if(currentPage()==='subscriptions.html')import('./subscriptions-loading-guard.js?v=20260902-murad-loading-2').catch(e=>console.warn('Subscriptions fail-safe unavailable',e));
 })();

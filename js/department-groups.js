@@ -49,7 +49,7 @@
     const close=()=>{host.classList.remove('department-combo-open');trigger.setAttribute('aria-expanded','false')};
     trigger.addEventListener('click',event=>{event.stopPropagation();host.classList.contains('department-combo-open')?close():open()});input.addEventListener('input',apply);
     input.addEventListener('keydown',event=>{if(event.key==='Escape'){close();trigger.focus();return}if(event.key!=='Enter')return;const first=[...list.querySelectorAll('.department-combo-option')].find(item=>!item.hidden&&!item.disabled);if(!first)return;first.click();event.preventDefault()});
-    select.addEventListener('change',()=>{sync();close()});document.addEventListener('click',event=>{if(!host.contains(event.target))close()});new MutationObserver(rebuild).observe(select,{childList:true,subtree:true,attributes:true,attributeFilter:['disabled']});rebuild();
+    select.addEventListener('change',()=>{sync();close()});document.addEventListener('click',event=>{if(!host.contains(event.target))close()});new MutationObserver(records=>{if(records.some(r=>r.type!=='attributes'||r.attributeName!=='disabled'))rebuild();else sync()}).observe(select,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['disabled','label','selected','value']});rebuild();
   }
   window.DADDepartmentGroups={groups,all:Object.values(groups),visibleGroups,groupFor,idsFor,includes,nameFor,bindSearch};
 })();
@@ -98,7 +98,7 @@
 
 (function(){
   if(document.querySelector('script[data-ui-stability-pass]'))return;
-  const script=document.createElement('script');script.src='js/ui-stability-pass.js?v=20260831-stability-1';script.dataset.uiStabilityPass='1';document.head.appendChild(script)
+  const script=document.createElement('script');script.src='js/ui-stability-pass.js?v=20260909-navigation-filters-1';script.dataset.uiStabilityPass='1';document.head.appendChild(script)
 })();
 
 (function(){
@@ -113,7 +113,7 @@
 
 (function(){
   if(document.querySelector('script[data-opex-submodule-access]'))return;
-  const script=document.createElement('script');script.src='js/opex-submodule-access.js?v=20260901-opex-granular-1';script.dataset.opexSubmoduleAccess='1';document.head.appendChild(script)
+  const script=document.createElement('script');script.src='js/opex-submodule-access.js?v=20260909-navigation-filters-1';script.dataset.opexSubmoduleAccess='1';document.head.appendChild(script)
 })();
 
 (function(){
