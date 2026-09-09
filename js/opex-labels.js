@@ -5,10 +5,11 @@ function replaceText(root=document){
   nodes.forEach(node=>{
     const p=node.parentElement;
     if(!p||['SCRIPT','STYLE'].includes(p.tagName))return;
-    node.nodeValue=node.nodeValue
+    const updated=node.nodeValue
       .replace(/Budget YTD 2026/g,'Budget YTD')
       .replace(/Show Budget YTD 2026/g,'Show Budget YTD')
       .replace(/Budget 2027 vs Budget YTD 2026/g,'Budget 2027 vs Budget YTD');
+    if(node.nodeValue!==updated)node.nodeValue=updated;
   });
 }
 
@@ -19,5 +20,5 @@ observer.observe(document.documentElement,{childList:true,subtree:true});
 
 import('./manager-workflow.js?v=20260818-manager-chain-1').catch(e=>console.error('OPEX review workflow failed:',e));
 import('./opex-template-all-rows.js?v=20260827-travel-subscriptions-landing-1').catch(e=>console.error('OPEX full template exporter failed:',e));
-import('./opex-budget-increase-alerts.js?v=20260817-budget-increase-alerts-1').catch(e=>console.error('OPEX budget increase alerts failed:',e));
-import('./opex-approved-hard-lock.js?v=20260818-manager-chain-1').catch(e=>console.error('OPEX workflow hard lock failed:',e));
+import('./opex-budget-increase-alerts.js?v=20260909-opex-loop-2').catch(e=>console.error('OPEX budget increase alerts failed:',e));
+import('./opex-approved-hard-lock.js?v=20260909-opex-loop-2').catch(e=>console.error('OPEX workflow hard lock failed:',e));

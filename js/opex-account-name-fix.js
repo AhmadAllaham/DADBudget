@@ -33,6 +33,7 @@ function fix(){
     current=clean(current);
     if(goodName(current,code))return;
     const name=names[code]||`Unknown Account`;
+    if(current===name)return;
     for(const node of [...td.childNodes]){if(node.nodeType===Node.TEXT_NODE)node.remove()}
     td.insertBefore(document.createTextNode(name),span||td.firstChild);
   });

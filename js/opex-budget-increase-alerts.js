@@ -38,7 +38,7 @@ function evaluateRow(row){
   const newCell=row.querySelector('.new-budget-cell');
   if(!label||!fyCell||!newCell)return;
 
-  label.querySelectorAll('.budget-increase-dot').forEach(x=>x.remove());
+  const existing=label.querySelector('.budget-increase-dot');
   const fy=parseNumber(fyCell.textContent);
   const next=parseNumber(newCell.textContent);
   let increasePct=null,flag=false;
@@ -50,14 +50,15 @@ function evaluateRow(row){
     flag=increasePct>THRESHOLD;
   }
 
-  if(!flag)return;
-  const dot=document.createElement('span');
+  if(!flag){existing?.remove();return}
+  const dot=existing||document.createElement('span');
   dot.className='budget-increase-dot';
   dot.setAttribute('aria-label','Budget increase alert');
-  dot.title=increasePct===Infinity
+  const title=increasePct===Infinity
     ? `FY Budget 2027 increased from 0 to ${next.toLocaleString()} — review required`
     : `FY Budget 2027 is ${increasePct.toFixed(1)}% above FY Budget 2026`;
-  label.appendChild(dot);
+  if(dot.title!==title)dot.title=title;
+  if(!existing)label.appendChild(dot);
 }
 
 function applyAlerts(){

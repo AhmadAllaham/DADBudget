@@ -10,15 +10,16 @@ function fy27(item){let s=0;Object.entries(item?.newBudgetByMonth||{}).forEach((
 function fy26(item){return num(item?.fyBudget)}
 function cat(code){if(code==='6050015'||code==='6050016')return'Other Expenses';if(code==='6140019')return'Products related Expense';return(CATS.find(x=>x[1]===String(code).slice(0,3))||['Other Expenses'])[0]}
 function setVarianceCell(cell,value,isPct=false){if(!cell)return;cell.classList.remove('positive-var','negative-var');if(value===null){cell.textContent='—';return}cell.textContent=isPct?value.toLocaleString(undefined,{maximumFractionDigits:1})+'%':fmt(value);if(value>0)cell.classList.add('positive-var');else if(value<0)cell.classList.add('negative-var')}
+function setText(node,value){if(node&&node.textContent!==value)node.textContent=value}
 function updateOpex(){
   if((location.pathname.split('/').pop()||'').toLowerCase()!=='opex.html')return;
   const m=loadModel(),cc=document.getElementById('deptFilter')?.value,d=m?.departments?.[cc],body=document.getElementById('opexBody');if(!d||!body)return;
   const byCat={};CATS.forEach(([c])=>byCat[c]=0);let total=0;
   Object.values(d.items||{}).forEach(x=>{const v=fy27(x);total+=v;(byCat[cat(x.code)]??=0);byCat[cat(x.code)]+=v});
-  body.querySelectorAll('.detail-row').forEach(row=>{const code=clean(row.querySelector('.gl-code')?.textContent),item=d.items?.[code],cell=row.querySelector('.new-budget-cell');if(item&&cell)cell.textContent=fmt(fy27(item))});
-  body.querySelectorAll('.group-row').forEach(row=>{const name=clean(row.querySelector('td:first-child')?.textContent),cell=row.querySelector('.new-budget-cell');if(cell&&Object.prototype.hasOwnProperty.call(byCat,name))cell.textContent=fmt(byCat[name])});
-  const totalCell=body.querySelector('.total-row .new-budget-cell');if(totalCell)totalCell.textContent=fmt(total);
-  const kpi=document.getElementById('kpiNewBudget');if(kpi)kpi.textContent=fmt(total);
+  body.querySelectorAll('.detail-row').forEach(row=>{const code=clean(row.querySelector('.gl-code')?.textContent),item=d.items?.[code],cell=row.querySelector('.new-budget-cell');if(item&&cell)setText(cell,fmt(fy27(item)))});
+  body.querySelectorAll('.group-row').forEach(row=>{const name=clean(row.querySelector('td:first-child')?.textContent),cell=row.querySelector('.new-budget-cell');if(cell&&Object.prototype.hasOwnProperty.call(byCat,name))setText(cell,fmt(byCat[name]))});
+  const totalCell=body.querySelector('.total-row .new-budget-cell');if(totalCell)setText(totalCell,fmt(total));
+  const kpi=document.getElementById('kpiNewBudget');if(kpi)setText(kpi,fmt(total));
 }
 function updateSummary(){
   if((location.pathname.split('/').pop()||'').toLowerCase()!=='opex-summary.html')return;

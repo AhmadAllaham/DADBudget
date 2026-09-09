@@ -85,7 +85,7 @@
   function ensureFirebaseSession(){
     const path=(location.pathname.split('/').pop()||'').toLowerCase();if(path==='login.html'||path==='')return;
     if(document.querySelector('script[src*="js/firebase.js"]'))return;
-    const s=document.createElement('script');s.type='module';s.src='js/firebase.js?v=20260909-navigation-filters-1';document.head.appendChild(s);
+    const s=document.createElement('script');s.type='module';s.src='js/firebase.js?v=20260909-opex-loop-2';document.head.appendChild(s);
   }
 
   function setupShell(){

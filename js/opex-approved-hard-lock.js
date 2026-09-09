@@ -45,7 +45,7 @@ function apply(){
   if(up){up.hidden=blocked;up.disabled=blocked;up.style.setProperty('display',blocked?'none':'','important')}
   if(inp){inp.disabled=blocked;if(blocked)inp.value=''}
   if(review){review.hidden=workflowLocked;review.disabled=workflowLocked;review.style.setProperty('display',workflowLocked?'none':'','important')}
-  if(n){n.textContent=lockMessage();n.style.display=workflowLocked?'block':'none'}
+  if(n){const message=lockMessage();if(n.textContent!==message)n.textContent=message;n.style.display=workflowLocked?'block':'none'}
   document.body.dataset.opexApprovedLock=workflowLocked?'1':'0';
   document.body.dataset.opexWorkflowLock=blocked?'1':'0';
 }
