@@ -44,7 +44,7 @@ async function save(){
 }
 async function start(){
   if(started||!api()?.auth.currentUser)return;
-  try{const profile=await api().getUserProfile(api().auth.currentUser.uid);if(!profile||profile.enabled===false||!(profile.isMainAdmin===true||profile.role==='admin')){status('Tunis Budget is available to administrators only.',true);return}started=true;await load()}
+  try{const profile=await api().getUserProfile(api().auth.currentUser.uid),modules=Array.isArray(profile?.modules)?profile.modules:[];if(!profile||profile.enabled===false||!(profile.isMainAdmin===true||modules.includes('tunis'))){status('DAD Tunis permission is required.',true);return}started=true;await load()}
   catch(error){status(`Could not verify access: ${error.message}`,true)}
 }
 $('budgetLabel').textContent=$('editorHeading').textContent=`${type.toUpperCase()} 2027`;$('sectorLabel').textContent=type==='opex'?'G&A':'CAPEX';
