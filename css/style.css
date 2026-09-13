@@ -20,12 +20,46 @@
 .opex-subnav,
 .opex-subnav a,
 .hr-subnav,
-.hr-subnav a {
+.hr-subnav a,
+.tunis-subnav,
+.tunis-subnav a {
   transition: none !important;
 }
 
 /* Submenus appear only in their final calculated state; no fade/flash. */
 .opex-subnav,
-.hr-subnav {
+.hr-subnav,
+.tunis-subnav {
   animation: none !important;
+}
+
+/* DAD Tunis is a main sidebar module; its two children are always stacked. */
+.tunis-subnav {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: -3px 10px 6px 22px !important;
+  padding-left: 10px !important;
+  border-left: 1px solid rgba(255,255,255,.18) !important;
+}
+.tunis-subnav > a {
+  display: block !important;
+  width: 100% !important;
+  flex: 0 0 auto !important;
+  padding: 8px 10px !important;
+  margin: 2px 0 !important;
+  font-size: 12px !important;
+  border-radius: 7px !important;
+  color: rgba(255,255,255,.76) !important;
+}
+.tunis-subnav > a:hover,
+.tunis-subnav > a.active {
+  color: #fff !important;
+  background: linear-gradient(90deg,rgba(34,214,196,.26),rgba(32,158,149,.08),transparent) !important;
+}
+.tunis-subnav[hidden],
+[data-tunis-nav][hidden] {
+  display: none !important;
 }
