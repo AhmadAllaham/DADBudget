@@ -279,9 +279,7 @@ service cloud.firestore {
     // Independent Tunis plans are never stored in departmental submissions.
     match /tunis_budget/{planId} {
       function canManageTunis() {
-        return isMainAdmin() || (hasUserProfile()
-          && currentUserProfile().enabled != false
-          && currentUserProfile().role == 'admin');
+        return isMainAdmin() || hasModule('tunis');
       }
       allow read: if canManageTunis();
       allow create, update: if canManageTunis()
