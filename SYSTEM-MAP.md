@@ -93,3 +93,12 @@ A manager submitting a workbook for a Fund Center assigned to that manager does 
 - Saves use a Firestore transaction with a revision check. Conflicts and failed saves retain the current draft; navigating away from unsaved edits prompts the user.
 - Deploy the included Firestore rules **before** publishing the new frontend: `firebase deploy --only firestore:rules --project budget-8c575`. The existing environment has no Firebase deployment credentials; production activation remains pending.
 - Then publish the frontend through the existing hosting pipeline. Verify admin save/reload for both plans and denial for a department account against the deployed rules.
+
+### Tunis templates and matching CAPEX layout
+
+- Tunis Budget is now a direct sidebar link, matching the other primary items.
+- OPEX reads the current published `opex_baseline_meta/current.accountMaster`, locks account codes/names, and supports downloading/uploading a monthly Excel template. Imports reject duplicate, unknown, missing or renamed accounts. Saved amounts are joined by account code; unmapped legacy rows block replacement rather than being dropped.
+- `tunis-capex.html` uses the existing CAPEX layout and `capex-payment-schedule.js` parser/template/rendering with a narrowly scoped configuration adapter. Order Requests, monthly/quarterly phasing, payment reconciliation and 2028 spillover match the existing CAPEX.
+- Tunis CAPEX rows/payments are held in page memory and saved only in `tunis_budget/capex_2027`. Payments are nested under their request rows, so the previously supplied Tunis rules remain compatible. No new Firestore rule deployment is needed for this follow-up.
+- The original monthly-only CAPEX records can still be loaded; adding detailed orders/payments uses the new workbook.
+- Verification: `node scripts/tunis-template-regression.mjs` passes account-mapping/import checks and executes the reused CAPEX parser against a 2027/2028 payment fixture. JavaScript syntax and whitespace checks pass. Browser visual verification was blocked by the cloud browser refusing the local preview URL.
