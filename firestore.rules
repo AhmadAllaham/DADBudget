@@ -276,6 +276,34 @@ service cloud.firestore {
         || (request.resource.data.cc is string && document == 'subscription_budget_' + request.resource.data.cc && (isMainAdmin() || hasDepartment(request.resource.data.cc))));
     }
 
+    // Independent Tunis plans are never stored in departmental submissions.
+    match /tunis_budget/{planId} {
+      function canManageTunis() {
+        return isMainAdmin() || (hasUserProfile()
+          && currentUserProfile().enabled != false
+          && currentUserProfile().role == 'admin');
+      }
+      allow read: if canManageTunis();
+      allow create, update: if canManageTunis()
+        && planId in ['opex_2027', 'capex_2027']
+        && request.resource.data.keys().hasOnly(['fiscalYear','scope','budgetType','sector','currency','rows','total','revision','updatedBy','updatedAt'])
+        && request.resource.data.fiscalYear == 2027
+        && request.resource.data.scope == 'tunis_standalone'
+        && request.resource.data.currency == 'JOD'
+        && request.resource.data.budgetType + '_2027' == planId
+        && request.resource.data.sector == (planId == 'opex_2027' ? 'G&A' : 'CAPEX')
+        && request.resource.data.rows is list
+        && request.resource.data.rows.size() <= 500
+        && request.resource.data.total is number
+        && request.resource.data.total >= 0
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.revision is int
+        && ((!exists(/databases/$(database)/documents/tunis_budget/$(planId)) && request.resource.data.revision == 1)
+          || (exists(/databases/$(database)/documents/tunis_budget/$(planId)) && request.resource.data.revision == resource.data.revision + 1));
+      allow delete: if false;
+    }
+
     match /users/{userId} {
       allow read, create, update, delete: if isMainAdmin();
       allow read: if isSignedIn() && request.auth.uid == userId;

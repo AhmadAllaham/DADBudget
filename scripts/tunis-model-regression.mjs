@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {validateRows,payload,total} from '../js/tunis-budget-model.js';
+const rows=[{code:'601',description:'Rent',months:[0.1,0.2,...Array(10).fill(0)]}];
+assert.equal(total(rows),0.3);
+assert.equal(payload('opex',rows,0,'test',1).sector,'G&A');
+assert.equal(payload('capex',rows,0,'test',1).budgetType,'capex');
+assert.throws(()=>validateRows([{...rows[0],description:''}]));
+assert.throws(()=>validateRows([{...rows[0],months:[-1,...Array(11).fill(0)]}]));
+assert.throws(()=>validateRows([{...rows[0],months:[NaN,...Array(11).fill(0)]}]));
+assert.throws(()=>validateRows(Array(501).fill(rows[0])));
+console.log('7 Tunis budget model checks passed.');
