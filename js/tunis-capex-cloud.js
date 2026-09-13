@@ -13,7 +13,7 @@ function unpack(raw){
 }
 async function start(){
   if(started||!api()?.auth.currentUser)return;started=true;
-  try{const p=await api().getUserProfile(api().auth.currentUser.uid);if(!p||p.enabled===false||!(p.isMainAdmin===true||p.role==='admin'))throw Error('Administrator access is required.');const snapshot=await getDoc(ref()),data=snapshot.exists()?snapshot.data():null,rows=unpack(data?.rows);revision=data?.revision||0;page.saveRows(rows);page.savePayments(rows.flatMap(r=>r.payments));page.render();status(rows.length?'Saved Tunis CAPEX loaded.':'Download the Tunis template to enter your CAPEX budget.');
+  try{const p=await api().getUserProfile(api().auth.currentUser.uid),modules=Array.isArray(p?.modules)?p.modules:[];if(!p||p.enabled===false||!(p.isMainAdmin===true||modules.includes('tunis')))throw Error('DAD Tunis permission is required.');const snapshot=await getDoc(ref()),data=snapshot.exists()?snapshot.data():null,rows=unpack(data?.rows);revision=data?.revision||0;page.saveRows(rows);page.savePayments(rows.flatMap(r=>r.payments));page.render();status(rows.length?'Saved Tunis CAPEX loaded.':'Download the Tunis template to enter your CAPEX budget.');
     window.DADCapexCloud={saveSubmission:async parsed=>{
       if(busy)throw Error('A save is already in progress.');if(parsed.cc!=='TUNIS')throw Error('Upload a Tunis workbook only.');if(parsed.rows.length>500)throw Error('Use at most 500 CAPEX requests.');
       busy=true;document.getElementById('uploadBtn').disabled=true;

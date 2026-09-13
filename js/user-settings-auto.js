@@ -10,6 +10,8 @@ function upsertLocal(u){const a=loadLocal();const i=a.findIndex(x=>(u.uid&&x.uid
 function selectedDepartments(){const chips=[...document.querySelectorAll('#selectedDepartments .dep-chip')];return chips.map(ch=>{const cc=ch.querySelector('[data-remove-dep]')?.dataset.removeDep||'';const txt=[...ch.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join(' ').trim();return{cc,label:txt||cc}}).filter(x=>x.cc)}
 function selectedModules(){return[...document.querySelectorAll('#permissions input:checked')].map(x=>x.value)}
 function setStatus(msg,ok=true){const s=$('statusLine');if(!s)return;s.textContent=msg;s.className='status-line '+(ok?'ok':'err')}
+function ensureTunisPermission(){const grid=$('permissions');if(!grid||grid.querySelector('input[value="tunis"]'))return;const label=document.createElement('label');label.className='perm';label.innerHTML='<input type="checkbox" value="tunis"> DAD Tunis';grid.appendChild(label)}
+function normalizeTunisModuleLabels(){document.querySelectorAll('.mods').forEach(cell=>{const parts=cell.textContent.split(', ').map(x=>x.trim()).filter(Boolean);if(parts.includes('tunis'))cell.textContent=parts.map(x=>x==='tunis'?'DAD Tunis':x).join(', ')})}
 function hideUidUi(){const uid=$('uid');if(uid){const field=uid.closest('.field');if(field)field.style.display='none'}document.querySelectorAll('.uid-text').forEach(x=>x.style.display='none');const th=document.querySelector('.user-table thead th:first-child');if(th)th.textContent='Email';const sub=document.querySelector('.form-card .sub');if(sub)sub.textContent='Create the login account and Firestore access profile automatically.';const note=document.querySelector('.password-box small');if(note)note.textContent='For a new user, this password becomes the Firebase login password. It is never stored in Firestore or LocalStorage. For an existing user, use Password Reset to change the login password.'}
 async function syncManagerAssignments(uid,profile,deps){
   if(profile.role!=='manager'||profile.enabled===false)return;
@@ -39,7 +41,7 @@ async function saveUserAutomatically(){
     upsertLocal({...profile,uid:finalUid,cloudSynced:true,createdAt:new Date().toISOString()});
     setStatus(role==='manager'?'Manager saved and department approvals linked automatically.':(uid?'User updated successfully.':'User created successfully. Login is ready immediately.'));
     $('clearBtn')?.click();
-    setTimeout(()=>{hideUidUi();window.dispatchEvent(new Event('resize'))},0);
+    setTimeout(()=>{hideUidUi();ensureTunisPermission();normalizeTunisModuleLabels();window.dispatchEvent(new Event('resize'))},0);
     window.dispatchEvent(new CustomEvent('dad-user-profile-saved',{detail:{uid:finalUid,email,role,departments:depIds}}));
   }catch(err){
     const code=err?.code||'';
@@ -50,10 +52,10 @@ async function saveUserAutomatically(){
   }finally{btn.disabled=false;btn.textContent=clean($('uid')?.value)?'Update in Firebase':'Create User'}
 }
 function install(){
-  hideUidUi();
+  hideUidUi();ensureTunisPermission();normalizeTunisModuleLabels();
   const btn=$('saveBtn');if(btn){btn.textContent=clean($('uid')?.value)?'Update in Firebase':'Create User';btn.onclick=saveUserAutomatically}
   const email=$('email');email?.addEventListener('input',()=>{if(!clean($('uid')?.value)&&btn)btn.textContent='Create User'});
-  const observer=new MutationObserver(()=>hideUidUi());const body=$('userBody');if(body)observer.observe(body,{childList:true,subtree:true});
-  document.addEventListener('click',e=>{const edit=e.target.closest('[data-edit]');if(edit)setTimeout(()=>{hideUidUi();if(btn)btn.textContent='Update in Firebase'},0);const clear=e.target.closest('#clearBtn');if(clear)setTimeout(()=>{hideUidUi();if(btn)btn.textContent='Create User'},0)},true);
+  const observer=new MutationObserver(()=>{hideUidUi();ensureTunisPermission();normalizeTunisModuleLabels()});const body=$('userBody');if(body)observer.observe(body,{childList:true,subtree:true});
+  document.addEventListener('click',e=>{const edit=e.target.closest('[data-edit]');if(edit)setTimeout(()=>{hideUidUi();ensureTunisPermission();normalizeTunisModuleLabels();if(btn)btn.textContent='Update in Firebase'},0);const clear=e.target.closest('#clearBtn');if(clear)setTimeout(()=>{hideUidUi();ensureTunisPermission();if(btn)btn.textContent='Create User'},0)},true);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
