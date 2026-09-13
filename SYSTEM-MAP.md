@@ -84,3 +84,12 @@ This changes only the variance display and its sign/color. It does **not** alter
 ## Workflow rule
 
 A manager submitting a workbook for a Fund Center assigned to that manager does not approve their own submission again. After that manager presses **Submit**, the workflow goes directly to Finance Review. Ordinary user submissions still go to the configured manager first.
+
+## Tunis Budget — independent 2027 module
+
+- Route: `tunis-budget.html?type=opex` / `?type=capex`; shared sidebar parent is Tunis Budget.
+- Administration accounts can enter monthly JOD budgets directly and save/reload them. OPEX classification is fixed at G&A. CAPEX is a standalone monthly capital budget.
+- Authoritative storage: `tunis_budget/opex_2027` and `tunis_budget/capex_2027`. No departmental submission, approval, allocation, dashboard, or consolidated export bridge reads this collection.
+- Saves use a Firestore transaction with a revision check. Conflicts and failed saves retain the current draft; navigating away from unsaved edits prompts the user.
+- Deploy the included Firestore rules **before** publishing the new frontend: `firebase deploy --only firestore:rules --project budget-8c575`. The existing environment has no Firebase deployment credentials; production activation remains pending.
+- Then publish the frontend through the existing hosting pipeline. Verify admin save/reload for both plans and denial for a department account against the deployed rules.

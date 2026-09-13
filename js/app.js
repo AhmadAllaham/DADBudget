@@ -49,6 +49,7 @@
   }
   function moduleForLink(link){
     const href=(link.getAttribute('href')||'').split('?')[0].toLowerCase(),label=String(link.textContent||'').trim().toLowerCase();
+    if(href.includes('tunis-budget'))return'admin_only';
     if(href.includes('executive-command-center'))return'executive';
     if(href.includes('user-settings'))return'admin_only';
     if(href.includes('data-admin'))return'main_admin';
@@ -74,6 +75,7 @@
     const isAdmin=p.isMainAdmin===true||p.role==='admin',mainAdmin=p.isMainAdmin===true,mods=new Set(Array.isArray(p.modules)?p.modules:[]),departmentAccess=(Array.isArray(p.departments)?p.departments:[p.department]).some(x=>x&&x!=='ALL'),allowedModule=req=>OPEX_MODULES.has(req)?allowedOpexModule(req,p):mods.has(req)||(req==='capex'&&mods.has('capex_it'))||(req==='hr'&&(mods.has('hr_it')||departmentAccess));
     const nav=document.querySelector('.sidebar-nav');
     if(nav){
+      const tunis=nav.querySelector('[data-tunis-nav]');if(tunis)tunis.hidden=!isAdmin;
       nav.querySelectorAll('a').forEach(a=>{const req=moduleForLink(a);if(!req)return;const allowed=req==='main_admin'?mainAdmin:req==='admin_only'?isAdmin:(isAdmin||allowedModule(req));if(allowed)a.style.removeProperty('display');else a.style.setProperty('display','none','important')});
       const opexSub=nav.querySelector('.opex-subnav'),opexParent=opexSub?.previousElementSibling;if(opexSub&&opexParent?.tagName==='A'){const anyChild=[...opexSub.querySelectorAll('a')].some(a=>getComputedStyle(a).display!=='none');if(isAdmin||allowedModule('opex_detail')||anyChild)opexParent.style.removeProperty('display');else opexParent.style.setProperty('display','none','important');opexParent.href=(isAdmin||allowedModule('opex_detail'))?'opex.html':'#'}
       const hrSub=nav.querySelector('.hr-subnav'),hrParent=hrSub?.previousElementSibling;if(hrSub&&hrParent?.tagName==='A'){const anyChild=[...hrSub.querySelectorAll('a')].some(a=>getComputedStyle(a).display!=='none');if(isAdmin||anyChild)hrParent.style.removeProperty('display');else hrParent.style.setProperty('display','none','important')}
@@ -85,7 +87,7 @@
   function ensureFirebaseSession(){
     const path=(location.pathname.split('/').pop()||'').toLowerCase();if(path==='login.html'||path==='')return;
     if(document.querySelector('script[src*="js/firebase.js"]'))return;
-    const s=document.createElement('script');s.type='module';s.src='js/firebase.js?v=20260909-opex-loop-2';document.head.appendChild(s);
+    const s=document.createElement('script');s.type='module';s.src='js/firebase.js?v=20260913-tunis-1';document.head.appendChild(s);
   }
 
   function setupShell(){
@@ -104,6 +106,13 @@
     if(nav&&!nav.querySelector('a[href="it-planning.html"]')){const capex=nav.querySelector('a[href="capex.html"]'),a=document.createElement('a');a.href='it-planning.html';a.textContent='IT Planning';if(capex)capex.after(a);else nav.appendChild(a)}
     if(nav&&!nav.querySelector('a[href="projects.html"]')){const it=nav.querySelector('a[href="it-planning.html"]'),a=document.createElement('a');a.href='projects.html';a.textContent='Projects';if(it)it.after(a);else nav.appendChild(a)}
     if(nav&&!nav.querySelector('a[href="subscriptions.html"]')){const opexSub=nav.querySelector('.opex-subnav'),a=document.createElement('a');a.href='subscriptions.html';a.textContent='Subscriptions';if(opexSub)opexSub.appendChild(a);else{const it=nav.querySelector('a[href="it-planning.html"]'),opex=nav.querySelector('a[href="opex.html"]');(it||opex)?.after(a)}}
+    if(nav&&!nav.querySelector('[data-tunis-nav]')){
+      const group=document.createElement('div');group.dataset.tunisNav='1';group.hidden=!(currentProfile()?.isMainAdmin===true||currentProfile()?.role==='admin');
+      const parent=document.createElement('a');parent.href='tunis-budget.html';parent.textContent='Tunis Budget';
+      const sub=document.createElement('div');sub.style.cssText='margin:0 10px 8px 22px;padding-left:10px;border-left:1px solid rgba(255,255,255,.18)';
+      for(const type of ['opex','capex']){const a=document.createElement('a');a.href='tunis-budget.html?type='+type;a.textContent=type.toUpperCase()+' 2027';sub.appendChild(a)}
+      group.append(parent,sub);const capex=nav.querySelector('a[href="capex.html"]');if(capex)capex.after(group);else nav.appendChild(group);
+    }
     if(nav&&!nav.querySelector('.hr-subnav')){
       const headcount=nav.querySelector('a[href="hr-budget.html"]')||document.createElement('a'),parent=document.createElement('a'),subnav=document.createElement('div'),capex=nav.querySelector('a[href="capex.html"]');headcount.href='hr-budget.html';headcount.textContent='Headcount';parent.href='#';parent.textContent='HR Planning';subnav.className='hr-subnav';subnav.appendChild(headcount);if(capex){nav.insertBefore(parent,capex);nav.insertBefore(subnav,capex)}else nav.append(parent,subnav)
     }
