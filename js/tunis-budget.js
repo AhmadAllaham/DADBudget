@@ -4,25 +4,32 @@ import {doc,getDoc,runTransaction,serverTimestamp} from 'https://www.gstatic.com
 const $=id=>document.getElementById(id),type=budgetType(new URLSearchParams(location.search).get('type'));
 const fmt=n=>Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 let rows=[],revision=0,ready=false,busy=false,dirty=false,started=false,master=[];
+let totalsOnly=false,hideZero=false;
+const CATEGORIES=['Employees Benefits','Travel Costs','Depreciation and Amortization','Maintenance cost','A&P, Marketing Activities','IT and Connectivity Expenses','Professional & Consultation Expenses','Utilities Expenses','Insurance Expenses','Logistic Expenses','Governmental and Taxes Expenses','Vehicles Expenses','Products related Expense','Other Expenses'];
+function category(code){const c=String(code||'').trim(),map={'601':'Employees Benefits','602':'Travel Costs','603':'Depreciation and Amortization','604':'Maintenance cost','605':'A&P, Marketing Activities','606':'IT and Connectivity Expenses','607':'Professional & Consultation Expenses','608':'Utilities Expenses','609':'Insurance Expenses','610':'Logistic Expenses','611':'Governmental and Taxes Expenses','612':'Vehicles Expenses','613':'Products related Expense','614':'Other Expenses'};if(c==='6050015'||c==='6050016')return'Other Expenses';if(c==='6140019')return'Products related Expense';return map[c.slice(0,3)]||'Other Expenses'}
 const api=()=>window.DADFirebase,ref=()=>doc(api().db,'tunis_budget',planId(type));
 function status(message,error=false){$('tunisStatus').textContent=message;$('tunisStatus').classList.toggle('error',error)}
-function controls(){for(const id of ['downloadOpex','uploadOpex','saveBudget'])$(id).disabled=!ready||busy;$('reloadBudget').disabled=!started||busy;document.querySelectorAll('#tunisBody input,#tunisBody button').forEach(el=>el.disabled=!ready||busy)}
+function controls(){for(const id of ['downloadOpex','uploadOpex','summaryToggle','zeroToggle','saveBudget'])$(id).disabled=!ready||busy;$('reloadBudget').disabled=!started||busy;document.querySelectorAll('#tunisBody input,#tunisBody button').forEach(el=>el.disabled=!ready||busy)}
 function changed(){dirty=true;status('Unsaved changes. Select Save budget to save your entries.');updateTotals()}
+function grouped(){const map=new Map(CATEGORIES.map(name=>[name,[]]));rows.forEach((row,index)=>map.get(category(row.code)).push({row,index}));return [...map].filter(([,items])=>items.length)}
+function monthSum(items,month){return Math.round(items.reduce((sum,item)=>sum+Number(item.row.months[month]||0),0)*100)/100}
+function applyModes(){document.querySelectorAll('#tunisBody .detail-row').forEach(row=>row.classList.toggle('detail-hidden',totalsOnly));document.querySelectorAll('#tunisBody tr[data-zero]').forEach(row=>row.classList.toggle('zero-hidden',hideZero&&row.dataset.zero==='1'));$('summaryToggle').classList.toggle('active',totalsOnly);$('summaryToggle').textContent=totalsOnly?'Show Details':'Totals Only';$('zeroToggle').classList.toggle('active',hideZero);$('zeroToggle').textContent=hideZero?'Show Zero Rows':'Hide Zero Rows'}
 function updateTotals(){
   $('totalValue').textContent=fmt(total(rows));
-  document.querySelectorAll('[data-total]').forEach((el,i)=>el.textContent=fmt(rowTotal(rows[i])));
-  const footer=$('tunisFooter');footer.replaceChildren();const tr=document.createElement('tr'),label=document.createElement('td');label.colSpan=2;label.textContent='TOTAL';tr.append(label);
+  document.querySelectorAll('[data-row-total]').forEach(el=>el.textContent=fmt(rowTotal(rows[Number(el.dataset.rowTotal)])));
+  document.querySelectorAll('#tunisBody .detail-row').forEach(el=>el.dataset.zero=Math.abs(rowTotal(rows[Number(el.dataset.rowIndex)]))<.005?'1':'0');
+  grouped().forEach(([name,items],groupIndex)=>{const tr=document.querySelector(`#tunisBody tr[data-group-index="${groupIndex}"]`);if(!tr)return;for(let month=0;month<12;month++)tr.cells[month+1].textContent=fmt(monthSum(items,month));const groupTotal=items.reduce((sum,item)=>sum+rowTotal(item.row),0);tr.cells[13].textContent=fmt(groupTotal);tr.dataset.zero=Math.abs(groupTotal)<.005?'1':'0'});
+  const footer=$('tunisFooter');footer.replaceChildren();const tr=document.createElement('tr'),label=document.createElement('td');label.textContent='Total OPEX';tr.append(label);
   for(let m=0;m<12;m++){const td=document.createElement('td');td.textContent=fmt(rows.reduce((s,r)=>s+Math.round(Number(r.months[m]||0)*100),0)/100);tr.append(td)}
-  const td=document.createElement('td');td.textContent=fmt(total(rows));tr.append(td);footer.append(tr);
+  const td=document.createElement('td');td.textContent=fmt(total(rows));tr.append(td);footer.append(tr);applyModes();
 }
 function render(){
   const body=$('tunisBody');body.replaceChildren();
-  if(!rows.length){const tr=body.insertRow(),td=tr.insertCell();td.colSpan=16;td.className='empty';td.textContent='No budget lines yet. Select Add line to start.'}
-  rows.forEach((row,i)=>{
-    const tr=body.insertRow();
-    for(const key of ['code','description']){const input=document.createElement('input');input.value=row[key];input.readOnly=true;input.maxLength=key==='code'?80:250;input.setAttribute('aria-label',`Line ${i+1} ${key}`);input.addEventListener('input',()=>{row[key]=input.value;changed()});tr.insertCell().append(input)}
-    row.months.forEach((value,m)=>{const input=document.createElement('input');input.type='number';input.min='0';input.max='10000000000';input.step='.01';input.value=value||'';input.placeholder='0.00';input.setAttribute('aria-label',`Line ${i+1} ${MONTHS[m]} JOD`);input.addEventListener('input',()=>{row.months[m]=input.validity.badInput?NaN:input.value;changed()});tr.insertCell().append(input)});
-    tr.insertCell().dataset.total='1';
+  if(!rows.length){const tr=body.insertRow(),td=tr.insertCell();td.colSpan=14;td.className='empty';td.textContent='No approved OPEX accounts are available.'}
+  grouped().forEach(([name,items],groupIndex)=>{
+    const groupRow=body.insertRow();groupRow.className='group-row';groupRow.dataset.groupIndex=groupIndex;groupRow.insertCell().textContent=name;for(let i=0;i<13;i++)groupRow.insertCell();
+    items.forEach(({row,index})=>{const tr=body.insertRow();tr.className='detail-row';tr.dataset.rowIndex=index;const label=tr.insertCell(),input=document.createElement('input'),code=document.createElement('span');input.value=row.description;input.readOnly=true;input.maxLength=250;input.setAttribute('aria-label',`Line ${index+1} description`);code.className='gl-code';code.textContent=row.code;label.append(input,code);row.months.forEach((value,m)=>{const amount=document.createElement('input');amount.type='number';amount.min='0';amount.max='10000000000';amount.step='.01';amount.value=value||'';amount.placeholder='0.00';amount.setAttribute('aria-label',`Line ${index+1} ${MONTHS[m]} JOD`);amount.addEventListener('input',()=>{row.months[m]=amount.validity.badInput?NaN:amount.value;changed()});tr.insertCell().append(amount)});const totalCell=tr.insertCell();totalCell.dataset.rowTotal=index});
+    const gap=body.insertRow();gap.className='section-gap';const gapCell=gap.insertCell();gapCell.colSpan=14;
   });updateTotals();controls();
 }
 async function load(){
@@ -49,10 +56,12 @@ async function start(){
 }
 $('budgetLabel').textContent=$('editorHeading').textContent=`${type.toUpperCase()} 2027`;$('sectorLabel').textContent=type==='opex'?'G&A':'CAPEX';
 for(const a of document.querySelectorAll('[data-type]'))if(a.dataset.type===type)a.setAttribute('aria-current','page');
-const head=document.createElement('tr');for(const label of [type==='opex'?'Account code':'Asset code',type==='opex'?'Expense description':'Asset / project description',...MONTHS,'FY 2027']){const th=document.createElement('th');th.scope='col';th.textContent=label;head.append(th)}$('tunisHeader').append(head);
+const head=document.createElement('tr');for(const label of ['Group / Expense',...MONTHS,'FY Budget 2027']){const th=document.createElement('th');th.scope='col';th.textContent=label;head.append(th)}$('tunisHeader').append(head);
 $('downloadOpex').addEventListener('click',()=>downloadOpex(rows).catch(e=>status(e.message,true)));
 $('uploadOpex').addEventListener('click',()=>$('opexFile').click());
 $('opexFile').addEventListener('change',async event=>{const file=event.target.files?.[0];if(!file)return;try{if(!ready||busy)throw Error('Wait until the saved budget has loaded.');if(dirty&&!confirm('Replace unsaved changes with this workbook?'))return;const wb=XLSX.read(await file.arrayBuffer(),{type:'array'}),sheet=wb.Sheets['Tunis OPEX 2027'];if(!sheet)throw Error('Tunis OPEX 2027 sheet is missing.');const next=parseOpexMatrix(XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',raw:true}),master);rows=next;changed();render();status('Workbook validated. Select Save budget to save these amounts.');}catch(error){status(error.message,true)}finally{event.target.value=''}});
 $('saveBudget').addEventListener('click',save);$('reloadBudget').addEventListener('click',load);
+$('summaryToggle').addEventListener('click',()=>{totalsOnly=!totalsOnly;applyModes()});
+$('zeroToggle').addEventListener('click',()=>{hideZero=!hideZero;applyModes()});
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
 window.addEventListener('dad-user-ready',start);start();
