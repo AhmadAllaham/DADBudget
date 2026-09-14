@@ -1,8 +1,11 @@
 import {MONTHS,validateRows} from './tunis-budget-model.js';
 const clean=v=>String(v??'').trim();
+const EXCLUDED_ACCOUNTS=new Set(['COMMITMENTITEM','COMMITMENTITEMGLACCOUNTSEXPENSES','RCMMTITEM','X','24']);
+const accountKey=value=>clean(value).toUpperCase().replace(/[^A-Z0-9]/g,'');
+export const isExcludedTunisOpexAccount=(code,name)=>EXCLUDED_ACCOUNTS.has(accountKey(code))||EXCLUDED_ACCOUNTS.has(accountKey(name));
 export function accountList(raw){
   const map=new Map();
-  for(const [key,value] of Object.entries(raw||{})){const code=clean(value?.code||(Array.isArray(raw)?'':key)),name=clean(value?.name);if(code&&name)map.set(code,{code,description:name,months:Array(12).fill(0)})}
+  for(const [key,value] of Object.entries(raw||{})){const code=clean(value?.code||(Array.isArray(raw)?'':key)),name=clean(value?.name);if(code&&name&&!isExcludedTunisOpexAccount(code,name))map.set(code,{code,description:name,months:Array(12).fill(0)})}
   if(!map.size)throw Error('The approved OPEX account list is not available. Publish the OPEX baseline first.');
   if(map.size>500)throw Error('The approved account list exceeds the 500-line Tunis plan limit.');
   return [...map.values()].sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true}));
@@ -10,6 +13,7 @@ export function accountList(raw){
 export function alignAccounts(master,saved){
   const known=new Map(master.map(r=>[r.code,r])),values=new Map();
   for(const row of validateRows(saved||[])){
+    if(isExcludedTunisOpexAccount(row.code,row.description))continue;
     if(!known.has(row.code))throw Error(`Saved account ${row.code||row.description} is not in the approved OPEX list. Your saved data has been kept; update its mapping before replacing it.`);
     if(values.has(row.code))throw Error(`Saved account ${row.code} is duplicated. Resolve its mapping before replacing it.`);
     values.set(row.code,row.months);
@@ -22,7 +26,7 @@ export function parseOpexMatrix(matrix,master){
   const allowed=new Map(master.map(r=>[r.code,r])),seen=new Set(),rows=[];
   matrix.slice(1).forEach((r,i)=>{
     if(!r.some(v=>clean(v)))return;
-    const code=clean(r[0]);if(!allowed.has(code))throw Error(`Row ${i+2}: account ${code||'(blank)'} is not approved.`);
+    const code=clean(r[0]);if(isExcludedTunisOpexAccount(code,r[1]))return;if(!allowed.has(code))throw Error(`Row ${i+2}: account ${code||'(blank)'} is not approved.`);
     if(seen.has(code))throw Error(`Row ${i+2}: duplicate account ${code}.`);seen.add(code);
     if(clean(r[1])!==allowed.get(code).description||clean(r[2])!=='G&A')throw Error(`Row ${i+2}: keep the approved account name and G&A classification.`);
     rows.push({code,description:allowed.get(code).description,months:r.slice(3,15).map(v=>v===''?0:v)});
