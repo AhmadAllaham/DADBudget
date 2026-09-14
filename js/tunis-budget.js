@@ -3,14 +3,13 @@ import {MONTHS,budgetType,planId,blankRow,validateRows,rowTotal,total,payload} f
 import {doc,getDoc,runTransaction,serverTimestamp} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 const $=id=>document.getElementById(id),type=budgetType(new URLSearchParams(location.search).get('type'));
 const fmt=n=>Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-let rows=[],revision=0,ready=false,busy=false,dirty=false,started=false,master=[];
+let rows=[],revision=0,ready=false,busy=false,started=false,master=[];
 let totalsOnly=false,hideZero=false;
 const CATEGORIES=['Employees Benefits','Travel Costs','Depreciation and Amortization','Maintenance cost','A&P, Marketing Activities','IT and Connectivity Expenses','Professional & Consultation Expenses','Utilities Expenses','Insurance Expenses','Logistic Expenses','Governmental and Taxes Expenses','Vehicles Expenses','Products related Expense','Other Expenses'];
 function category(code){const c=String(code||'').trim(),map={'601':'Employees Benefits','602':'Travel Costs','603':'Depreciation and Amortization','604':'Maintenance cost','605':'A&P, Marketing Activities','606':'IT and Connectivity Expenses','607':'Professional & Consultation Expenses','608':'Utilities Expenses','609':'Insurance Expenses','610':'Logistic Expenses','611':'Governmental and Taxes Expenses','612':'Vehicles Expenses','613':'Products related Expense','614':'Other Expenses'};if(c==='6050015'||c==='6050016')return'Other Expenses';if(c==='6140019')return'Products related Expense';return map[c.slice(0,3)]||'Other Expenses'}
 const api=()=>window.DADFirebase,ref=()=>doc(api().db,'tunis_budget',planId(type));
 function status(message,error=false){$('tunisStatus').textContent=message;$('tunisStatus').classList.toggle('error',error)}
-function controls(){for(const id of ['downloadOpex','uploadOpex','summaryToggle','zeroToggle','saveBudget'])$(id).disabled=!ready||busy;$('reloadBudget').disabled=!started||busy;document.querySelectorAll('#tunisBody input,#tunisBody button').forEach(el=>el.disabled=!ready||busy)}
-function changed(){dirty=true;status('Unsaved changes. Select Save budget to save your entries.');updateTotals()}
+function controls(){for(const id of ['downloadOpex','uploadOpex','summaryToggle','zeroToggle'])$(id).disabled=!ready||busy;$('reloadBudget').disabled=!started||busy}
 function grouped(){const map=new Map(CATEGORIES.map(name=>[name,[]]));rows.forEach((row,index)=>map.get(category(row.code)).push({row,index}));return [...map].filter(([,items])=>items.length)}
 function monthSum(items,month){return Math.round(items.reduce((sum,item)=>sum+Number(item.row.months[month]||0),0)*100)/100}
 function applyModes(){document.querySelectorAll('#tunisBody .detail-row').forEach(row=>row.classList.toggle('detail-hidden',totalsOnly));document.querySelectorAll('#tunisBody tr[data-zero]').forEach(row=>row.classList.toggle('zero-hidden',hideZero&&row.dataset.zero==='1'));$('summaryToggle').classList.toggle('active',totalsOnly);$('summaryToggle').textContent=totalsOnly?'Show Details':'Totals Only';$('zeroToggle').classList.toggle('active',hideZero);$('zeroToggle').textContent=hideZero?'Show Zero Rows':'Hide Zero Rows'}
@@ -28,26 +27,26 @@ function render(){
   if(!rows.length){const tr=body.insertRow(),td=tr.insertCell();td.colSpan=14;td.className='empty';td.textContent='No approved OPEX accounts are available.'}
   grouped().forEach(([name,items],groupIndex)=>{
     const groupRow=body.insertRow();groupRow.className='group-row';groupRow.dataset.groupIndex=groupIndex;groupRow.insertCell().textContent=name;for(let i=0;i<13;i++)groupRow.insertCell();
-    items.forEach(({row,index})=>{const tr=body.insertRow();tr.className='detail-row';tr.dataset.rowIndex=index;const label=tr.insertCell(),input=document.createElement('input'),code=document.createElement('span');input.value=row.description;input.readOnly=true;input.maxLength=250;input.setAttribute('aria-label',`Line ${index+1} description`);code.className='gl-code';code.textContent=row.code;label.append(input,code);row.months.forEach((value,m)=>{const amount=document.createElement('input');amount.type='number';amount.min='0';amount.max='10000000000';amount.step='.01';amount.value=value||'';amount.placeholder='0.00';amount.setAttribute('aria-label',`Line ${index+1} ${MONTHS[m]} JOD`);amount.addEventListener('input',()=>{row.months[m]=amount.validity.badInput?NaN:amount.value;changed()});tr.insertCell().append(amount)});const totalCell=tr.insertCell();totalCell.dataset.rowTotal=index});
+    items.forEach(({row,index})=>{const tr=body.insertRow();tr.className='detail-row';tr.dataset.rowIndex=index;const label=tr.insertCell(),name=document.createElement('span'),code=document.createElement('span');name.className='expense-name';name.textContent=row.description;code.className='gl-code';code.textContent=row.code;label.append(name,code);row.months.forEach(value=>{const amount=tr.insertCell();amount.className='amount-cell';amount.textContent=fmt(value)});const totalCell=tr.insertCell();totalCell.dataset.rowTotal=index});
     const gap=body.insertRow();gap.className='section-gap';const gapCell=gap.insertCell();gapCell.colSpan=14;
   });updateTotals();controls();
 }
 async function load(){
-  if(busy)return;if(dirty&&!confirm('Discard unsaved changes and reload the saved budget?'))return;
+  if(busy)return;
   busy=true;ready=false;controls();status('Loading saved Tunis budget…');
-  try{const [snapshot,baseline]=await Promise.all([getDoc(ref()),getDoc(doc(api().db,'opex_baseline_meta','current'))]);master=accountList(baseline.exists()?baseline.data().accountMaster:null);const data=snapshot.exists()?snapshot.data():null;const next=alignAccounts(master,data?.rows||[]);rows=next;revision=data?.revision||0;ready=true;dirty=false;render();status(data?`Loaded saved ${type.toUpperCase()} 2027 · revision ${revision}.`:'Approved OPEX accounts loaded. Download the template or enter monthly amounts.');}
+  try{const [snapshot,baseline]=await Promise.all([getDoc(ref()),getDoc(doc(api().db,'opex_baseline_meta','current'))]);master=accountList(baseline.exists()?baseline.data().accountMaster:null);const data=snapshot.exists()?snapshot.data():null;const next=alignAccounts(master,data?.rows||[]);rows=next;revision=data?.revision||0;ready=true;render();status(data?`Loaded saved ${type.toUpperCase()} 2027 · revision ${revision}.`:'Approved OPEX accounts loaded. Download the template, complete it, then upload it.');}
   catch(error){status(`Could not load budget: ${error.message}`,true)}finally{busy=false;controls()}
 }
-async function save(){
+async function saveWorkbook(nextRows,fileName){
   if(!ready||busy)return;
-  let clean;try{if(!$('tunisTable').querySelectorAll('input:invalid').length)clean=validateRows(rows);else throw Error('Check the highlighted amounts: use non-negative values with at most two decimals.')}catch(error){status(error.message,true);return}
-  busy=true;controls();status('Saving Tunis budget…');
+  let clean;try{clean=validateRows(nextRows)}catch(error){status(error.message,true);return}
+  busy=true;controls();status(`Validating and saving ${fileName}…`);
   try{const result=await runTransaction(api().db,async transaction=>{
     const snapshot=await transaction.get(ref()),current=snapshot.exists()?snapshot.data().revision||0:0;
-    if(current!==revision)throw Error('Another session updated this budget. Copy your unsaved entries before using Reload saved.');
+    if(current!==revision)throw Error('Another session updated this budget. Select Reload saved, then upload the workbook again.');
     const next=payload(type,clean,revision,api().auth.currentUser.uid,serverTimestamp());transaction.set(ref(),next);return next;
-  });rows=alignAccounts(master,result.rows);revision=result.revision;dirty=false;render();status(`Saved ${type.toUpperCase()} 2027 successfully · revision ${revision}.`)}
-  catch(error){status(`Not saved: ${error.message}`,true)}finally{busy=false;controls()}
+  });rows=alignAccounts(master,result.rows);revision=result.revision;render();status(`${fileName} uploaded and saved successfully · revision ${revision}.`)}
+  catch(error){status(`Workbook was not saved: ${error.message}`,true)}finally{busy=false;controls()}
 }
 async function start(){
   if(started||!api()?.auth.currentUser)return;
@@ -59,9 +58,8 @@ for(const a of document.querySelectorAll('[data-type]'))if(a.dataset.type===type
 const head=document.createElement('tr');for(const label of ['Group / Expense',...MONTHS,'FY Budget 2027']){const th=document.createElement('th');th.scope='col';th.textContent=label;head.append(th)}$('tunisHeader').append(head);
 $('downloadOpex').addEventListener('click',()=>downloadOpex(rows).catch(e=>status(e.message,true)));
 $('uploadOpex').addEventListener('click',()=>$('opexFile').click());
-$('opexFile').addEventListener('change',async event=>{const file=event.target.files?.[0];if(!file)return;try{if(!ready||busy)throw Error('Wait until the saved budget has loaded.');if(dirty&&!confirm('Replace unsaved changes with this workbook?'))return;const wb=XLSX.read(await file.arrayBuffer(),{type:'array'}),sheet=wb.Sheets['Tunis OPEX 2027'];if(!sheet)throw Error('Tunis OPEX 2027 sheet is missing.');const next=parseOpexMatrix(XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',raw:true}),master);rows=next;changed();render();status('Workbook validated. Select Save budget to save these amounts.');}catch(error){status(error.message,true)}finally{event.target.value=''}});
-$('saveBudget').addEventListener('click',save);$('reloadBudget').addEventListener('click',load);
+$('opexFile').addEventListener('change',async event=>{const file=event.target.files?.[0];if(!file)return;try{if(!ready||busy)throw Error('Wait until the saved budget has loaded.');const wb=XLSX.read(await file.arrayBuffer(),{type:'array'}),sheet=wb.Sheets['Tunis OPEX 2027'];if(!sheet)throw Error('Tunis OPEX 2027 sheet is missing.');const next=parseOpexMatrix(XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',raw:true}),master);await saveWorkbook(next,file.name);}catch(error){status(error.message,true)}finally{event.target.value=''}});
+$('reloadBudget').addEventListener('click',load);
 $('summaryToggle').addEventListener('click',()=>{totalsOnly=!totalsOnly;applyModes()});
 $('zeroToggle').addEventListener('click',()=>{hideZero=!hideZero;applyModes()});
-window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
 window.addEventListener('dad-user-ready',start);start();
