@@ -49,7 +49,7 @@
   }
   function moduleForLink(link){
     const href=(link.getAttribute('href')||'').split('?')[0].toLowerCase(),label=String(link.textContent||'').trim().toLowerCase();
-    if(href.includes('tunis-budget')||href.includes('tunis-capex'))return'admin_only';
+    if(href.includes('tunis-budget')||href.includes('tunis-capex'))return'tunis';
     if(href.includes('executive-command-center'))return'executive';
     if(href.includes('user-settings'))return'admin_only';
     if(href.includes('data-admin'))return'main_admin';
@@ -72,11 +72,11 @@
   }
   function applyCachedAccess(){
     const p=currentProfile();if(!p)return;
-    const isAdmin=p.isMainAdmin===true||p.role==='admin',mainAdmin=p.isMainAdmin===true,mods=new Set(Array.isArray(p.modules)?p.modules:[]),departmentAccess=(Array.isArray(p.departments)?p.departments:[p.department]).some(x=>x&&x!=='ALL'),allowedModule=req=>OPEX_MODULES.has(req)?allowedOpexModule(req,p):mods.has(req)||(req==='capex'&&mods.has('capex_it'))||(req==='hr'&&(mods.has('hr_it')||departmentAccess));
+    const isAdmin=p.isMainAdmin===true||p.role==='admin',mainAdmin=p.isMainAdmin===true,mods=new Set(Array.isArray(p.modules)?p.modules:[]),tunisAllowed=mainAdmin||mods.has('tunis'),departmentAccess=(Array.isArray(p.departments)?p.departments:[p.department]).some(x=>x&&x!=='ALL'),allowedModule=req=>OPEX_MODULES.has(req)?allowedOpexModule(req,p):mods.has(req)||(req==='capex'&&mods.has('capex_it'))||(req==='hr'&&(mods.has('hr_it')||departmentAccess));
     const nav=document.querySelector('.sidebar-nav');
     if(nav){
-      nav.querySelectorAll('[data-tunis-nav],.tunis-subnav').forEach(el=>{el.hidden=!isAdmin});
-      nav.querySelectorAll('a').forEach(a=>{const req=moduleForLink(a);if(!req)return;const allowed=req==='main_admin'?mainAdmin:req==='admin_only'?isAdmin:(isAdmin||allowedModule(req));if(allowed)a.style.removeProperty('display');else a.style.setProperty('display','none','important')});
+      nav.querySelectorAll('[data-tunis-nav],.tunis-subnav').forEach(el=>{el.hidden=!tunisAllowed});
+      nav.querySelectorAll('a').forEach(a=>{const req=moduleForLink(a);if(!req)return;const allowed=req==='main_admin'?mainAdmin:req==='admin_only'?isAdmin:req==='tunis'?tunisAllowed:(isAdmin||allowedModule(req));if(allowed)a.style.removeProperty('display');else a.style.setProperty('display','none','important')});
       const opexSub=nav.querySelector('.opex-subnav'),opexParent=opexSub?.previousElementSibling;if(opexSub&&opexParent?.tagName==='A'){const anyChild=[...opexSub.querySelectorAll('a')].some(a=>getComputedStyle(a).display!=='none');if(isAdmin||allowedModule('opex_detail')||anyChild)opexParent.style.removeProperty('display');else opexParent.style.setProperty('display','none','important');opexParent.href=(isAdmin||allowedModule('opex_detail'))?'opex.html':'#'}
       const hrSub=nav.querySelector('.hr-subnav'),hrParent=hrSub?.previousElementSibling;if(hrSub&&hrParent?.tagName==='A'){const anyChild=[...hrSub.querySelectorAll('a')].some(a=>getComputedStyle(a).display!=='none');if(isAdmin||anyChild)hrParent.style.removeProperty('display');else hrParent.style.setProperty('display','none','important')}
       nav.querySelectorAll('.nav-section').forEach(s=>{if(String(s.textContent||'').trim().toUpperCase()==='ADMIN'){let el=s.nextElementSibling,show=false;while(el&&!el.classList.contains('nav-section')){if(el.tagName==='A'&&el.style.display!=='none')show=true;el=el.nextElementSibling}s.style.display=show?'':'none'}});
@@ -87,7 +87,7 @@
   function ensureFirebaseSession(){
     const path=(location.pathname.split('/').pop()||'').toLowerCase();if(path==='login.html'||path==='')return;
     if(document.querySelector('script[src*="js/firebase.js"]'))return;
-    const s=document.createElement('script');s.type='module';s.src='js/firebase.js?v=20260913-tunis-2';document.head.appendChild(s);
+    const s=document.createElement('script');s.type='module';s.src='js/firebase.js?v=20260914-tunis-permission-1';document.head.appendChild(s);
   }
 
   function setupShell(){
@@ -112,7 +112,7 @@
       const current=location.pathname.split('/').pop();
       for(const type of ['opex','capex']){const a=document.createElement('a');a.href=type==='opex'?'tunis-budget.html':'tunis-capex.html';a.textContent=type.toUpperCase()+' 2027';a.style.cssText='display:block;padding:7px 10px;margin:2px 0;font-size:11px';if(current===a.getAttribute('href'))a.classList.add('active');sub.appendChild(a)}
       if(current==='tunis-budget.html'||current==='tunis-capex.html')parent.classList.add('active');
-      const allowed=currentProfile()?.isMainAdmin===true||currentProfile()?.role==='admin';parent.hidden=!allowed;sub.hidden=!allowed;
+      const profile=currentProfile(),allowed=profile?.isMainAdmin===true||(Array.isArray(profile?.modules)&&profile.modules.includes('tunis'));parent.hidden=!allowed;sub.hidden=!allowed;
       const capex=nav.querySelector('a[href="capex.html"]');if(capex){capex.after(parent);parent.after(sub)}else nav.append(parent,sub);
     }
     if(nav&&!nav.querySelector('.hr-subnav')){

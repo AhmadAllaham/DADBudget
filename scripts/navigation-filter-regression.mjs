@@ -28,9 +28,13 @@ update(['A']);await pause();check('Revoked selection switches to permitted depar
 update([]);await pause();check('Empty scope removes stale options and disables control',sel.options.length===0&&sel.disabled);
 update(['A','B']);await pause();sel.innerHTML='<optgroup label="Departments"><option value="A">Department A</option></optgroup>';await pause();const option=new Option('Department B','B');sel.querySelector('optgroup').append(option);await pause();check('Nested options added after loading appear in search',document.querySelectorAll('.department-combo-option').length===2&&!sel.disabled);
 check('Explicit module permissions remain stable',getComputedStyle(document.querySelector('.opex-subnav a[href="subscriptions.html"]')).display==='none'&&getComputedStyle(document.querySelector('.opex-subnav a[href="opex.html"]')).display!=='none');
+const tunisParent=document.querySelector('[data-tunis-nav]'),tunisSub=document.querySelector('.tunis-subnav');
+check('DAD Tunis stays hidden without its permission',!!tunisParent&&tunisParent.hidden&&tunisSub.hidden);
+p={...p,modules:[...p.modules,'tunis']};localStorage.setItem(PROFILE,JSON.stringify(p));window.dispatchEvent(new CustomEvent('dad-user-ready',{detail:{profile:p}}));await pause();
+check('DAD Tunis appears for a non-admin user with its permission',!tunisParent.hidden&&!tunisSub.hidden&&getComputedStyle(tunisParent).display!=='none');
 let mutations=0;const observer=new MutationObserver(records=>mutations+=records.length);observer.observe(document.querySelector('.sidebar-nav'),{attributes:true,subtree:true,childList:true});await new Promise(r=>setTimeout(r,1200));observer.disconnect();check('Idle navigation makes zero DOM mutations',mutations===0);
 const l=document.createElement('a');l.href='training-expense.html';l.textContent='Late Training Link';document.querySelector('.opex-subnav').append(l);await pause();check('Late-added links receive permissions',getComputedStyle(l).display==='none');
-const done=document.createElement('p');done.id='done';done.textContent='All 9 browser regression checks passed.';document.body.prepend(done);
+const done=document.createElement('p');done.id='done';done.textContent='All 11 browser regression checks passed.';document.body.prepend(done);
 }catch(error){const failed=document.createElement('p');failed.id='failed';failed.textContent=error.message;document.body.prepend(failed)}});
 </script></body></html>`);
 console.log(out+'/index.html');
