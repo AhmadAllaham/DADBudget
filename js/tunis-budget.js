@@ -1,4 +1,4 @@
-import {accountList,alignAccounts,parseOpexMatrix,downloadOpex} from './tunis-opex-workbook.js?v=20260914-tunis-exclusions-1';
+import {accountList,alignAccounts,parseOpexMatrix,downloadOpex,opexCategory} from './tunis-opex-workbook.js?v=20260914-tunis-grouping-1';
 import {MONTHS,budgetType,planId,blankRow,validateRows,rowTotal,total,payload} from './tunis-budget-model.js';
 import {doc,getDoc,runTransaction,serverTimestamp} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 const $=id=>document.getElementById(id),type=budgetType(new URLSearchParams(location.search).get('type'));
@@ -6,11 +6,10 @@ const fmt=n=>Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFr
 let rows=[],revision=0,ready=false,busy=false,started=false,master=[];
 let totalsOnly=false,hideZero=false;
 const CATEGORIES=['Employees Benefits','Travel Costs','Depreciation and Amortization','Maintenance cost','A&P, Marketing Activities','IT and Connectivity Expenses','Professional & Consultation Expenses','Utilities Expenses','Insurance Expenses','Logistic Expenses','Governmental and Taxes Expenses','Vehicles Expenses','Products related Expense','Other Expenses'];
-function category(code){const c=String(code||'').trim(),map={'601':'Employees Benefits','602':'Travel Costs','603':'Depreciation and Amortization','604':'Maintenance cost','605':'A&P, Marketing Activities','606':'IT and Connectivity Expenses','607':'Professional & Consultation Expenses','608':'Utilities Expenses','609':'Insurance Expenses','610':'Logistic Expenses','611':'Governmental and Taxes Expenses','612':'Vehicles Expenses','613':'Products related Expense','614':'Other Expenses'};if(c==='6050015'||c==='6050016')return'Other Expenses';if(c==='6140019')return'Products related Expense';return map[c.slice(0,3)]||'Other Expenses'}
 const api=()=>window.DADFirebase,ref=()=>doc(api().db,'tunis_budget',planId(type));
 function status(message,error=false){$('tunisStatus').textContent=message;$('tunisStatus').classList.toggle('error',error)}
 function controls(){for(const id of ['downloadOpex','uploadOpex','summaryToggle','zeroToggle'])$(id).disabled=!ready||busy;$('reloadBudget').disabled=!started||busy}
-function grouped(){const map=new Map(CATEGORIES.map(name=>[name,[]]));rows.forEach((row,index)=>map.get(category(row.code)).push({row,index}));return [...map].filter(([,items])=>items.length)}
+function grouped(){const map=new Map(CATEGORIES.map(name=>[name,[]]));rows.forEach((row,index)=>map.get(opexCategory(row.code)).push({row,index}));return [...map].filter(([,items])=>items.length)}
 function monthSum(items,month){return Math.round(items.reduce((sum,item)=>sum+Number(item.row.months[month]||0),0)*100)/100}
 function applyModes(){document.querySelectorAll('#tunisBody .detail-row').forEach(row=>row.classList.toggle('detail-hidden',totalsOnly));document.querySelectorAll('#tunisBody tr[data-zero]').forEach(row=>row.classList.toggle('zero-hidden',hideZero&&row.dataset.zero==='1'));$('summaryToggle').classList.toggle('active',totalsOnly);$('summaryToggle').textContent=totalsOnly?'Show Details':'Totals Only';$('zeroToggle').classList.toggle('active',hideZero);$('zeroToggle').textContent=hideZero?'Show Zero Rows':'Hide Zero Rows'}
 function updateTotals(){

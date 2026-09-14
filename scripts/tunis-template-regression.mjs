@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import {accountList,alignAccounts,parseOpexMatrix} from '../js/tunis-opex-workbook.js';
+import {accountList,alignAccounts,parseOpexMatrix,opexCategory} from '../js/tunis-opex-workbook.js';
 import {MONTHS} from '../js/tunis-budget-model.js';
 const master=accountList([{code:'601',name:'Approved Salary'},{code:'602',name:'Travel Tickets'}]);
 const filtered=accountList([{code:'601',name:'Approved Salary'},{code:'Commitment Item',name:'Commitment Item'},{code:'RCMMTITEM',name:'RCMMTITEM'},{code:'X',name:'X'},{code:'24',name:'24'},{code:'999',name:'Commitment Item (G/L Accounts-Expenses)'}]);
 assert.deepEqual(filtered.map(row=>row.code),['601']);
+assert.equal(opexCategory('6050015'),'A&P, Marketing Activities');
+assert.equal(opexCategory('6059999'),'A&P, Marketing Activities');
+assert.equal(opexCategory('6140019'),'Other Expenses');
+assert.equal(opexCategory('6149999'),'Other Expenses');
 const headers=['Account Code','Account Name','Sector',...MONTHS.map(m=>`${m} 2027`),'FY 2027 Total (JOD)'];
 const mx=[headers,['601','Approved Salary','G&A',100,...Array(11).fill(0),100],['602','Travel Tickets','G&A',25,...Array(11).fill(0),25]];
 assert.equal(parseOpexMatrix(mx,master)[1].months[0],25);

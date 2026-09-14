@@ -1,8 +1,10 @@
 import {MONTHS,validateRows} from './tunis-budget-model.js';
 const clean=v=>String(v??'').trim();
 const EXCLUDED_ACCOUNTS=new Set(['COMMITMENTITEM','COMMITMENTITEMGLACCOUNTSEXPENSES','RCMMTITEM','X','24']);
+const CATEGORY_BY_PREFIX={'601':'Employees Benefits','602':'Travel Costs','603':'Depreciation and Amortization','604':'Maintenance cost','605':'A&P, Marketing Activities','606':'IT and Connectivity Expenses','607':'Professional & Consultation Expenses','608':'Utilities Expenses','609':'Insurance Expenses','610':'Logistic Expenses','611':'Governmental and Taxes Expenses','612':'Vehicles Expenses','613':'Products related Expense','614':'Other Expenses'};
 const accountKey=value=>clean(value).toUpperCase().replace(/[^A-Z0-9]/g,'');
 export const isExcludedTunisOpexAccount=(code,name)=>EXCLUDED_ACCOUNTS.has(accountKey(code))||EXCLUDED_ACCOUNTS.has(accountKey(name));
+export const opexCategory=code=>CATEGORY_BY_PREFIX[clean(code).slice(0,3)]||'Other Expenses';
 export function accountList(raw){
   const map=new Map();
   for(const [key,value] of Object.entries(raw||{})){const code=clean(value?.code||(Array.isArray(raw)?'':key)),name=clean(value?.name);if(code&&name&&!isExcludedTunisOpexAccount(code,name))map.set(code,{code,description:name,months:Array(12).fill(0)})}
