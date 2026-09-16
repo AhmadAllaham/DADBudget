@@ -1,5 +1,6 @@
 const KEY='dadBudgetOPEXBaselineV17';
 const ENGINEERING_CC='1000100301';
+const LOCAL_TRANSPORT_GL='6020009';
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const COUNTRIES=['Jordan','Saudi Arabia','United Arab Emirates','Qatar','Bahrain','Kuwait','Oman','Iraq','Algeria','Egypt','Lebanon','Palestine','Yemen','Morocco','Tunisia','Libya','Sudan','Syria','Turkey','United States','United Kingdom','France','Germany','Italy','Spain','Switzerland','Netherlands','Belgium','Austria','Greece','Cyprus','India','Pakistan','Bangladesh','Sri Lanka','China','Japan','South Korea','Singapore','Malaysia','Indonesia','Philippines','Thailand','Australia','New Zealand','Canada','Brazil','South Africa','Kenya','Nigeria','Ghana','Ethiopia'];
 const n=v=>{const x=Number(v||0);return Number.isFinite(x)?x:0};
@@ -8,8 +9,8 @@ const itControlledName=value=>IT_CONTROLLED_NAMES.has(String(value||'').toUpperC
 const subscriptionAccount=(code,name)=>['6140006','6141410'].includes(String(code||'').trim())||['SUBSCRIPTIONSBOOKSANDMAGAZINES','SUBSCRIPTIONSANDMAGAZINES'].includes(String(name||'').toUpperCase().replace(/[^A-Z0-9]/g,''));
 function trColumnLetter(column){let value=Number(column),out='';while(value>0){value--;out=String.fromCharCode(65+(value%26))+out;value=Math.floor(value/26)}return out}
 function loadModel(){try{const m=JSON.parse(localStorage.getItem(KEY)||'null');if(m?.departments)return m}catch(_){}const keys=Object.keys(localStorage).filter(k=>/^dadBudgetOPEXBaselineV\d+$/i.test(k)).sort((a,b)=>Number((b.match(/\d+$/)||[0])[0])-Number((a.match(/\d+$/)||[0])[0]));for(const k of keys){try{const m=JSON.parse(localStorage.getItem(k)||'null');if(m?.departments)return m}catch(_){}}return null}
-function controlled(code){const c=String(code||'').trim(),x=Number(c);return c.startsWith('604')||c.startsWith('608')||(x>=6010001&&x<=6010031)||(x>=6020001&&x<=6020010)||(x>=6030010&&x<=6030180&&x%10===0)}
-function travelAccount(code){const x=Number(String(code||'').trim());return Number.isFinite(x)&&x>=6020001&&x<=6020010}
+function controlled(code){const c=String(code||'').trim(),x=Number(c);return c.startsWith('604')||c.startsWith('608')||(x>=6010001&&x<=6010031)||(x>=6020001&&x<=6020010&&c!==LOCAL_TRANSPORT_GL)||(x>=6030010&&x<=6030180&&x%10===0)}
+function travelAccount(code){const c=String(code||'').trim(),x=Number(c);return Number.isFinite(x)&&x>=6020001&&x<=6020010&&c!==LOCAL_TRANSPORT_GL}
 function category(code){const c=String(code||''),p=c.slice(0,3),m={'601':'Employees Benefits','602':'Travel Costs','603':'Depreciation and Amortization','604':'Maintenance cost','605':'A&P, Marketing Activities','606':'IT and Connectivity Expenses','607':'Professional & Consultation Expenses','608':'Utilities Expenses','609':'Insurance Expenses','610':'Logistic Expenses','611':'Governmental and Taxes Expenses','612':'Vehicles Expenses','613':'Products related Expense','614':'Other Expenses'};if(c==='6050015'||c==='6050016')return'Other Expenses';if(c==='6140019')return'Products related Expense';return m[p]||'Other Expenses'}
 function actualYTD(x){return Object.values(x?.actualByMonth||{}).reduce((s,v)=>s+n(v),0)+n(x?.actualUnperiodized)}
 function selectedRange(){const from=document.getElementById('dateFrom')?.value||document.getElementById('from')?.value||localStorage.getItem('dadBudgetOPEXDateFrom')||'2026-01',to=document.getElementById('dateTo')?.value||document.getElementById('to')?.value||localStorage.getItem('dadBudgetOPEXDateTo')||'2026-07';return{from,to}}
@@ -31,11 +32,11 @@ async function downloadAllRows(){
   const wb=new ExcelJS.Workbook();wb.creator='DAD Budget 2027';wb.created=new Date();wb.calcProperties.fullCalcOnLoad=true;wb.calcProperties.forceFullCalc=true;
   const info=wb.addWorksheet('Instructions');[
     ['DAD BUDGET 2027 - DEPARTMENT TEMPLATE'],['Department',d.name],['Fund Center',d.cc],[],['HOW TO USE'],
-    ['1','Enter Landing 2026 and Budget 2027 only in the green cells. For Travel G/L accounts, enter Landing only. All reference and formula columns are locked.'],
+    ['1','Enter Landing 2026 and Budget 2027 only in the green cells. For Travel G/L accounts, enter Landing only, except Local Transportation 6020009 which is entered monthly here.'],
     ['2','FY Landing calculates automatically as Actual YTD plus Landing for the remaining 2026 months.'],
     ['3','All available OPEX accounts are included even when Actual YTD 2026 and FY Budget 2026 are zero.'],
     ['4','Employee Benefits G/L 6010001-6010031 are controlled by the separate HR Budget model.'],
-    ['5','Travel G/L 6020001-6020010 are shown in OPEX for Landing input only. Their Budget 2027 is calculated from the Travel Budget sheet.'],
+    ['5','Travel G/L accounts are calculated from the Travel Budget sheet except Local Transportation 6020009, which is a direct OPEX input.'],
     ['6','Subscriptions, Books and Magazines is planned by each department from the Subscriptions page. Any central IT allocation is added separately; neither source replaces the other.'],
     ['7','Depreciation and Amortization G/L 6030010-6030180 are controlled by a separate model.'],
     ['8','Professional & Consultation G/L 607 accounts are controlled by the Professional Consultation sheet. Details are mandatory for every entered amount.'],

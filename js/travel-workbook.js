@@ -5,6 +5,7 @@ const TRAVEL=[
  ['6020001','Travel Tickets'],['6020002','Travel Hotels'],['6020003','Travel Transportation'],['6020004','Travel Meals'],['6020005','Travel Visa'],
  ['6020006','Travel Per Diem'],['6020007','Travel Insurance'],['6020008','Local Per Diem'],['6020009','Local Transportation'],['6020010','Other Travel Cost']
 ];
+const LOCAL_TRANSPORT_GL='6020009';
 const LOCKED=new Set(['pending_manager','manager_approved','submitted','under_review','approved']);
 const clean=v=>String(v??'').trim();
 const norm=v=>clean(v).toUpperCase().replace(/[^A-Z0-9]/g,'');
@@ -43,7 +44,7 @@ function styleTemplate(workbook,sheet){
   ['2','Travel costs are calculated automatically in JD using the approved fixed-price policy.'],
   ['3','Do not rename the Travel Budget sheet or its columns.'],
   ['4','Upload this same workbook from the Travel page.'],
-  ['5','Uploaded Travel values automatically update Travel G/L 6020001–6020010 in OPEX.']
+  ['5','Uploaded Travel values update Travel G/L accounts in OPEX except Local Transportation 6020009, which remains a direct OPEX input.']
  ].forEach(row=>info.addRow(row));
  info.getColumn(1).width=18;info.getColumn(2).width=100;info.getRow(1).font={bold:true,size:16,color:{argb:'FF0A2C61'}};
 }
@@ -91,8 +92,8 @@ function parseTravel(workbook,expectedCc){
 }
 function applyTravel(department,rows){
  const next=JSON.parse(JSON.stringify(department||{}));next.items=next.items||{};next.travelRows=rows;
- TRAVEL.forEach(([gl,name])=>{const existing=next.items[gl]||{code:gl,name,budgetByMonth:{},actualByMonth:{},lyByMonth:{},fyBudget:0,landing:0,actualUnperiodized:0,lyUnperiodized:0,hasLY:false};next.items[gl]={...existing,code:gl,name:clean(existing.name)||name,newBudgetByMonth:{}}});
- rows.forEach(row=>Object.entries(row.amounts||{}).forEach(([gl,value])=>{if(!next.items[gl]||Math.abs(num(value))<.005)return;const month=String(MONTHS.indexOf(row.month)+1).padStart(2,'0'),key=`2027-${month}`;next.items[gl].newBudgetByMonth[key]=(next.items[gl].newBudgetByMonth[key]||0)+num(value)}));
+ TRAVEL.forEach(([gl,name])=>{const existing=next.items[gl]||{code:gl,name,budgetByMonth:{},actualByMonth:{},lyByMonth:{},fyBudget:0,landing:0,actualUnperiodized:0,lyUnperiodized:0,hasLY:false};next.items[gl]={...existing,code:gl,name:clean(existing.name)||name,newBudgetByMonth:gl===LOCAL_TRANSPORT_GL?{...(existing.newBudgetByMonth||{})}:{}}});
+ rows.forEach(row=>Object.entries(row.amounts||{}).forEach(([gl,value])=>{if(gl===LOCAL_TRANSPORT_GL||!next.items[gl]||Math.abs(num(value))<.005)return;const month=String(MONTHS.indexOf(row.month)+1).padStart(2,'0'),key=`2027-${month}`;next.items[gl].newBudgetByMonth[key]=(next.items[gl].newBudgetByMonth[key]||0)+num(value)}));
  next.travelBudgetByGl=Object.fromEntries(TRAVEL.map(([gl])=>[gl,{...(next.items[gl]?.newBudgetByMonth||{})}]));
  return next;
 }
