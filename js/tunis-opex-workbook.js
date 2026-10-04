@@ -7,7 +7,7 @@ const accountKey=value=>clean(value).toUpperCase().replace(/[^A-Z0-9]/g,'');
 const MONTH_START_INDEX=7;
 const MONTH_END_INDEX=MONTH_START_INDEX+MONTHS.length;
 
-export const TUNIS_OPEX_TEMPLATE_URL='templates/Tunis_OPEX_2027.xlsx?v=20261004-template-1';
+export const TUNIS_OPEX_TEMPLATE_URL='templates/Tunis_OPEX_2027.xlsx?v=20261004-tunis-landing-1';
 export const TUNIS_OPEX_HEADERS=['Account Code','Account Name','Sector','Act LY (JOD)','YTD July (JOD)','Landing (JOD)','FY Landing (JOD)',...MONTHS.map(month=>`${month} 2027`),'FY 2027 Total (JOD)'];
 export const isExcludedTunisOpexAccount=(code,name)=>EXCLUDED_ACCOUNTS.has(accountKey(code))||EXCLUDED_ACCOUNTS.has(accountKey(name));
 export const opexCategory=code=>CATEGORY_BY_PREFIX[clean(code).slice(0,3)]||'Other Expenses';
@@ -48,11 +48,12 @@ export function templateAccountList(matrix){
   const rows=[],seen=new Set();
   matrix.slice(1).forEach((row,index)=>{
     if(!row.some(value=>clean(value))||isTotalRow(row)||isExcludedTunisOpexAccount(row[0],row[1]))return;
-    const code=clean(row[0]),description=clean(row[1]),sector=clean(row[2]);
+    const code=clean(row[0]),description=clean(row[1]),sector=clean(row[2]),landing=Number(row[5]||0);
     if(!code||!description)throw Error(`Template row ${index+2}: account code and name are required.`);
     if(sector!=='G&A')throw Error(`Template row ${index+2}: Tunis OPEX must remain classified as G&A.`);
+    if(!Number.isFinite(landing)||Math.abs(landing)>1e10)throw Error(`Template row ${index+2}: Landing must be a valid amount.`);
     if(seen.has(code))throw Error(`Template row ${index+2}: duplicate account ${code}.`);
-    seen.add(code);rows.push({code,description,months:Array(12).fill(0)});
+    seen.add(code);rows.push({code,description,landing,months:Array(12).fill(0)});
   });
   if(!rows.length)throw Error('The Tunis OPEX template does not contain any approved accounts.');
   if(rows.length>500)throw Error('The Tunis OPEX template exceeds the 500-line plan limit.');

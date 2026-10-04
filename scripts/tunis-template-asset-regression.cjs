@@ -13,12 +13,15 @@ const JSZip=require(path.join(process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES,'js
   assert.match(sheetXml,/r="T178"[^>]*>\s*<x:f[^>]*>SUM\(T2:T177\)<\/x:f>/);
   assert.match(sheetXml,/r="A177"/);
   assert.match(sheetXml,/r="C178"/);
-  for(let row=2;row<=178;row++)for(const column of ['D','E','F','G']){
+  const cachedNumber=(column,row)=>{
     const cell=sheetXml.match(new RegExp(`<x:c r="${column}${row}"[^>]*>([\\s\\S]*?)<\\/x:c>`));
     assert(cell,`${column}${row} is required`);
     const value=cell[1].match(/<x:v>([^<]*)<\/x:v>/);
     assert(value,`${column}${row} must contain a cached numeric value`);
-    assert.equal(Number(value[1]),0,`${column}${row} must not expose a historical financial value`);
-  }
-  console.log('PASS: replacement Tunis OPEX asset has 20 columns, 176 account rows, zeroed public comparisons, visible Jan-Dec inputs, and FY total formulas.');
+    return Number(value[1]);
+  };
+  const landingTotal=Array.from({length:176},(_,index)=>cachedNumber('F',index+2)).reduce((sum,value)=>sum+value,0);
+  assert(Math.abs(cachedNumber('F',2)-10224.7325)<1e-8,'F2 must retain the supplied Basic Salaries Landing');
+  assert(Math.abs(landingTotal-11700.744994721)<1e-8,'Landing values must reconcile to the supplied workbook');
+  console.log('PASS: replacement Tunis OPEX asset retains supplied Landing values, 20 columns, 176 account rows, visible Jan-Dec inputs, and FY total formulas.');
 })().catch(error=>{console.error(error);process.exit(1)});

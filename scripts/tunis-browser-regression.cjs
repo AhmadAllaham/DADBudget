@@ -9,7 +9,7 @@ const server=http.createServer((request,response)=>{
 });
 const mock=`export const doc=(db,c,id)=>c+'/'+id;export const serverTimestamp=()=>123;export async function getDoc(r){const d=JSON.parse(localStorage.getItem('fixture:'+r)||'null');return{exists:()=>!!d,data:()=>d}};export async function runTransaction(db,cb){if(window.failSave)throw Error('Connection lost');let write;const result=await cb({get:getDoc,set:(r,d)=>{write=[r,d]}});localStorage.setItem('fixture:'+write[0],JSON.stringify(write[1]));return result}`;
 const headers=['Account Code','Account Name','Sector','Act LY (JOD)','YTD July (JOD)','Landing (JOD)','FY Landing (JOD)','Jan 2027','Feb 2027','Mar 2027','Apr 2027','May 2027','Jun 2027','Jul 2027','Aug 2027','Sep 2027','Oct 2027','Nov 2027','Dec 2027','FY 2027 Total (JOD)'];
-const matrix=[headers,['601','Office rent','G&A',0,0,0,0,100.1,200.2,0,0,0,0,0,0,0,0,0,0,300.3],['602','Travel Tickets','G&A',0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],['','','Total',0,0,0,0,'','','','','','','','','','','','','']];
+const matrix=[headers,['601','Office rent','G&A',0,0,50,50,100.1,200.2,0,0,0,0,0,0,0,0,0,0,300.3],['602','Travel Tickets','G&A',0,0,25,25,0,0,0,0,0,0,0,0,0,0,0,0,0],['','','Total',0,0,75,75,'','','','','','','','','','','','','']];
 const xlsxMock=`window.XLSX={read:()=>({Sheets:{'Tunis OPEX 2027':${JSON.stringify(matrix)}}}),utils:{sheet_to_json:s=>s}};`;
 
 (async()=>{
@@ -31,9 +31,12 @@ const xlsxMock=`window.XLSX={read:()=>({Sheets:{'Tunis OPEX 2027':${JSON.stringi
   assert.equal(await page.locator('.group-row').count(),2);
   assert.equal(await page.locator('.group-row').first().locator('td').first().innerText(),'Employees Benefits');
   assert.equal(await page.locator('#tunisHeader th').first().innerText(),'Group / Expense');
+  assert.equal(await page.locator('#tunisHeader th').nth(1).innerText(),'Landing');
   assert.equal(await page.locator('#tunisBody input').count(),0);
   assert.equal(await page.locator('#saveBudget').count(),0);
   assert.equal(await page.locator('.expense-name').first().innerText(),'Office rent');
+  assert.equal(await page.locator('.landing-cell').first().innerText(),'50.00');
+  assert.equal(await page.locator('#landingValue').innerText(),'75.00');
   assert(await page.locator('#downloadOpex').isEnabled());
   await page.locator('#opexFile').setInputFiles({name:'Tunis_OPEX_2027.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from('fixture')});
   await page.getByText('Tunis_OPEX_2027.xlsx uploaded and saved successfully · revision 1.').waitFor();
@@ -51,7 +54,7 @@ const xlsxMock=`window.XLSX={read:()=>({Sheets:{'Tunis OPEX 2027':${JSON.stringi
   await page.setViewportSize({width:390,height:844});
   assert(await page.locator('#uploadOpex').isVisible());
   await page.screenshot({path:'/tmp/tunis-template-mobile.png'});
-  console.log('PASS: replacement Tunis OPEX template, Excel-only upload, totals, saved reload, and responsive controls. Browser fixture uses mocked Firebase.');
+  console.log('PASS: replacement Tunis OPEX template, Landing display, Excel-only upload, totals, saved reload, and responsive controls. Browser fixture uses mocked Firebase.');
   console.log('Browser errors:',errors);assert.deepEqual(errors,[]);
   await browser.close();server.close();
 })().catch(error=>{console.error(error);process.exit(1)});
