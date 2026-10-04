@@ -1,4 +1,4 @@
-import {accountList,alignAccounts,parseOpexMatrix,downloadOpex,opexCategory} from './tunis-opex-workbook.js?v=20260914-tunis-grouping-1';
+import {alignAccounts,parseOpexMatrix,downloadOpex,loadOpexTemplateMaster,opexCategory} from './tunis-opex-workbook.js?v=20261004-tunis-template-1';
 import {MONTHS,budgetType,planId,blankRow,validateRows,rowTotal,total,payload} from './tunis-budget-model.js';
 import {doc,getDoc,runTransaction,serverTimestamp} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 const $=id=>document.getElementById(id),type=budgetType(new URLSearchParams(location.search).get('type'));
@@ -33,7 +33,7 @@ function render(){
 async function load(){
   if(busy)return;
   busy=true;ready=false;controls();status('Loading saved Tunis budget…');
-  try{const [snapshot,baseline]=await Promise.all([getDoc(ref()),getDoc(doc(api().db,'opex_baseline_meta','current'))]);master=accountList(baseline.exists()?baseline.data().accountMaster:null);const data=snapshot.exists()?snapshot.data():null;const next=alignAccounts(master,data?.rows||[]);rows=next;revision=data?.revision||0;ready=true;render();status(data?`Loaded saved ${type.toUpperCase()} 2027 · revision ${revision}.`:'Approved OPEX accounts loaded. Download the template, complete it, then upload it.');}
+  try{const [snapshot,templateMaster]=await Promise.all([getDoc(ref()),loadOpexTemplateMaster()]);master=templateMaster;const data=snapshot.exists()?snapshot.data():null;const next=alignAccounts(master,data?.rows||[]);rows=next;revision=data?.revision||0;ready=true;render();status(data?`Loaded saved ${type.toUpperCase()} 2027 · revision ${revision}.`:'Approved Tunis OPEX template loaded. Download it, complete the monthly budget, then upload it.');}
   catch(error){status(`Could not load budget: ${error.message}`,true)}finally{busy=false;controls()}
 }
 async function saveWorkbook(nextRows,fileName){
