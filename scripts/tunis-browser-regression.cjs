@@ -32,6 +32,8 @@ const xlsxMock=`window.XLSX={read:()=>({Sheets:{'Tunis OPEX 2027':${JSON.stringi
   assert.equal(await page.locator('.group-row').first().locator('td').first().innerText(),'Employees Benefits');
   assert.equal(await page.locator('#tunisHeader th').first().innerText(),'Group / Expense');
   assert.equal(await page.locator('#tunisHeader th').nth(1).innerText(),'Landing');
+  assert.equal(await page.locator('#tunisHeader th').nth(2).innerText(),'FY Budget 2027');
+  assert.equal(await page.locator('#tunisHeader th').count(),3);
   assert.equal(await page.locator('#tunisBody input').count(),0);
   assert.equal(await page.locator('#saveBudget').count(),0);
   assert.equal(await page.locator('.expense-name').first().innerText(),'Office rent');
@@ -54,7 +56,7 @@ const xlsxMock=`window.XLSX={read:()=>({Sheets:{'Tunis OPEX 2027':${JSON.stringi
   await page.setViewportSize({width:390,height:844});
   assert(await page.locator('#uploadOpex').isVisible());
   await page.screenshot({path:'/tmp/tunis-template-mobile.png'});
-  console.log('PASS: replacement Tunis OPEX template, Landing display, Excel-only upload, totals, saved reload, and responsive controls. Browser fixture uses mocked Firebase.');
+  console.log('PASS: Tunis screen shows Landing and FY Budget only, with Excel-only monthly entry, totals, saved reload, and responsive controls. Browser fixture uses mocked Firebase.');
   console.log('Browser errors:',errors);assert.deepEqual(errors,[]);
   await browser.close();server.close();
 })().catch(error=>{console.error(error);process.exit(1)});
