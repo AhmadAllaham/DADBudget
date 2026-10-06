@@ -1,27 +1,37 @@
 import { getApps } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
 import { doc, getDoc, getFirestore } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
-import { filterPlCogsRows } from './pl-cogs-parser.mjs';
+import { buildPlRatios, buildPlTable, filterPlRows } from './pl-cogs-parser.mjs';
 
-const DOCUMENT_ID = 'pl_cogs_v1_2027';
-const CACHE_KEY = 'dadBudgetPLCogsV1';
-const CATEGORIES = [
-  ['Gross Sales', 'normal'], ['Return', 'normal'], ['Discount', 'normal'], ['Commission', 'normal'],
-  ['Net of sales', 'subtotal'], ['COGS', 'cogs'], ['Gross Profit', 'subtotal'], ['S&M', 'normal'], ['Net Profit', 'subtotal'],
-];
+const DOCUMENT_ID = 'pl_summary_v1_2027';
+const CACHE_KEY = 'dadBudgetPLSummaryV1';
 const $ = id => document.getElementById(id);
 const clean = value => String(value ?? '').trim();
 let payload = null;
 
 function amount(value) {
   const number = Number(value || 0);
-  if (Math.abs(number) < 0.005) return '0';
+  if (Math.abs(number) < 0.5) return '0';
   const text = Math.abs(number).toLocaleString(undefined, { maximumFractionDigits: 0 });
   return number < 0 ? `(${text})` : text;
 }
 
+function percent(value) {
+  if (value === null || !Number.isFinite(Number(value))) return '—';
+  return `${Math.round(Number(value) * 100)}%`;
+}
+
+function escapeHtml(value) {
+  return clean(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
+}
+
+function tone(value) {
+  if (value === null || Math.abs(Number(value || 0)) < 0.0000001) return 'neutral';
+  return Number(value) > 0 ? 'positive' : 'negative';
+}
+
 function selectedRows() {
-  return filterPlCogsRows(payload?.rows, $('plCountry').value, $('plAgent').value);
+  return filterPlRows(payload?.rows, $('plCountry').value, $('plAgent').value);
 }
 
 function syncAgentOptions() {
@@ -32,22 +42,30 @@ function syncAgentOptions() {
   if (agents.includes(current)) $('plAgent').value = current;
 }
 
-function escapeHtml(value) {
-  return clean(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
+function renderRatios(ratios) {
+  const definitions = [
+    ['COGS / GS %', 'cogsGs'], ['G2N %', 'g2n'], ['GP%', 'gp'], ['S&M%', 'sm'], ['NP%', 'np'],
+  ];
+  $('plRatiosBody').innerHTML = definitions.map(([label, key]) => `<tr><th>${label}</th><td>${percent(ratios.b26[key])}</td><td>${percent(ratios.l26[key])}</td><td>${percent(ratios.b27[key])}</td></tr>`).join('');
 }
 
 function render() {
   const rows = selectedRows();
-  const cogs = rows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
-  $('plCogsValue').textContent = payload ? amount(cogs) : '—';
+  const table = buildPlTable(payload?.rows, $('plCountry').value, $('plAgent').value);
+  $('plBody').innerHTML = table.map(row => `<tr class="${row.className}">
+    <td>${escapeHtml(row.label)}</td>
+    <td>${amount(row.b26)}</td><td>${amount(row.l26)}</td><td>${amount(row.b27)}</td>
+    <td class="${tone(row.deltaL26B26)}">${amount(row.deltaL26B26)}</td><td class="${tone(row.pctL26B26)}">${percent(row.pctL26B26)}</td>
+    <td class="${tone(row.deltaB27B26)}">${amount(row.deltaB27B26)}</td><td class="${tone(row.pctB27B26)}">${percent(row.pctB27B26)}</td>
+    <td class="${tone(row.deltaB27L26)}">${amount(row.deltaB27L26)}</td><td class="${tone(row.pctB27L26)}">${percent(row.pctB27L26)}</td>
+  </tr>`).join('');
+  renderRatios(buildPlRatios(table));
   $('plMarketCount').textContent = new Set(rows.map(row => row.country)).size.toLocaleString();
   $('plAgentCount').textContent = new Set(rows.map(row => row.agent)).size.toLocaleString();
-  $('plBody').innerHTML = CATEGORIES.map(([category, className]) => {
-    const available = category === 'COGS' && payload;
-    return `<tr class="${className} ${available ? '' : 'unavailable'}"><td>${escapeHtml(category)}</td><td>${available ? amount(cogs) : '—'}</td></tr>`;
-  }).join('');
+  $('plRowCount').textContent = rows.length.toLocaleString();
   $('plEmpty').hidden = !!payload;
-  $('plSource').textContent = payload ? `${payload.sourceFile || 'P&L source'} · ${payload.rows?.length || 0} COGS rows · Revision ${payload.revision || 1}` : 'No P&L COGS source uploaded yet.';
+  $('plRatios').hidden = !payload;
+  $('plSource').textContent = payload ? `${payload.sourceFile || 'P&L source'} · ${payload.rows?.length || 0} rows · Revision ${payload.revision || 1}` : 'No P&L source uploaded yet.';
 }
 
 function buildFilters() {
@@ -65,7 +83,7 @@ async function load() {
       localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
     }
   } catch (error) {
-    console.warn('P&L COGS cloud source unavailable', error);
+    console.warn('P&L cloud source unavailable', error);
   }
   if (!payload) {
     try { payload = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); } catch (_) { payload = null; }
