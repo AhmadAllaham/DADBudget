@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>P&amp;L - DAD Budget 2027</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/pl.css?v=20261006-cogs-v1-1">
+</head>
+<body><div class="app-shell">
+<aside class="sidebar"><div class="sidebar-brand"><div class="brand-badge">B27</div><div><strong>BUDGET 2027</strong><span>PLANNING CENTER</span></div></div><nav class="sidebar-nav"><div class="nav-section">PLANNING</div><a href="index.html">Dashboard</a><a href="ims-sales.html">IMS Sales</a><a href="opex.html">OPEX Planning</a><a href="capex.html">CAPEX Planning</a><a href="projects.html">Projects</a><a class="active" href="pl.html">P&amp;L</a><div class="nav-section">WORKFLOW</div><a href="roadmap.html">Roadmap</a><a href="manager-approval.html">Approval Center</a><div class="nav-section">ADMIN</div><a href="data-admin.html">Data Admin</a></nav></aside>
+<main class="main-content pl-page">
+<div class="pl-head"><div><span class="eyebrow">FY BUDGET 2027</span><h1>Profit &amp; Loss</h1><p>Management P&amp;L view. The uploaded source updates only COGS from V1 Budget 2027.</p></div><button class="dark-btn" id="logoutBtn">Log out</button></div>
+<section class="card pl-filters"><div class="pl-field"><label for="plCountry">Country</label><select id="plCountry"><option value="">All Countries</option></select></div><div class="pl-field"><label for="plAgent">Agent</label><select id="plAgent"><option value="">All Agents</option></select></div><button class="pl-clear" id="plClear" type="button">Clear Filters</button></section>
+<section class="pl-kpis"><article class="card pl-kpi"><span>COGS · FY Budget 27</span><strong id="plCogsValue">—</strong><small>V1 Budget 2027 · source sign retained</small></article><article class="card pl-kpi"><span>Countries</span><strong id="plMarketCount">0</strong><small>Current filter</small></article><article class="card pl-kpi"><span>Agents</span><strong id="plAgentCount">0</strong><small>Current filter</small></article></section>
+<section class="card pl-report"><div class="pl-report-head"><div><h2>P&amp;L Summary</h2><p id="plSource">Loading P&amp;L source...</p></div><span class="pl-scenario">FY Budget 27</span></div><div class="pl-table-wrap"><table class="pl-table"><thead><tr><th>Category</th><th>FY Budget 27</th></tr></thead><tbody id="plBody"></tbody></table><div class="pl-empty" id="plEmpty" hidden>Upload the P&amp;L source from Data Admin. Only COGS and V1 Budget 2027 will be read.</div></div><div class="pl-foot"><span><b>Source rule:</b> Category = COGS only.</span><span>Other P&amp;L lines remain unchanged and are not populated by this upload.</span></div></section>
+</main></div>
+<script src="js/app.js?v=20260914-tunis-permission-1"></script>
+<script type="module" src="js/firebase.js?v=20261006-pl-cogs-v1-1"></script>
+<script type="module" src="js/pl.js?v=20261006-cogs-v1-1"></script>
+</body></html>
