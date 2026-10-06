@@ -268,11 +268,35 @@ service cloud.firestore {
     function myEmail() { return request.auth.token.email; }
     function submissionIsApproved() { return ('workflowStatus' in resource.data) && resource.data.workflowStatus == 'approved'; }
 
+    function validPlCogsV1() {
+      return request.resource.data.keys().hasOnly(['fiscalYear','scenario','displayScenario','category','sourceFile','headerRow','ignoredRows','rows','total','revision','updatedBy','updatedByEmail','updatedAt','clientUpdatedAt'])
+        && request.resource.data.fiscalYear == 2027
+        && request.resource.data.scenario == 'V1 Budget 2027'
+        && request.resource.data.displayScenario == 'FY Budget 27'
+        && request.resource.data.category == 'COGS'
+        && request.resource.data.sourceFile is string
+        && request.resource.data.headerRow is int
+        && request.resource.data.ignoredRows is int
+        && request.resource.data.rows is list
+        && request.resource.data.rows.size() > 0
+        && request.resource.data.rows.size() <= 500
+        && request.resource.data.total is number
+        && request.resource.data.revision is int
+        && request.resource.data.revision > 0
+        && ((!exists(/databases/$(database)/documents/system_status/pl_cogs_v1_2027) && request.resource.data.revision == 1)
+          || (exists(/databases/$(database)/documents/system_status/pl_cogs_v1_2027) && request.resource.data.revision == resource.data.revision + 1))
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedByEmail == request.auth.token.email
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.clientUpdatedAt is string;
+    }
+
     match /system_status/{document} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && ((document == 'central_opex_reference_fy2026' && isMainAdmin())
+        || (document == 'pl_cogs_v1_2027' && isMainAdmin() && validPlCogsV1())
         || ((document == 'utilities_budget_fy2027' || document == 'maintenance_budget_fy2027') && (isMainAdmin() || isEngineeringPlanner()) && request.resource.data.sourceCc == '1000100301')
-        || ((!document.matches('subscription_budget_.*')) && document != 'central_opex_reference_fy2026' && document != 'utilities_budget_fy2027' && document != 'maintenance_budget_fy2027')
+        || ((!document.matches('subscription_budget_.*')) && document != 'central_opex_reference_fy2026' && document != 'pl_cogs_v1_2027' && document != 'utilities_budget_fy2027' && document != 'maintenance_budget_fy2027')
         || (request.resource.data.cc is string && document == 'subscription_budget_' + request.resource.data.cc && (isMainAdmin() || hasDepartment(request.resource.data.cc))));
     }
 
