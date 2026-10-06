@@ -1,50 +1,48 @@
 import { getApps } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
 import { getAuth } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
 import { doc, getDoc, getFirestore, runTransaction, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
-import { parsePlCogsV1 } from './pl-cogs-parser.mjs';
+import { parsePlSummaryV1 } from './pl-cogs-parser.mjs';
 
-const DOCUMENT_ID = 'pl_cogs_v1_2027';
-const CACHE_KEY = 'dadBudgetPLCogsV1';
+const DOCUMENT_ID = 'pl_summary_v1_2027';
+const CACHE_KEY = 'dadBudgetPLSummaryV1';
 const clean = value => String(value ?? '').trim();
-const money = value => Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 function cardMarkup() {
-  return `<article class="card source-card" data-source="pl-cogs-v1">
-    <div class="source-top"><div class="source-icon">P&amp;L</div><span class="source-status" id="plCogsStatus">Not uploaded</span></div>
-    <h3>P&amp;L · COGS V1</h3>
-    <p>Reads only Category = COGS and V1 Budget 2027. All other workbook fields are ignored.</p>
-    <div class="source-meta"><span>Last file</span><b id="plCogsFile">—</b></div>
-    <div class="ims-summary" id="plCogsSummary" hidden><span>COGS rows<b id="plCogsRows">0</b></span><span>FY Budget 27<b id="plCogsTotal">0</b></span></div>
-    <div class="source-actions"><button class="upload-btn" id="plCogsUpload" type="button">Upload P&amp;L Source</button><button class="view-btn" type="button" onclick="location.href='pl.html'">Open P&amp;L</button></div>
-    <input type="file" id="plCogsInput" accept=".xlsx,.xls" hidden>
+  return `<article class="card source-card" data-source="pl-summary-v1">
+    <div class="source-top"><div class="source-icon">P&amp;L</div><span class="source-status" id="plSummaryStatus">Not uploaded</span></div>
+    <h3>P&amp;L · B26 / L26 / B27</h3>
+    <p>Reads Budget 2026, Landing 26 and V1 Budget 2027 to build the full P&amp;L table.</p>
+    <div class="source-meta"><span>Last file</span><b id="plSummaryFile">—</b></div>
+    <div class="ims-summary" id="plSummarySummary" hidden><span>P&amp;L rows<b id="plSummaryRows">0</b></span><span>V1 used<b id="plSummaryScenario">B27</b></span></div>
+    <div class="source-actions"><button class="upload-btn" id="plSummaryUpload" type="button">Upload P&amp;L Source</button><button class="view-btn" type="button" onclick="location.href='pl.html'">Open P&amp;L</button></div>
+    <input type="file" id="plSummaryInput" accept=".xlsx,.xls" hidden>
   </article>`;
 }
 
 function showState(payload) {
-  const status = document.getElementById('plCogsStatus');
+  const status = document.getElementById('plSummaryStatus');
   if (!status) return;
   if (!payload) {
     status.textContent = 'Not uploaded';
     status.classList.remove('ready', 'error');
     return;
   }
-  status.textContent = `${payload.rows?.length || 0} COGS rows`;
+  status.textContent = `${payload.rows?.length || 0} P&L rows`;
   status.classList.add('ready');
   status.classList.remove('error');
-  document.getElementById('plCogsFile').textContent = payload.sourceFile || '—';
-  document.getElementById('plCogsRows').textContent = Number(payload.rows?.length || 0).toLocaleString();
-  document.getElementById('plCogsTotal').textContent = money(payload.total);
-  document.getElementById('plCogsSummary').hidden = false;
+  document.getElementById('plSummaryFile').textContent = payload.sourceFile || '—';
+  document.getElementById('plSummaryRows').textContent = Number(payload.rows?.length || 0).toLocaleString();
+  document.getElementById('plSummarySummary').hidden = false;
 }
 
 function setError(message) {
-  const status = document.getElementById('plCogsStatus');
+  const status = document.getElementById('plSummaryStatus');
   if (status) {
     status.textContent = 'Upload error';
     status.classList.add('error');
     status.classList.remove('ready');
   }
-  alert(`P&L COGS upload error: ${message}`);
+  alert(`P&L upload error: ${message}`);
 }
 
 async function firebaseServices() {
@@ -88,12 +86,12 @@ async function savePayload(parsed, file) {
       fiscalYear: 2027,
       scenario: 'V1 Budget 2027',
       displayScenario: 'FY Budget 27',
-      category: 'COGS',
       sourceFile: clean(file.name),
       headerRow: parsed.headerRow,
       ignoredRows: parsed.ignoredRows,
+      derivedCells: parsed.derivedCells,
       rows: parsed.rows,
-      total: parsed.total,
+      totals: parsed.totals,
       revision,
       updatedBy: user.uid,
       updatedByEmail: clean(user.email).toLowerCase(),
@@ -108,14 +106,14 @@ async function savePayload(parsed, file) {
 }
 
 async function handleUpload(file) {
-  const status = document.getElementById('plCogsStatus');
+  const status = document.getElementById('plSummaryStatus');
   status.textContent = 'Reading...';
   status.classList.remove('ready', 'error');
   const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
   const sheetName = workbook.SheetNames.find(name => clean(name).toLowerCase() === 'p&l') || workbook.SheetNames[0];
   const matrix = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: '', raw: true });
-  const parsed = parsePlCogsV1(matrix);
-  const approved = confirm(`Import ${parsed.rows.length} COGS rows from V1 Budget 2027?\nTotal: ${money(parsed.total)}\nOther categories will be ignored.`);
+  const parsed = parsePlSummaryV1(matrix);
+  const approved = confirm(`Import ${parsed.rows.length} P&L rows?\nB26 = Budget 2026\nL26 = Landing 26\nB27 = V1 Budget 2027 only`);
   if (!approved) {
     showState(JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'));
     return;
@@ -126,17 +124,17 @@ async function handleUpload(file) {
 
 function boot() {
   const grid = document.querySelector('.source-grid');
-  if (!grid || document.getElementById('plCogsUpload')) return;
+  if (!grid || document.getElementById('plSummaryUpload')) return;
   grid.insertAdjacentHTML('beforeend', cardMarkup());
-  const input = document.getElementById('plCogsInput');
-  document.getElementById('plCogsUpload').addEventListener('click', () => input.click());
+  const input = document.getElementById('plSummaryInput');
+  document.getElementById('plSummaryUpload').addEventListener('click', () => input.click());
   input.addEventListener('change', async event => {
     const file = event.target.files?.[0];
     if (!file) return;
     try {
       await handleUpload(file);
     } catch (error) {
-      console.error('P&L COGS upload failed', error);
+      console.error('P&L upload failed', error);
       setError(error?.message || error);
     } finally {
       event.target.value = '';

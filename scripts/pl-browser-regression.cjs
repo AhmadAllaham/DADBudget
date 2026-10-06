@@ -5,20 +5,22 @@ const path = require('path');
 const assert = require('assert');
 
 const root = path.resolve(__dirname, '..');
+const categories = [
+  ['Gross Sales', 'grosssales', 6552.9985, 6370.4542, 8611.49],
+  ['Return', 'return', 0, 0, 0],
+  ['Discount', 'discount', -195.79, -190.3, -258.3447],
+  ['Commission', 'commission', -655.29985, -637.04542, -861.149],
+  ['Net of sales', 'netofsales', 5701.90865, 5543.10878, 7491.9963],
+  ['COGS', 'cogs', -3673.41636, -3179, -3307.80156],
+  ['Gross Profit', 'grossprofit', 2028.49229, 2364.10878, 4184.19474],
+  ['S&M', 'sm', -173.71217, -125.4585, -162.26545],
+  ['Net Profit', 'netprofit', 1854.78012, 2238.65028, 4021.92929],
+];
 const fixture = {
-  fiscalYear: 2027,
-  scenario: 'V1 Budget 2027',
-  displayScenario: 'FY Budget 27',
-  category: 'COGS',
-  sourceFile: 'Sales Platform Template.xlsx',
-  revision: 1,
-  rows: [
-    { country: 'Iraq', agent: 'Mena', rank: 6, amount: -3307.801556562087 },
-    { country: 'Iraq', agent: 'Dara', rank: 6, amount: -8677.495256274608 },
-    { country: 'Jordan', agent: 'Jordan Team', rank: 6, amount: -4152 },
-  ],
+  fiscalYear: 2027, scenario: 'V1 Budget 2027', displayScenario: 'FY Budget 27',
+  sourceFile: 'Sales Platform Template.xlsx', revision: 2,
+  rows: categories.map(([category, categoryKey, b26, l26, b27], index) => ({ country: 'Iraq', agent: 'Mena', rank: index + 1, category, categoryKey, b26, l26, b27 })),
 };
-fixture.total = fixture.rows.reduce((sum, row) => sum + row.amount, 0);
 
 const server = http.createServer((request, response) => {
   const file = path.join(root, new URL(request.url, 'http://localhost').pathname);
@@ -45,22 +47,23 @@ const server = http.createServer((request, response) => {
 
   const base = `http://127.0.0.1:${server.address().port}`;
   await page.goto(base + '/pl.html');
-  await page.getByText('Sales Platform Template.xlsx · 3 COGS rows · Revision 1').waitFor();
+  await page.getByText('Sales Platform Template.xlsx · 9 rows · Revision 2').waitFor();
   assert.equal(await page.locator('#plBody tr').count(), 9);
-  assert.equal(await page.locator('#plBody tr.cogs td').nth(1).innerText(), '(16,137)');
-  assert.equal(await page.locator('#plBody tr:not(.cogs) td:last-child').filter({ hasText: '—' }).count(), 8);
-  assert.equal(await page.locator('.pl-table th').nth(1).innerText(), 'FY Budget 27');
+  assert.equal(await page.locator('.pl-table th').count(), 10);
+  assert.deepEqual(await page.locator('#plBody tr.cogs td').evaluateAll(cells => cells.map(cell => cell.innerText)), ['COGS', '(3,673)', '(3,179)', '(3,308)', '494', '13%', '366', '10%', '(129)', '(4%)']);
+  assert.equal(await page.locator('#plRatiosBody tr').count(), 5);
+  assert.deepEqual(await page.locator('#plRatiosBody tr').first().locator('td').evaluateAll(cells => cells.map(cell => cell.innerText)), ['56%', '50%', '38%']);
+  assert.equal(await page.locator('#plCountry').inputValue(), '');
   await page.locator('#plCountry').selectOption('Iraq');
   await page.locator('#plAgent').selectOption('Mena');
-  assert.equal(await page.locator('#plBody tr.cogs td').nth(1).innerText(), '(3,308)');
-  assert.equal(await page.locator('#plCogsValue').innerText(), '(3,308)');
-  await page.screenshot({ path: '/tmp/pl-cogs-v1-desktop.png' });
+  assert.equal(await page.locator('#plRowCount').innerText(), '9');
+  await page.screenshot({ path: '/tmp/pl-summary-desktop.png' });
   await page.setViewportSize({ width: 390, height: 844 });
   assert(await page.locator('#plCountry').isVisible());
   assert(await page.locator('#plBody tr.cogs').isVisible());
-  await page.screenshot({ path: '/tmp/pl-cogs-v1-mobile.png' });
+  await page.screenshot({ path: '/tmp/pl-summary-mobile.png' });
   assert.deepEqual(errors, []);
-  console.log('PASS: P&L keeps the full category layout and populates only COGS from FY Budget 27, including country/agent filters and responsive layout.');
+  console.log('PASS: P&L renders B26, L26, V1 B27, comparison columns, ratios and filters.');
   await browser.close();
   server.close();
 })().catch(error => { console.error(error); process.exit(1); });

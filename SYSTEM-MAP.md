@@ -19,7 +19,7 @@
 | Maintenance | `system_status/maintenance_budget_fy2027` | Engineering source Fund Center `1000100301`; GL prefix 604. |
 | Subscriptions | `system_status/subscription_budget_<cc>` + `opex_it_allocations/<cc>.items.subscriptions` | Department Input and IT Allocation remain independent and are added together for OPEX. |
 | CAPEX | `capex_budget_submissions/<cc>` | Department CAPEX rows / total, with existing IT workflow kept intact. |
-| P&L COGS · FY Budget 27 | `system_status/pl_cogs_v1_2027` | Main Admin upload reads only `Category = COGS` and `V1 Budget 2027`; all other workbook rows and scenarios are ignored. |
+| P&L summary · B26 / L26 / B27 | `system_status/pl_summary_v1_2027` | Main Admin upload reads the complete P&L raw table. B26 uses `Budget 2026`, L26 uses `Landing 26`, and B27 uses only `V1 Budget 2027`; V2 and V3 are ignored. |
 
 ## Stability baseline
 
