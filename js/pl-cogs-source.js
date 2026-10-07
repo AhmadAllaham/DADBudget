@@ -6,17 +6,24 @@ import { parsePlSummaryV1 } from './pl-cogs-parser.mjs';
 const DOCUMENT_ID = 'pl_summary_v1_2027';
 const CACHE_KEY = 'dadBudgetPLSummaryV1';
 const clean = value => String(value ?? '').trim();
+const sheetKey = value => clean(value).toLowerCase().replace(/\s+/g, ' ');
 
 function cardMarkup() {
   return `<article class="card source-card" data-source="pl-summary-v1">
     <div class="source-top"><div class="source-icon">P&amp;L</div><span class="source-status" id="plSummaryStatus">Not uploaded</span></div>
-    <h3>P&amp;L · B26 / L26 / B27</h3>
-    <p>Reads Budget 2026, Landing 26 and V1 Budget 2027 to build the full P&amp;L table.</p>
+    <h3>P&amp;L · 2026 / 2027 Rate</h3>
+    <p>Reads the IMS P&amp;L 2026 Rate and IMS P&amp;L 2027 Rate sheets from one workbook.</p>
     <div class="source-meta"><span>Last file</span><b id="plSummaryFile">—</b></div>
-    <div class="ims-summary" id="plSummarySummary" hidden><span>P&amp;L rows<b id="plSummaryRows">0</b></span><span>V1 used<b id="plSummaryScenario">B27</b></span></div>
+    <div class="ims-summary" id="plSummarySummary" hidden><span>Rate rows<b id="plSummaryRows">0</b></span><span>Scenarios<b id="plSummaryScenario">—</b></span></div>
     <div class="source-actions"><button class="upload-btn" id="plSummaryUpload" type="button">Upload P&amp;L Source</button><button class="view-btn" type="button" onclick="location.href='pl.html'">Open P&amp;L</button></div>
     <input type="file" id="plSummaryInput" accept=".xlsx,.xls" hidden>
   </article>`;
+}
+
+function rateRows(payload, rate) {
+  const rows = payload?.rateScenarios?.[rate]?.rows;
+  if (Array.isArray(rows)) return rows.length;
+  return rate === '2026' && Array.isArray(payload?.rows) ? payload.rows.length : 0;
 }
 
 function showState(payload) {
@@ -27,11 +34,16 @@ function showState(payload) {
     status.classList.remove('ready', 'error');
     return;
   }
-  status.textContent = `${payload.rows?.length || 0} P&L rows`;
+  const rows26 = rateRows(payload, '2026');
+  const rows27 = rateRows(payload, '2027');
+  status.textContent = rows27 ? '2026 + 2027 rates loaded' : `${rows26} P&L rows`;
   status.classList.add('ready');
   status.classList.remove('error');
   document.getElementById('plSummaryFile').textContent = payload.sourceFile || '—';
-  document.getElementById('plSummaryRows').textContent = Number(payload.rows?.length || 0).toLocaleString();
+  document.getElementById('plSummaryRows').textContent = rows27
+    ? `2026: ${rows26.toLocaleString()} · 2027: ${rows27.toLocaleString()}`
+    : rows26.toLocaleString();
+  document.getElementById('plSummaryScenario').textContent = rows27 ? '2026 Rate + 2027 Rate' : '2026 Rate';
   document.getElementById('plSummarySummary').hidden = false;
 }
 
@@ -73,25 +85,69 @@ async function loadSaved() {
   }
 }
 
-async function savePayload(parsed, file) {
+function parseSheet(workbook, sheetName) {
+  if (!sheetName || !workbook.Sheets[sheetName]) return null;
+  const matrix = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: '', raw: true });
+  const parsed = parsePlSummaryV1(matrix);
+  return {
+    sheetName,
+    headerRow: parsed.headerRow,
+    ignoredRows: parsed.ignoredRows,
+    derivedCells: parsed.derivedCells,
+    rows: parsed.rows,
+    totals: parsed.totals,
+  };
+}
+
+function findRateSheets(workbook) {
+  const names = workbook.SheetNames || [];
+  const findExact = target => names.find(name => sheetKey(name) === target);
+  const rate2026Name = findExact('ims p&l 2026 rate')
+    || names.find(name => /2026\s*rate/i.test(clean(name)) && /p&l/i.test(clean(name)))
+    || findExact('p&l')
+    || names[0];
+  const rate2027Name = findExact('ims p&l 2027 rate')
+    || names.find(name => /2027\s*rate/i.test(clean(name)) && /p&l/i.test(clean(name)));
+  return {
+    rate2026: parseSheet(workbook, rate2026Name),
+    rate2027: rate2027Name && rate2027Name !== rate2026Name ? parseSheet(workbook, rate2027Name) : null,
+  };
+}
+
+async function savePayload(rate2026, rate2027, file) {
   const { auth, db } = await firebaseServices();
   const user = auth.currentUser;
   if (!user) throw new Error('Sign in as Main Admin first.');
+  if (!rate2026?.rows?.length) throw new Error('IMS P&L 2026 Rate sheet has no readable P&L rows.');
   const reference = doc(db, 'system_status', DOCUMENT_ID);
   let saved;
   await runTransaction(db, async transaction => {
     const current = await transaction.get(reference);
-    const revision = current.exists() ? Number(current.data()?.revision || 0) + 1 : 1;
+    const currentData = current.exists() ? current.data() || {} : {};
+    const revision = current.exists() ? Number(currentData.revision || 0) + 1 : 1;
+    const existingScenarios = currentData.rateScenarios && typeof currentData.rateScenarios === 'object'
+      ? currentData.rateScenarios
+      : {};
+    const rateScenarios = {
+      ...existingScenarios,
+      '2026': { rate: 2026, ...rate2026 },
+      ...(rate2027 ? { '2027': { rate: 2027, ...rate2027 } } : {}),
+    };
     saved = {
       fiscalYear: 2027,
       scenario: 'V1 Budget 2027',
       displayScenario: 'FY Budget 27',
       sourceFile: clean(file.name),
-      headerRow: parsed.headerRow,
-      ignoredRows: parsed.ignoredRows,
-      derivedCells: parsed.derivedCells,
-      rows: parsed.rows,
-      totals: parsed.totals,
+      sourceSheets: {
+        '2026': rate2026.sheetName,
+        ...(rateScenarios['2027']?.sheetName ? { '2027': rateScenarios['2027'].sheetName } : {}),
+      },
+      headerRow: rate2026.headerRow,
+      ignoredRows: rate2026.ignoredRows,
+      derivedCells: rate2026.derivedCells,
+      rows: rate2026.rows,
+      totals: rate2026.totals,
+      rateScenarios,
       revision,
       updatedBy: user.uid,
       updatedByEmail: clean(user.email).toLowerCase(),
@@ -110,16 +166,21 @@ async function handleUpload(file) {
   status.textContent = 'Reading...';
   status.classList.remove('ready', 'error');
   const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
-  const sheetName = workbook.SheetNames.find(name => clean(name).toLowerCase() === 'p&l') || workbook.SheetNames[0];
-  const matrix = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: '', raw: true });
-  const parsed = parsePlSummaryV1(matrix);
-  const approved = confirm(`Import ${parsed.rows.length} P&L rows?\nB26 = Budget 2026\nL26 = Landing 26\nB27 = V1 Budget 2027 only`);
+  const { rate2026, rate2027 } = findRateSheets(workbook);
+  if (!rate2026?.rows?.length) throw new Error('IMS P&L 2026 Rate sheet was not found or could not be read.');
+  const summary = [
+    `2026 Rate: ${rate2026.rows.length} rows · ${rate2026.sheetName}`,
+    rate2027?.rows?.length
+      ? `2027 Rate: ${rate2027.rows.length} rows · ${rate2027.sheetName}`
+      : '2027 Rate: sheet not found (existing 2027 Rate data, if any, will be kept)',
+  ].join('\n');
+  const approved = confirm(`Import P&L rate scenarios?\n\n${summary}\n\nB26 = Budget 2026\nL26 = Landing 26\nB27 = V1 Budget 2027`);
   if (!approved) {
     showState(JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'));
     return;
   }
   status.textContent = 'Saving...';
-  showState(await savePayload(parsed, file));
+  showState(await savePayload(rate2026, rate2027, file));
 }
 
 function boot() {
