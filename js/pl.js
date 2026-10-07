@@ -45,14 +45,33 @@ function isTmsRow(row) {
   return /(^|\s)TMS($|\s)/i.test(clean(row?.agent));
 }
 
+function selectedRateScenario() {
+  if (currentSource !== 'ims') return null;
+  const scenario = payload?.rateScenarios?.[currentRate];
+  if (scenario && Array.isArray(scenario.rows)) return scenario;
+  if (currentRate === '2026' && Array.isArray(payload?.rows)) {
+    return {
+      rate: 2026,
+      sheetName: payload?.sourceSheets?.['2026'] || 'Legacy P&L source',
+      rows: payload.rows,
+      totals: payload.totals || {},
+    };
+  }
+  return null;
+}
+
 function ratePending() {
-  return currentSource === 'ims' && currentRate !== '2026';
+  return currentSource === 'ims' && !selectedRateScenario();
 }
 
 function sourceRows() {
-  if (ratePending()) return [];
-  const rows = Array.isArray(payload?.rows) ? payload.rows : [];
-  return rows.filter(row => currentSource === 'tms' ? isTmsRow(row) : !isTmsRow(row));
+  if (currentSource === 'tms') {
+    const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+    return rows.filter(isTmsRow);
+  }
+  const scenario = selectedRateScenario();
+  const rows = Array.isArray(scenario?.rows) ? scenario.rows : [];
+  return rows.filter(row => !isTmsRow(row));
 }
 
 function selectedRows() {
@@ -80,8 +99,8 @@ function renderPendingRate() {
   $('plAgentCount').textContent = '0';
   $('plEmpty').hidden = false;
   $('plRatios').hidden = true;
-  $('plEmpty').textContent = `${currentRate} Rate P&L is ready as a separate scenario. Its data source has not been linked yet.`;
-  $('plSource').textContent = `IMS P&L · ${currentRate} Rate · source not linked yet`;
+  $('plEmpty').textContent = `Upload a workbook containing the IMS P&L ${currentRate} Rate sheet from Data Admin.`;
+  $('plSource').textContent = `IMS P&L · ${currentRate} Rate · source not uploaded yet`;
   const title = document.querySelector('[data-panel="pl"] .pl-report-head h2');
   if (title) title.textContent = `IMS P&L · ${currentRate} Rate Summary`;
 }
@@ -110,10 +129,15 @@ function render() {
   $('plRatios').hidden = !hasSource;
   $('plEmpty').textContent = currentSource === 'tms'
     ? 'No TMS P&L rows are available in the uploaded P&L source.'
-    : 'Upload the raw P&L file from Data Admin to display IMS B26, L26 and B27.';
+    : `Upload the raw IMS P&L ${currentRate} Rate sheet from Data Admin.`;
+
   const sourceLabel = currentSource === 'tms' ? 'TMS P&L' : `IMS P&L · ${currentRate} Rate`;
+  const scenario = selectedRateScenario();
+  const sourceDetail = currentSource === 'ims' && scenario?.sheetName
+    ? `${payload?.sourceFile || 'P&L source'} · ${scenario.sheetName}`
+    : (payload?.sourceFile || 'P&L source');
   $('plSource').textContent = payload
-    ? `${sourceLabel} · ${payload.sourceFile || 'P&L source'} · ${source.length} rows · Revision ${payload.revision || 1}`
+    ? `${sourceLabel} · ${sourceDetail} · ${source.length} rows · Revision ${payload.revision || 1}`
     : `No ${sourceLabel} source uploaded yet.`;
   const title = document.querySelector('[data-panel="pl"] .pl-report-head h2');
   if (title) title.textContent = `${sourceLabel} Summary`;
@@ -133,6 +157,8 @@ function syncRateSwitch() {
     button.classList.toggle('active', active);
     button.setAttribute('aria-pressed', active ? 'true' : 'false');
   });
+  const question = document.querySelector('[data-pl-rate-question]');
+  if (question) question.hidden = currentSource !== 'ims' || currentRate !== '2026';
 }
 
 function setRate(rate) {
@@ -178,9 +204,13 @@ function installSourceSwitch() {
         <small>Choose the cost-rate basis for the IMS P&amp;L</small>
       </div>
       <div class="pl-rate-switch" role="group" aria-label="IMS P&L rate scenario">
-        <button type="button" class="pl-rate-option active" data-pl-rate="2026" aria-pressed="true"><b>2026 Rate</b><span>Current P&amp;L</span></button>
-        <button type="button" class="pl-rate-option" data-pl-rate="2027" aria-pressed="false"><b>2027 Rate</b><span>Ready for next source</span></button>
+        <button type="button" class="pl-rate-option active" data-pl-rate="2026" aria-pressed="true"><b>2026 Rate</b><span>2026 Cost Rate</span></button>
+        <button type="button" class="pl-rate-option" data-pl-rate="2027" aria-pressed="false"><b>2027 Rate</b><span>2027 Cost Rate</span></button>
       </div>
+    </div>
+    <div class="pl-rate-question" data-pl-rate-question>
+      <span>2026 RATE SCENARIO</span>
+      <strong>What if we calculate the Landing using the 2026 Cost Rate?</strong>
     </div>`;
   panel.insertBefore(bar, filters);
   bar.querySelectorAll('[data-pl-source]').forEach(button => button.addEventListener('click', () => setSource(button.dataset.plSource)));
