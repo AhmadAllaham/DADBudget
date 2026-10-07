@@ -9,6 +9,7 @@ const $ = id => document.getElementById(id);
 const clean = value => String(value ?? '').trim();
 let payload = null;
 let currentSource = 'ims';
+let currentRate = '2026';
 
 function amount(value) {
   const number = Number(value || 0);
@@ -44,7 +45,12 @@ function isTmsRow(row) {
   return /(^|\s)TMS($|\s)/i.test(clean(row?.agent));
 }
 
+function ratePending() {
+  return currentSource === 'ims' && currentRate !== '2026';
+}
+
 function sourceRows() {
+  if (ratePending()) return [];
   const rows = Array.isArray(payload?.rows) ? payload.rows : [];
   return rows.filter(row => currentSource === 'tms' ? isTmsRow(row) : !isTmsRow(row));
 }
@@ -68,7 +74,24 @@ function renderRatios(ratios) {
   $('plRatiosBody').innerHTML = definitions.map(([label, key]) => `<tr><th>${label}</th><td>${percent(ratios.b26[key])}</td><td>${percent(ratios.l26[key])}</td><td>${percent(ratios.b27[key])}</td></tr>`).join('');
 }
 
+function renderPendingRate() {
+  $('plBody').innerHTML = '';
+  $('plMarketCount').textContent = '0';
+  $('plAgentCount').textContent = '0';
+  $('plEmpty').hidden = false;
+  $('plRatios').hidden = true;
+  $('plEmpty').textContent = `${currentRate} Rate P&L is ready as a separate scenario. Its data source has not been linked yet.`;
+  $('plSource').textContent = `IMS P&L · ${currentRate} Rate · source not linked yet`;
+  const title = document.querySelector('[data-panel="pl"] .pl-report-head h2');
+  if (title) title.textContent = `IMS P&L · ${currentRate} Rate Summary`;
+}
+
 function render() {
+  if (ratePending()) {
+    renderPendingRate();
+    return;
+  }
+
   const rows = selectedRows();
   const source = sourceRows();
   const table = buildPlTable(source, $('plCountry').value, $('plAgent').value);
@@ -88,7 +111,7 @@ function render() {
   $('plEmpty').textContent = currentSource === 'tms'
     ? 'No TMS P&L rows are available in the uploaded P&L source.'
     : 'Upload the raw P&L file from Data Admin to display IMS B26, L26 and B27.';
-  const sourceLabel = currentSource === 'tms' ? 'TMS P&L' : 'IMS P&L';
+  const sourceLabel = currentSource === 'tms' ? 'TMS P&L' : `IMS P&L · ${currentRate} Rate`;
   $('plSource').textContent = payload
     ? `${sourceLabel} · ${payload.sourceFile || 'P&L source'} · ${source.length} rows · Revision ${payload.revision || 1}`
     : `No ${sourceLabel} source uploaded yet.`;
@@ -102,6 +125,25 @@ function buildFilters() {
   syncAgentOptions();
 }
 
+function syncRateSwitch() {
+  const row = document.querySelector('[data-pl-rate-row]');
+  if (row) row.hidden = currentSource !== 'ims';
+  document.querySelectorAll('[data-pl-rate]').forEach(button => {
+    const active = button.dataset.plRate === currentRate;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+}
+
+function setRate(rate) {
+  currentRate = rate === '2027' ? '2027' : '2026';
+  syncRateSwitch();
+  $('plCountry').value = '';
+  $('plAgent').value = '';
+  buildFilters();
+  render();
+}
+
 function setSource(source) {
   currentSource = source === 'tms' ? 'tms' : 'ims';
   document.querySelectorAll('[data-pl-source]').forEach(button => {
@@ -109,6 +151,7 @@ function setSource(source) {
     button.classList.toggle('active', active);
     button.setAttribute('aria-pressed', active ? 'true' : 'false');
   });
+  syncRateSwitch();
   $('plCountry').value = '';
   $('plAgent').value = '';
   buildFilters();
@@ -120,10 +163,29 @@ function installSourceSwitch() {
   const filters = panel?.querySelector('.pl-filters');
   if (!panel || !filters || panel.querySelector('[data-pl-source]')) return;
   const bar = document.createElement('div');
-  bar.style.cssText = 'display:flex;justify-content:flex-end;margin:0 0 12px';
-  bar.innerHTML = '<div class="sales-source-switch" role="group" aria-label="P&L source"><button type="button" class="sales-source-option active" data-pl-source="ims" aria-pressed="true">IMS P&amp;L</button><button type="button" class="sales-source-option" data-pl-source="tms" aria-pressed="false">TMS P&amp;L</button></div>';
+  bar.className = 'pl-switch-stack';
+  bar.innerHTML = `
+    <div class="pl-source-row">
+      <span class="pl-switch-label">P&amp;L View</span>
+      <div class="sales-source-switch" role="group" aria-label="P&L source">
+        <button type="button" class="sales-source-option active" data-pl-source="ims" aria-pressed="true">IMS P&amp;L</button>
+        <button type="button" class="sales-source-option" data-pl-source="tms" aria-pressed="false">TMS P&amp;L</button>
+      </div>
+    </div>
+    <div class="pl-rate-row" data-pl-rate-row>
+      <div>
+        <span class="pl-switch-label">IMS Rate Scenario</span>
+        <small>Choose the cost-rate basis for the IMS P&amp;L</small>
+      </div>
+      <div class="pl-rate-switch" role="group" aria-label="IMS P&L rate scenario">
+        <button type="button" class="pl-rate-option active" data-pl-rate="2026" aria-pressed="true"><b>2026 Rate</b><span>Current P&amp;L</span></button>
+        <button type="button" class="pl-rate-option" data-pl-rate="2027" aria-pressed="false"><b>2027 Rate</b><span>Ready for next source</span></button>
+      </div>
+    </div>`;
   panel.insertBefore(bar, filters);
   bar.querySelectorAll('[data-pl-source]').forEach(button => button.addEventListener('click', () => setSource(button.dataset.plSource)));
+  bar.querySelectorAll('[data-pl-rate]').forEach(button => button.addEventListener('click', () => setRate(button.dataset.plRate)));
+  syncRateSwitch();
 }
 
 async function load() {
