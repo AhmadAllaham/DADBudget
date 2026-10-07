@@ -7,7 +7,7 @@ const num=v=>Number.isFinite(Number(v))?Number(v):0;
 const money=v=>num(v).toLocaleString(undefined,{maximumFractionDigits:0});
 const salesK=v=>Math.round(num(v)/1000).toLocaleString('en-US',{maximumFractionDigits:0});
 const norm=v=>clean(v).toUpperCase().replace(/[^A-Z0-9]/g,'');
-const escapeHtml=v=>clean(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const escapeHtml=v=>clean(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
 let loading=false,lastLoadedAt=0,salesSources=null;
 
 function isFinanceApproved(record={}){
@@ -124,40 +124,32 @@ function readLocalSales(source='ims'){
   }
   const scale=salesValueScale(meta,rows),countryMap={};let total=0;
   rows.forEach(r=>{const country=clean(r.country)||'Unspecified',value=num(r.totalSales)*scale;countryMap[country]=(countryMap[country]||0)+value;total+=value});
-  return{source,label,available:true,total,countries:Object.entries(countryMap).map(([country,value])=>({country,value})).sort((a,b)=>b.value-a.value),fileName:meta.fileName||localStorage.getItem(tms?'dadBudgetTMSFileName':'dadBudgetIMSFileName')||`${label} Sales`};
+  return{source,label,available:true,total,countries:Object.entries(countryMap).map(([country,value])=>({country,value})).sort((a,b)=>b.value-a.value),fileName:meta.fileName||localStorage.getItem(tms?'dadBudgetTMSFileName':'dadBudgetIMSFileName')||`${label} Sales`,fromWorkbook:true};
 }
 
 function plPayloadFromLocal(){
   try{return JSON.parse(localStorage.getItem('dadBudgetPLSummaryV1')||'null')}catch(_){return null}
 }
 
-function isTmsPlRow(row){
-  return /(^|\s)TMS($|\s)/i.test(clean(row?.agent));
+function algeriaGrossSalesFromPayload(payload){
+  const rows=Array.isArray(payload?.rows)?payload.rows:[];
+  const matches=rows.filter(row=>norm(row?.country)==='ALGERIA'&&(clean(row?.categoryKey).toLowerCase()==='grosssales'||norm(row?.category)==='GROSSSALES'));
+  return{available:matches.length>0,total:matches.reduce((sum,row)=>sum+num(row?.b27)*1000,0)};
 }
 
-function plGrossSales(payload,source='ims'){
-  const rows=Array.isArray(payload?.rows)?payload.rows:[];
-  const matches=rows.filter(row=>{
-    const gross=clean(row?.categoryKey).toLowerCase()==='grosssales'||norm(row?.category)==='GROSSSALES';
-    if(!gross)return false;
-    return source==='tms'?isTmsPlRow(row):!isTmsPlRow(row);
-  });
-  if(!matches.length)return{source,label:source==='tms'?'TMS':'IMS',available:false,total:0,countries:[]};
-  const countryMap={};let total=0;
-  matches.forEach(row=>{
-    const country=clean(row.country)||'Unspecified',value=num(row.b27)*1000;
-    countryMap[country]=(countryMap[country]||0)+value;
-    total+=value;
-  });
-  return{
-    source,
-    label:source==='tms'?'TMS':'IMS',
-    available:true,
-    total,
-    countries:Object.entries(countryMap).map(([country,value])=>({country,value})).sort((a,b)=>b.value-a.value),
-    fileName:`${payload?.sourceFile||'P&L source'} · ${source==='tms'?'TMS':'IMS'} P&L Gross Sales`,
-    fromPl:true
-  };
+function mergeAlgeriaIntoIms(ims,algeria){
+  if(!algeria.available)return ims;
+  const countryMap={};
+  (ims.countries||[]).forEach(item=>{countryMap[item.country]=(countryMap[item.country]||0)+num(item.value)});
+  const existingName=Object.keys(countryMap).find(name=>norm(name)==='ALGERIA');
+  if(existingName){
+    countryMap[existingName]=algeria.total;
+  }else{
+    countryMap.Algeria=algeria.total;
+  }
+  const countries=Object.entries(countryMap).map(([country,value])=>({country,value})).sort((a,b)=>b.value-a.value);
+  const total=countries.reduce((sum,item)=>sum+num(item.value),0);
+  return{...ims,available:true,total,countries,algeriaGrossSales:algeria.total,fileName:ims.fileName||'IMS Sales'};
 }
 
 function renderSales(source){
@@ -165,8 +157,8 @@ function renderSales(source){
   if($('salesSubtitle'))$('salesSubtitle').textContent=`Total ${label} sales and country contribution.`;
   if($('salesNote')){
     if(source.available){
-      const sourceText=source.fromPl?'Gross Sales from P&L source':'Sales workbook saved on this device';
-      $('salesNote').textContent=`Source: ${source.fileName||`${label} Sales`} · ${sourceText} · USD '000.`;
+      const alg=label==='IMS'&&source.algeriaGrossSales?` + Algeria from P&L ${salesK(source.algeriaGrossSales)}`:'';
+      $('salesNote').textContent=`Source: ${source.fileName||`${label} Sales`} · Sales by country from ${label} Sales${alg} · USD '000.`;
     }else $('salesNote').textContent=`${label} Sales data is not available on this device.`;
   }
   if($('countryGrid'))$('countryGrid').innerHTML=source.available?source.countries.map(x=>`<div class="country-card"><span>${escapeHtml(x.country)}</span><strong>${salesK(x.value)}</strong></div>`).join(''):`<div class="empty-state">${label} Sales source is not available on this device.</div>`;
@@ -204,10 +196,11 @@ async function refreshCapex(db){
 
 async function refreshSales(db){
   let payload=null;
-  try{const snap=await getDoc(doc(db,'system_status','pl_summary_v1_2027'));if(snap.exists())payload=snap.data()||null}catch(err){console.warn('Executive P&L sales source unavailable',err)}
+  try{const snap=await getDoc(doc(db,'system_status','pl_summary_v1_2027'));if(snap.exists())payload=snap.data()||null}catch(err){console.warn('Executive Algeria P&L source unavailable',err)}
   if(!payload)payload=plPayloadFromLocal();
-  const plIms=plGrossSales(payload,'ims');
-  const ims=plIms.available?plIms:readLocalSales('ims');
+  const imsWorkbook=readLocalSales('ims');
+  const algeria=algeriaGrossSalesFromPayload(payload);
+  const ims=mergeAlgeriaIntoIms(imsWorkbook,algeria);
   const tms=readLocalSales('tms');
   salesSources={ims,tms};
   patchSalesOverview();
