@@ -6,6 +6,8 @@ const clean=v=>String(v??'').trim();
 const num=v=>Number.isFinite(Number(v))?Number(v):0;
 const money=v=>num(v).toLocaleString(undefined,{maximumFractionDigits:0});
 const salesK=v=>Math.round(num(v)/1000).toLocaleString('en-US',{maximumFractionDigits:0});
+const JOD_PER_USD=0.709;
+const usdK=v=>Math.round((num(v)/JOD_PER_USD)/1000).toLocaleString('en-US',{maximumFractionDigits:0});
 const norm=v=>clean(v).toUpperCase().replace(/[^A-Z0-9]/g,'');
 const escapeHtml=v=>clean(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
 let loading=false,lastLoadedAt=0,salesSources=null;
@@ -91,6 +93,27 @@ function patchShared(summary){
   }
 }
 
+function setCardNote(id,text){
+  const note=$(id)?.closest('.exec-kpi')?.querySelector('small');
+  if(note)note.textContent=text;
+}
+
+function patchOverviewCurrency(){
+  const rows=Array.isArray(window.DADExecutiveShared?.departments)?window.DADExecutiveShared.departments:[];
+  if(!rows.length)return;
+  const total=key=>rows.reduce((sum,row)=>sum+num(row?.[key]),0);
+  if($('kpiBudgetYtd'))$('kpiBudgetYtd').textContent=usdK(total('budgetYtd'));
+  if($('kpiActual'))$('kpiActual').textContent=usdK(total('actualYtd'));
+  if($('kpiRemaining'))$('kpiRemaining').textContent=usdK(total('remaining'));
+  if($('kpiFyLanding'))$('kpiFyLanding').textContent=usdK(total('fyLanding'));
+  if($('kpiOpex27'))$('kpiOpex27').textContent=usdK(total('fy27'));
+  setCardNote('kpiBudgetYtd',"OPEX baseline · USD '000");
+  setCardNote('kpiActual',"All departments · USD '000");
+  setCardNote('kpiRemaining',"FY budget less actual · USD '000");
+  setCardNote('kpiFyLanding',"Actual YTD + Landing · USD '000");
+  setCardNote('kpiOpex27',"All budgeted departments · USD '000");
+}
+
 function patchCapexDom(summary){
   const remaining=Math.max(0,summary.budget-summary.pay2027-summary.pay2028-summary.payOther);
   const host=$('capexSummaryMetrics');
@@ -100,7 +123,8 @@ function patchCapexDom(summary){
     if(chip)chip.textContent='All Uploaded';
   }
   if($('capexPaymentMetrics'))$('capexPaymentMetrics').innerHTML=metric('Pay in 2027',money(summary.pay2027),'All uploaded · JOD')+metric('Pay in 2028',money(summary.pay2028),'All uploaded · JOD')+metric('Remaining / Unscheduled',money(remaining),'JOD');
-  if($('kpiCapex27'))$('kpiCapex27').textContent=money(summary.budget);
+  if($('kpiCapex27'))$('kpiCapex27').textContent=usdK(summary.budget);
+  setCardNote('kpiCapex27',"All uploaded submissions · USD '000");
 }
 
 function salesValueScale(meta,rows){
@@ -164,23 +188,21 @@ function renderSales(source){
   if($('countryGrid'))$('countryGrid').innerHTML=source.available?source.countries.map(x=>`<div class="country-card"><span>${escapeHtml(x.country)}</span><strong>${salesK(x.value)}</strong></div>`).join(''):`<div class="empty-state">${label} Sales source is not available on this device.</div>`;
 }
 
+function patchSalesOverview(){
+  if(!salesSources)return;
+  const ims=salesSources.ims;
+  const title=$('kpiSales')?.closest('.exec-kpi')?.querySelector('span');
+  if(title)title.textContent='TOTAL IMS SALES';
+  if($('kpiSales'))$('kpiSales').textContent=ims.available?salesK(ims.total):'—';
+  if($('kpiSalesNote'))$('kpiSalesNote').textContent=ims.available?`IMS ${salesK(ims.total)} · USD '000`:'IMS file is not available on this device';
+}
+
 function bindSalesSwitch(){
   if(!salesSources)return;
   const buttons=[...document.querySelectorAll('[data-sales-source]')];
   buttons.forEach(button=>{button.onclick=()=>{buttons.forEach(x=>{const active=x===button;x.classList.toggle('active',active);x.setAttribute('aria-pressed',active?'true':'false')});renderSales(salesSources[button.dataset.salesSource]||salesSources.ims)}});
   const active=buttons.find(x=>x.classList.contains('active'))||buttons[0];
   renderSales(active?.dataset?.salesSource==='tms'?salesSources.tms:salesSources.ims);
-}
-
-function patchSalesOverview(){
-  if(!salesSources)return;
-  const ims=salesSources.ims,tms=salesSources.tms,salesAvailable=ims.available||tms.available;
-  const combined=(ims.available?ims.total:0)+(tms.available?tms.total:0);
-  if($('kpiSales'))$('kpiSales').textContent=salesAvailable?salesK(combined):'—';
-  if($('kpiSalesNote')){
-    const imsText=ims.available?salesK(ims.total):'not loaded',tmsText=tms.available?salesK(tms.total):'not loaded';
-    $('kpiSalesNote').textContent=salesAvailable?`IMS ${imsText} + TMS ${tmsText} · USD '000`:'IMS and TMS files are not available on this device';
-  }
 }
 
 async function refreshCapex(db){
@@ -190,6 +212,7 @@ async function refreshCapex(db){
   const summary=summarize(records,tunis);
   patchShared(summary);
   patchCapexDom(summary);
+  patchOverviewCurrency();
   try{sessionStorage.removeItem('dadBudgetExecutiveCacheV3');sessionStorage.removeItem('dadBudgetExecutiveCacheV4');sessionStorage.removeItem('dadBudgetExecutiveCacheV5')}catch(_){}
   window.dispatchEvent(new CustomEvent('dad-executive-capex-ready',{detail:summary}));
 }
@@ -214,13 +237,15 @@ async function refresh(force=false){
   loading=true;
   const db=getFirestore(app);
   try{
+    patchOverviewCurrency();
     const results=await Promise.allSettled([refreshCapex(db),refreshSales(db)]);
     results.forEach(result=>{if(result.status==='rejected')console.warn('Executive live sync failed',result.reason)});
+    patchOverviewCurrency();
     lastLoadedAt=Date.now();
   }finally{loading=false}
 }
 
-window.addEventListener('dad-executive-data-ready',()=>setTimeout(()=>refresh(true),0));
+window.addEventListener('dad-executive-data-ready',()=>setTimeout(()=>{patchOverviewCurrency();refresh(true)},0));
 window.addEventListener('focus',()=>refresh(true));
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>refresh(true),250));else setTimeout(()=>refresh(true),250);
 setTimeout(()=>refresh(true),1800);
