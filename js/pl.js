@@ -35,6 +35,11 @@ function amountClass(value) {
   return Number(value || 0) < 0 ? 'negative' : '';
 }
 
+function displayRowLabel(row) {
+  if (currentSource === 'ims' && row?.key === 'grosssales') return 'Gross Sales IMS';
+  return row?.label || '';
+}
+
 function isTmsRow(row) {
   return /(^|\s)TMS($|\s)/i.test(clean(row?.agent));
 }
@@ -68,7 +73,7 @@ function render() {
   const source = sourceRows();
   const table = buildPlTable(source, $('plCountry').value, $('plAgent').value);
   $('plBody').innerHTML = table.map(row => `<tr class="${row.className}">
-    <td>${escapeHtml(row.label)}</td>
+    <td>${escapeHtml(displayRowLabel(row))}</td>
     <td class="${amountClass(row.b26)}">${amount(row.b26)}</td><td class="${amountClass(row.l26)}">${amount(row.l26)}</td><td class="${amountClass(row.b27)}">${amount(row.b27)}</td>
     <td class="${tone(row.deltaL26B26)}">${amount(row.deltaL26B26)}</td><td class="${tone(row.pctL26B26)}">${percent(row.pctL26B26)}</td>
     <td class="${tone(row.deltaB27B26)}">${amount(row.deltaB27B26)}</td><td class="${tone(row.pctB27B26)}">${percent(row.pctB27B26)}</td>
