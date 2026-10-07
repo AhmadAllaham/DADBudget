@@ -158,7 +158,13 @@ function syncRateSwitch() {
     button.setAttribute('aria-pressed', active ? 'true' : 'false');
   });
   const question = document.querySelector('[data-pl-rate-question]');
-  if (question) question.hidden = currentSource !== 'ims' || currentRate !== '2026';
+  if (question) {
+    question.hidden = currentSource !== 'ims';
+    const label = question.querySelector('[data-pl-rate-question-label]');
+    const text = question.querySelector('[data-pl-rate-question-text]');
+    if (label) label.textContent = `${currentRate} RATE SCENARIO`;
+    if (text) text.textContent = `What if we calculate the Landing using the ${currentRate} Cost Rate?`;
+  }
 }
 
 function setRate(rate) {
@@ -209,8 +215,8 @@ function installSourceSwitch() {
       </div>
     </div>
     <div class="pl-rate-question" data-pl-rate-question>
-      <span>2026 RATE SCENARIO</span>
-      <strong>What if we calculate the Landing using the 2026 Cost Rate?</strong>
+      <span data-pl-rate-question-label>2026 RATE SCENARIO</span>
+      <strong data-pl-rate-question-text>What if we calculate the Landing using the 2026 Cost Rate?</strong>
     </div>`;
   panel.insertBefore(bar, filters);
   bar.querySelectorAll('[data-pl-source]').forEach(button => button.addEventListener('click', () => setSource(button.dataset.plSource)));
