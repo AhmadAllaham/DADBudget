@@ -85,7 +85,8 @@
           btn.disabled=true;btn.querySelector('span').textContent='Signing in...';
           if(!window.DADFirebase)throw new Error('Firebase is still loading. Please try again.');
           await window.DADFirebase.signIn(email.value.trim(),document.getElementById('password').value,remember.checked);
-          location.replace('index.html');
+          let profile=null;try{profile=JSON.parse(localStorage.getItem('dadBudgetCurrentProfile')||'null')}catch(_){}
+          location.replace(profile?.role==='executive_viewer'?'executive-command-center.html':'index.html');
         }catch(x){
           message(x.code==='auth/invalid-credential'?'Invalid email or password.':(x.message||'Sign in failed.'));
           btn.disabled=false;btn.querySelector('span').textContent='Sign In';
