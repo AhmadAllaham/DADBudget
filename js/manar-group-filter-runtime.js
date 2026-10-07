@@ -1,6 +1,7 @@
 (function(){
   if(!/opex\.html$/i.test((location.pathname||'').split('?')[0]))return;
   import('./opex-landing-persistence.js?v=20261007-landing-persistence-1').catch(error=>console.warn('OPEX landing persistence failed to load',error));
+  import('./opex-master-export.js?v=20261007-master-export-1').catch(error=>console.warn('OPEX master export failed to load',error));
   const IDS=['1000401101','1000401104','1000401105','1000401106'];
   const VALUE='GROUP:RD_ANALYTICAL';
   const LABEL='R&D + Analytical + Packaging Development + Formulation · 4 Fund Centers';
