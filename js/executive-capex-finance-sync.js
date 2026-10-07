@@ -21,7 +21,7 @@ function isFinanceApproved(record={}){
 function capexTotal(record={}){
   const rowTotal=(Array.isArray(record.rows)?record.rows:[]).reduce((s,r)=>s+num(r?.total),0);
   const stored=Number(record.total);
-  if(Number.isFinite(stored))return stored;
+  if(Number.isFinite(stored)&&(Math.abs(stored)>.005||Math.abs(rowTotal)<.005))return stored;
   return rowTotal;
 }
 
@@ -61,8 +61,8 @@ function summarize(records,tunis={}){
     }
   });
   const tunisRows=Array.isArray(tunis?.rows)?tunis.rows:[];
-  const tunisStored=Number(tunis?.total);
-  const tunisBudget=Number.isFinite(tunisStored)?tunisStored:tunisRows.reduce((s,r)=>s+num(r?.total),0);
+  const tunisRowTotal=tunisRows.reduce((s,r)=>s+num(r?.total),0),tunisStored=Number(tunis?.total);
+  const tunisBudget=Number.isFinite(tunisStored)&&(Math.abs(tunisStored)>.005||Math.abs(tunisRowTotal)<.005)?tunisStored:tunisRowTotal;
   if(tunisRows.length||Math.abs(tunisBudget)>.005){
     summary.tunisBudget=tunisBudget;
     summary.budget+=tunisBudget;
