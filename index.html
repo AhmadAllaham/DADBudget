@@ -4,6 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DAD Budget 2027</title>
+  <script>
+    (function(){
+      try{
+        const profile=JSON.parse(localStorage.getItem('dadBudgetCurrentProfile')||'null');
+        if(profile?.role==='executive_viewer')location.replace('executive-command-center.html');
+      }catch(_){}
+    })();
+  </script>
   <link rel="stylesheet" href="css/style.css" />
   <style>
     .main-content{font-size:15px;color:#163b43}
