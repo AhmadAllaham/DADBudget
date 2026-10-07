@@ -5,7 +5,7 @@ const $=id=>document.getElementById(id);
 const clean=v=>String(v??'').trim();
 const num=v=>Number.isFinite(Number(v))?Number(v):0;
 const money=v=>num(v).toLocaleString(undefined,{maximumFractionDigits:0});
-const salesK=v=>Math.round(num(v)/1000).toLocaleString(undefined,{maximumFractionDigits:0});
+const salesK=v=>Math.round(num(v)/1000).toLocaleString('en-US',{maximumFractionDigits:0});
 const norm=v=>clean(v).toUpperCase().replace(/[^A-Z0-9]/g,'');
 const escapeHtml=v=>clean(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let loading=false,lastLoadedAt=0,salesSources=null;
