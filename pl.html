@@ -4,18 +4,18 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>P&amp;L - DAD Budget 2027</title>
 <link rel="stylesheet" href="css/style.css">
-<link rel="stylesheet" href="css/pl.css?v=20261006-pl-summary-v1-2">
+<link rel="stylesheet" href="css/pl.css?v=20261007-no-row-kpi-1">
 </head>
 <body><div class="app-shell">
 <aside class="sidebar"><div class="sidebar-brand"><div class="brand-badge">B27</div><div><strong>BUDGET 2027</strong><span>PLANNING CENTER</span></div></div><nav class="sidebar-nav"><div class="nav-section">PLANNING</div><a href="index.html">Dashboard</a><a href="ims-sales.html">IMS Sales</a><a href="opex.html">OPEX Planning</a><a href="capex.html">CAPEX Planning</a><a href="projects.html">Projects</a><a class="active" href="pl.html">P&amp;L</a><div class="nav-section">WORKFLOW</div><a href="roadmap.html">Roadmap</a><a href="manager-approval.html">Approval Center</a><div class="nav-section">ADMIN</div><a href="data-admin.html">Data Admin</a></nav></aside>
 <main class="main-content pl-page">
 <div class="pl-head"><div><span class="eyebrow">FY BUDGET 2027</span><h1>Profit &amp; Loss</h1><p>Full management P&amp;L built directly from the uploaded raw-data table.</p></div><button class="dark-btn" id="logoutBtn">Log out</button></div>
 <section class="card pl-filters"><div class="pl-field"><label for="plCountry">Country</label><select id="plCountry"><option value="">All Countries</option></select></div><div class="pl-field"><label for="plAgent">Agent</label><select id="plAgent"><option value="">All Agents</option></select></div><div class="pl-field"><label for="plType">Type</label><select id="plType" disabled><option>All</option></select></div><button class="pl-clear" id="plClear" type="button">Clear Filters</button></section>
-<section class="pl-kpis"><article class="card pl-kpi"><span>P&amp;L Rows</span><strong id="plRowCount">0</strong><small>Current filter</small></article><article class="card pl-kpi"><span>Countries</span><strong id="plMarketCount">0</strong><small>Current filter</small></article><article class="card pl-kpi"><span>Agents</span><strong id="plAgentCount">0</strong><small>Current filter</small></article></section>
+<section class="pl-kpis" style="grid-template-columns:repeat(2,1fr)"><article class="card pl-kpi"><span>Countries</span><strong id="plMarketCount">0</strong><small>Current filter</small></article><article class="card pl-kpi"><span>Agents</span><strong id="plAgentCount">0</strong><small>Current filter</small></article></section>
 <section class="card pl-report"><div class="pl-report-head"><div><h2>P&amp;L Summary</h2><p id="plSource">Loading P&amp;L source...</p></div><span class="pl-scenario">B27 = V1 Budget 2027</span></div><div class="pl-table-wrap"><table class="pl-table"><thead><tr><th>Category</th><th>B26</th><th>L26</th><th>B27</th><th>△ L26-B26</th><th>% L26-B26</th><th>△ B27-B26</th><th>△% B27-B26</th><th>△ B27-L26</th><th>△% B27-L26</th></tr></thead><tbody id="plBody"></tbody></table><div class="pl-empty" id="plEmpty" hidden>Upload the raw P&amp;L file from Data Admin to display B26, L26 and B27.</div></div><div class="pl-foot"><span><b>B26:</b> Budget 2026</span><span><b>L26:</b> Landing 26</span><span><b>B27:</b> V1 Budget 2027 only</span></div></section>
 <section class="pl-ratios" id="plRatios" hidden><h3>Operating &amp; Profitability Ratios</h3><div class="pl-ratios-card"><table><thead><tr><th></th><th>B26</th><th>L26</th><th>B27</th></tr></thead><tbody id="plRatiosBody"></tbody></table></div></section>
 </main></div>
 <script src="js/app.js?v=20260914-tunis-permission-1"></script>
 <script type="module" src="js/firebase.js?v=20261006-pl-summary-v1-2"></script>
-<script type="module" src="js/pl.js?v=20261006-pl-summary-v1-2"></script>
+<script type="module" src="js/pl.js?v=20261007-no-row-kpi-1"></script>
 </body></html>

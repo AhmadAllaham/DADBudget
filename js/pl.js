@@ -62,7 +62,6 @@ function render() {
   renderRatios(buildPlRatios(table));
   $('plMarketCount').textContent = new Set(rows.map(row => row.country)).size.toLocaleString();
   $('plAgentCount').textContent = new Set(rows.map(row => row.agent)).size.toLocaleString();
-  $('plRowCount').textContent = rows.length.toLocaleString();
   $('plEmpty').hidden = !!payload;
   $('plRatios').hidden = !payload;
   $('plSource').textContent = payload ? `${payload.sourceFile || 'P&L source'} · ${payload.rows?.length || 0} rows · Revision ${payload.revision || 1}` : 'No P&L source uploaded yet.';
