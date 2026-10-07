@@ -5,6 +5,7 @@ const $=id=>document.getElementById(id);
 const clean=v=>String(v??'').trim();
 const num=v=>Number.isFinite(Number(v))?Number(v):0;
 const money=v=>num(v).toLocaleString(undefined,{maximumFractionDigits:0});
+const salesK=v=>String(Math.round(num(v)/1000));
 const norm=v=>clean(v).toUpperCase().replace(/[^A-Z0-9]/g,'');
 const escapeHtml=v=>clean(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let loading=false,lastLoadedAt=0,salesSources=null;
@@ -150,11 +151,11 @@ function renderSales(source){
   if($('salesSubtitle'))$('salesSubtitle').textContent=`Total ${label} sales and country contribution.`;
   if($('salesNote')){
     if(source.available){
-      const alg=label==='IMS'&&Number.isFinite(Number(source.algeriaGrossSales))?` Includes Algeria Gross Sales from P&L: ${money(source.algeriaGrossSales)} USD.`:'';
-      $('salesNote').textContent=`Source: ${source.fileName||`${label} Sales`}. Sales are shown in USD.${alg}`;
+      const alg=label==='IMS'&&Number.isFinite(Number(source.algeriaGrossSales))?` Includes Algeria Gross Sales from P&L: ${salesK(source.algeriaGrossSales)}.`:'';
+      $('salesNote').textContent=`Source: ${source.fileName||`${label} Sales`}. Sales are shown in USD '000.${alg}`;
     }else $('salesNote').textContent=`${label} Sales data is not available on this device.`;
   }
-  if($('countryGrid'))$('countryGrid').innerHTML=source.available?source.countries.map(x=>`<div class="country-card"><span>${escapeHtml(x.country)}</span><strong>${money(x.value)} USD</strong></div>`).join(''):`<div class="empty-state">${label} Sales source is not available on this device.</div>`;
+  if($('countryGrid'))$('countryGrid').innerHTML=source.available?source.countries.map(x=>`<div class="country-card"><span>${escapeHtml(x.country)}</span><strong>${salesK(x.value)}</strong></div>`).join(''):`<div class="empty-state">${label} Sales source is not available on this device.</div>`;
 }
 
 function bindSalesSwitch(){
@@ -169,10 +170,10 @@ function patchSalesOverview(){
   if(!salesSources)return;
   const ims=salesSources.ims,tms=salesSources.tms,salesAvailable=ims.available||tms.available;
   const combined=(ims.available?ims.total:0)+(tms.available?tms.total:0);
-  if($('kpiSales'))$('kpiSales').textContent=salesAvailable?money(combined):'—';
+  if($('kpiSales'))$('kpiSales').textContent=salesAvailable?salesK(combined):'—';
   if($('kpiSalesNote')){
-    const imsText=ims.available?money(ims.total):'not loaded',tmsText=tms.available?money(tms.total):'not loaded',alg=ims.algeriaGrossSales?` incl. Algeria P&L ${money(ims.algeriaGrossSales)}`:'';
-    $('kpiSalesNote').textContent=salesAvailable?`IMS ${imsText}${alg} + TMS ${tmsText} · USD`:'IMS and TMS files are not available on this device';
+    const imsText=ims.available?salesK(ims.total):'not loaded',tmsText=tms.available?salesK(tms.total):'not loaded',alg=ims.algeriaGrossSales?` incl. Algeria P&L ${salesK(ims.algeriaGrossSales)}`:'';
+    $('kpiSalesNote').textContent=salesAvailable?`IMS ${imsText}${alg} + TMS ${tmsText} · USD '000`:'IMS and TMS files are not available on this device';
   }
 }
 
