@@ -2,7 +2,7 @@ import {getApps} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.j
 import {getAuth} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
 import {getFirestore,doc,getDoc,getDocs,collection,writeBatch,serverTimestamp,query,orderBy,startAt,endAt,documentId} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 
-const MAIN='PST3chwdZmaQGeG25t4ym9Vlixe2',YEAR=2027,CHUNK=300,DIR_DOC='department_directory_fy2027';
+const MAIN='PST3chwdZmaQGeG25t4ym9Vlixe2',YEAR=2027,CHUNK=10,DIR_DOC='department_directory_fy2027';
 const MODELS={
   existing:{key:'existing',prefix:'hr_salary_allocation_',sheet:'Salaries Budget',label:'Existing Employees Salaries',short:'Existing Employees',file:'HR_Salaries'},
   new:{key:'new',prefix:'hr_new_salary_allocation_',sheet:'New Employees Salaries',label:'New Employees Salaries',short:'New Employees',file:'HR_New_Employees_Salaries'}
@@ -53,7 +53,34 @@ function applyFilters(){const aq=clean($('salaryAccountSearch')?.value).toLowerC
 async function switchMode(next){if(!MODELS[next]||next===mode)return;mode=next;updateModeUi();try{await loadMode(next);render();setStatus(`${model().label} ready · ${departments.length} company departments · Excel input only`,'ready')}catch(e){console.error(e);setStatus(`Unable to load ${model().label}: ${e.message||e}`,'error')}}
 
 function makeDoc(key,d,sourceFile){const cfg=model(key),items={};accounts.forEach(a=>{const annual=valueOf(key,d.cc,a.code);items[a.code]={code:a.code,name:a.name,annual,byMonth:annualMonths(annual)}});return{cc:d.cc,departmentName:d.name,fiscalYear:YEAR,currency:'JOD',salaryType:key==='new'?'new_employees':'existing_employees',items,total:departmentTotal(key,d.cc),sourceFile:clean(sourceFile||cfg.label),updatedBy:auth.currentUser.uid,updatedByEmail:clean(auth.currentUser.email).toLowerCase(),updatedAt:serverTimestamp(),clientUpdatedAt:new Date().toISOString()}}
-async function saveAll(key,sourceFile){if(!canEdit)throw new Error('Only HR Planning or Main Admin can upload the Salaries Budget.');if(saving)return;saving=true;const cfg=model(key);try{for(let start=0;start<departments.length;start+=CHUNK){const batch=writeBatch(db),chunk=departments.slice(start,start+CHUNK);chunk.forEach(d=>batch.set(doc(db,'system_status',`${cfg.prefix}${d.cc}`),makeDoc(key,d,sourceFile),{merge:false}));await batch.commit();setStatus(`Saving ${cfg.label} · ${Math.min(start+chunk.length,departments.length)} / ${departments.length}`)}setStatus(`${cfg.label} uploaded successfully · ${departments.length} departments updated in OPEX`,'ready')}finally{saving=false}}
+// Salary documents include 30 accounts with monthly maps. Their index updates
+// can exceed Firestore's request limit long before the write-count limit.
+async function commitSalaryChunk(writes,onSaved){
+  const batch=writeBatch(db);writes.forEach(({id,data})=>batch.set(doc(db,'system_status',id),data,{merge:false}));
+  try{await batch.commit()}catch(error){
+    const sizeError=/transaction too big|maximum request size|request (?:is )?too large|exceeds.*(?:10\s*mi?b|request size)/i.test(String(error?.message||error));
+    if(!sizeError||writes.length<=1)throw error;
+    const middle=Math.ceil(writes.length/2);
+    await commitSalaryChunk(writes.slice(0,middle),onSaved);
+    await commitSalaryChunk(writes.slice(middle),onSaved);
+    return;
+  }
+  onSaved(writes.length);
+}
+async function saveAll(key,sourceFile){
+  if(!canEdit)throw new Error('Only HR Planning or Main Admin can upload the Salaries Budget.');
+  if(saving)throw new Error('A salary upload is already in progress.');
+  saving=true;const cfg=model(key);let saved=0;
+  try{
+    const writes=departments.map(d=>({id:`${cfg.prefix}${d.cc}`,data:makeDoc(key,d,sourceFile)}));
+    const onSaved=count=>{saved+=count;setStatus(`Saving ${cfg.label} · ${saved} / ${writes.length}`)};
+    for(let start=0;start<writes.length;start+=CHUNK)await commitSalaryChunk(writes.slice(start,start+CHUNK),onSaved);
+    setStatus(`${cfg.label} uploaded successfully · ${writes.length} departments updated in OPEX`,'ready');
+  }catch(error){
+    if(saved)throw new Error(`${saved} / ${departments.length} departments saved. Upload the same file again to complete the remaining departments. ${error.message||error}`);
+    throw error;
+  }finally{saving=false}
+}
 
 function workbookHeaders(){return['Account No.','Salary / Employee Cost Item',...departments.map(d=>`${d.cc} · ${d.name}`),'Company Total']}
 async function downloadWorkbook(saved=false,key=mode){await loadMode(key);if(typeof ExcelJS==='undefined')throw new Error('Excel template engine is still loading.');const cfg=model(key),wb=new ExcelJS.Workbook();wb.creator='DAD Budget 2027';wb.created=new Date();wb.calcProperties.fullCalcOnLoad=true;wb.calcProperties.forceFullCalc=true;wb.calcProperties.calcMode='auto';const info=wb.addWorksheet('Instructions'),ws=wb.addWorksheet(cfg.sheet),navy='FF0A2C61',white='FFFFFFFF',blue='FFE5F3FF',green='FFEAF9F5',gray='FFF4F7F8';
