@@ -75,6 +75,13 @@ async function saveAll(key,sourceFile){
     const writes=departments.map(d=>({id:`${cfg.prefix}${d.cc}`,data:makeDoc(key,d,sourceFile)}));
     const onSaved=count=>{saved+=count;setStatus(`Saving ${cfg.label} · ${saved} / ${writes.length}`)};
     for(let start=0;start<writes.length;start+=CHUNK)await commitSalaryChunk(writes.slice(start,start+CHUNK),onSaved);
+    // Invalidate OPEX overlays in this tab and notify other open tabs.
+    try{
+      Object.keys(sessionStorage).filter(k=>k.startsWith('dadBudgetHRSalaryOpexCacheV1:')).forEach(k=>sessionStorage.removeItem(k));
+      sessionStorage.removeItem('dadBudgetOPEXSummaryCloudReadAt');
+      localStorage.setItem('dadBudgetHRSalaryUpdatedAt',String(Date.now()));
+    }catch(error){console.warn('Salary cache invalidation failed',error)}
+    window.dispatchEvent(new CustomEvent('dad-hr-salary-updated',{detail:{salaryType:key}}));
     setStatus(`${cfg.label} uploaded successfully · ${writes.length} departments updated in OPEX`,'ready');
   }catch(error){
     if(saved)throw new Error(`${saved} / ${departments.length} departments saved. Upload the same file again to complete the remaining departments. ${error.message||error}`);
