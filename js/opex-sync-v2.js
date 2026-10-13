@@ -23,7 +23,22 @@ function submissionIsLocked(data={}){
 }
 
 function localModel(){try{const m=JSON.parse(localStorage.getItem(KEY)||'null');return m?.departments?m:null}catch(_){return null}}
-function saveLocal(m){localStorage.setItem(KEY,JSON.stringify(m));window.dispatchEvent(new CustomEvent('dad-opex-cloud-ready',{detail:{departments:Object.keys(m.departments||{}).length}}));window.dispatchEvent(new CustomEvent('dad-opex-refresh-departments'))}
+function saveLocal(m){
+  // Browser storage can reject a replacement when the previous large OPEX model
+  // and the new model temporarily occupy the same quota. Drop obsolete copies first.
+  Object.keys(localStorage).filter(k=>/^dadBudgetOPEXBaselineV\d+$/i.test(k)&&k!==KEY).forEach(k=>localStorage.removeItem(k));
+  const previous=localStorage.getItem(KEY);
+  const compact=(key,value)=>/^(budgetByMonth|actualByMonth|lyByMonth|newBudgetByMonth|landingByMonth)$/.test(key)&&value&&typeof value==='object'&&!Array.isArray(value)?Object.fromEntries(Object.entries(value).filter(([,v])=>Number(v||0)!==0)):value;
+  const raw=JSON.stringify(m,compact);
+  localStorage.removeItem(KEY);
+  try{localStorage.setItem(KEY,raw)}catch(error){
+    // Restore the last usable copy if there is still room, then show a useful error.
+    if(previous){try{localStorage.setItem(KEY,previous)}catch(_){}}
+    if(error?.code===22||error?.name==='QuotaExceededError')throw new Error(`OPEX browser storage is full (${(raw.length/1048576).toFixed(1)} MB). Clear old site data and reload.`);
+    throw error;
+  }
+  window.dispatchEvent(new CustomEvent('dad-opex-cloud-ready',{detail:{departments:Object.keys(m.departments||{}).length}}));window.dispatchEvent(new CustomEvent('dad-opex-refresh-departments'))
+}
 function rebuildMaster(deps){const out={};Object.values(deps||{}).forEach(d=>Object.values(d?.items||{}).forEach(x=>{const c=clean(x?.code);if(c&&!out[c])out[c]={code:c,name:clean(x?.name)||c}}));return out}
 function normalizeMaster(master,deps={}){const out={};Object.values(master||{}).forEach(x=>{const c=clean(x?.code);if(c)out[c]={code:c,name:clean(x?.name)||c}});Object.entries(master||{}).forEach(([k,x])=>{const c=clean(x?.code||k);if(c&&!out[c])out[c]={code:c,name:clean(x?.name)||c}});const rebuilt=rebuildMaster(deps);Object.entries(rebuilt).forEach(([c,x])=>{if(!out[c])out[c]=x;else if((!out[c].name||out[c].name===c)&&x.name&&x.name!==c)out[c].name=x.name});return out}
 function masterArray(master){return Object.values(master||{}).map(x=>({code:clean(x?.code),name:clean(x?.name||x?.code)})).filter(x=>x.code)}
