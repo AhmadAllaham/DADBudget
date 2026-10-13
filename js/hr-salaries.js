@@ -67,12 +67,15 @@ async function commitSalaryChunk(writes,onSaved){
   }
   onSaved(writes.length);
 }
-async function saveAll(key,sourceFile){
+async function saveAll(key,sourceFile,funded){
   if(!canEdit)throw new Error('Only HR Planning or Main Admin can upload the Salaries Budget.');
   if(saving)throw new Error('A salary upload is already in progress.');
   saving=true;const cfg=model(key);let saved=0;
   try{
-    const writes=departments.map(d=>({id:`${cfg.prefix}${d.cc}`,data:makeDoc(key,d,sourceFile)}));
+    // The template includes zero-filled columns for every company department.
+    // Only publish departments with an entered salary budget, so a trial upload
+    // for one department cannot replace every other department with zeroes.
+    const writes=departments.filter(d=>funded.has(d.cc)).map(d=>({id:`${cfg.prefix}${d.cc}`,data:makeDoc(key,d,sourceFile)}));
     const onSaved=count=>{saved+=count;setStatus(`Saving ${cfg.label} · ${saved} / ${writes.length}`)};
     for(let start=0;start<writes.length;start+=CHUNK)await commitSalaryChunk(writes.slice(start,start+CHUNK),onSaved);
     // Invalidate OPEX overlays in this tab and notify other open tabs.
@@ -82,7 +85,7 @@ async function saveAll(key,sourceFile){
       localStorage.setItem('dadBudgetHRSalaryUpdatedAt',String(Date.now()));
     }catch(error){console.warn('Salary cache invalidation failed',error)}
     window.dispatchEvent(new CustomEvent('dad-hr-salary-updated',{detail:{salaryType:key}}));
-    setStatus(`${cfg.label} uploaded successfully · ${writes.length} departments updated in OPEX`,'ready');
+    setStatus(`${cfg.label} uploaded successfully · ${writes.length} funded departments updated in OPEX`,'ready');
   }catch(error){
     if(saved)throw new Error(`${saved} / ${departments.length} departments saved. Upload the same file again to complete the remaining departments. ${error.message||error}`);
     throw error;
@@ -97,8 +100,36 @@ async function downloadWorkbook(saved=false,key=mode){await loadMode(key);if(typ
   header.height=48;header.eachCell(cell=>{cell.font={bold:true,color:{argb:white}};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:navy}};cell.alignment={vertical:'middle',horizontal:'center',wrapText:true}});ws.views=[{state:'frozen',ySplit:1,xSplit:2}];ws.autoFilter={from:{row:1,column:1},to:{row:1,column:companyCol}};ws.getColumn(1).width=15;ws.getColumn(2).width=38;for(let c=deptStart;c<=deptEnd;c++)ws.getColumn(c).width=23;ws.getColumn(companyCol).width=20;if(saved){for(let r=2;r<totalRowNo;r++){ws.getRow(r).getCell(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:gray}};ws.getRow(r).getCell(2).fill={type:'pattern',pattern:'solid',fgColor:{argb:gray}}}}
   const buf=await wb.xlsx.writeBuffer(),url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})),a=document.createElement('a');a.href=url;a.download=saved?`Budget_2027_${cfg.file}_Saved_Data.xlsx`:`Budget_2027_${cfg.file}_Template.xlsx`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)
 }
-function parseUpload(wb,key){const cfg=model(key),sheetName=wb.SheetNames.find(n=>clean(n).toLowerCase()===cfg.sheet.toLowerCase());if(!sheetName)throw new Error(`${cfg.sheet} sheet is missing.`);const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,defval:'',raw:true}),hi=rows.findIndex(r=>clean(r?.[0]).toLowerCase()==='account no.'&&clean(r?.[1]).toLowerCase().includes('salary'));if(hi<0)throw new Error(`${cfg.sheet} headers are not valid. Download the latest template.`);const header=rows[hi],deptCols=[];for(let c=2;c<header.length;c++){const m=clean(header[c]).match(/^(\d{8,12})\b/);if(!m)continue;const cc=m[1];if(!departments.some(d=>d.cc===cc))throw new Error(`Unknown Fund Center in column ${c+1}: ${cc}`);deptCols.push({col:c,cc})}if(!deptCols.length)throw new Error('No department columns were found.');const known=new Set(accounts.map(a=>a.code)),seen=new Set();for(let r=hi+1;r<rows.length;r++){const gl=clean(rows[r]?.[0]);if(!gl||gl.toUpperCase()==='TOTAL')continue;if(!known.has(gl))throw new Error(`Row ${r+1}: unknown employee-cost G/L ${gl}`);if(seen.has(gl))throw new Error(`Row ${r+1}: duplicate G/L ${gl}`);seen.add(gl);deptCols.forEach(({col,cc})=>{const raw=rows[r]?.[col];if(clean(raw)!==''&&!Number.isFinite(Number(String(raw).replace(/,/g,''))))throw new Error(`Row ${r+1}, ${cc}: enter a numeric value.`);const v=Number(String(raw||0).replace(/,/g,''));if(v<0)throw new Error(`Row ${r+1}, ${cc}: value cannot be negative.`);setValue(key,cc,gl,v)})}if(!seen.size)throw new Error(`No salary rows were found in ${cfg.sheet}.`)}
-async function uploadExcel(file,key=mode){if(typeof XLSX==='undefined')throw new Error('Excel upload engine is still loading.');await loadMode(key);const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});parseUpload(wb,key);if(mode===key)render();await saveAll(key,file.name)}
+function parseUpload(wb,key){
+  const cfg=model(key),sheetName=wb.SheetNames.find(n=>clean(n).toLowerCase()===cfg.sheet.toLowerCase());
+  if(!sheetName)throw new Error(`${cfg.sheet} sheet is missing.`);
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,defval:'',raw:true}),hi=rows.findIndex(r=>clean(r?.[0]).toLowerCase()==='account no.'&&clean(r?.[1]).toLowerCase().includes('salary'));
+  if(hi<0)throw new Error(`${cfg.sheet} headers are not valid. Download the latest template.`);
+  const header=rows[hi],deptCols=[];
+  for(let c=2;c<header.length;c++){
+    const m=clean(header[c]).match(/^(\d{8,12})\b/);if(!m)continue;
+    const cc=m[1];if(!departments.some(d=>d.cc===cc))throw new Error(`Unknown Fund Center in column ${c+1}: ${cc}`);
+    deptCols.push({col:c,cc});
+  }
+  if(!deptCols.length)throw new Error('No department columns were found.');
+  const known=new Set(accounts.map(a=>a.code)),seen=new Set(),parsed=new Map(deptCols.map(d=>[d.cc,new Map()]));
+  for(let r=hi+1;r<rows.length;r++){
+    const gl=clean(rows[r]?.[0]);if(!gl||gl.toUpperCase()==='TOTAL')continue;
+    if(!known.has(gl))throw new Error(`Row ${r+1}: unknown employee-cost G/L ${gl}`);
+    if(seen.has(gl))throw new Error(`Row ${r+1}: duplicate G/L ${gl}`);seen.add(gl);
+    deptCols.forEach(({col,cc})=>{
+      const raw=rows[r]?.[col];if(clean(raw)!==''&&!Number.isFinite(Number(String(raw).replace(/,/g,''))))throw new Error(`Row ${r+1}, ${cc}: enter a numeric value.`);
+      const v=Number(String(raw||0).replace(/,/g,''));if(v<0)throw new Error(`Row ${r+1}, ${cc}: value cannot be negative.`);
+      parsed.get(cc).set(gl,v);
+    });
+  }
+  if(!seen.size)throw new Error(`No salary rows were found in ${cfg.sheet}.`);
+  const funded=new Set();
+  parsed.forEach((items,cc)=>{if([...items.values()].some(v=>v>.00001)){funded.add(cc);items.forEach((v,gl)=>setValue(key,cc,gl,v))}});
+  if(!funded.size)throw new Error('No funded department was found. Enter a salary value before uploading.');
+  return funded;
+}
+async function uploadExcel(file,key=mode){if(typeof XLSX==='undefined')throw new Error('Excel upload engine is still loading.');await loadMode(key);const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});const funded=parseUpload(wb,key);if(mode===key)render();await saveAll(key,file.name,funded)}
 function applyExcelOnlyUi(){const pageText=document.querySelector('.page-head p');if(pageText)pageText.textContent='HR manages existing employee salaries and new employee salaries through separate Excel templates on the same page. Uploaded values are reflected automatically into each department OPEX.';updateModeUi()}
 function bind(){if(bound)return;bound=true;applyExcelOnlyUi();$('salaryAccountSearch')?.addEventListener('input',applyFilters);$('salaryDepartmentSearch')?.addEventListener('input',applyFilters);document.querySelectorAll('[data-salary-mode]').forEach(b=>b.addEventListener('click',()=>switchMode(b.dataset.salaryMode)));$('salaryTemplateBtn')?.addEventListener('click',()=>downloadWorkbook(false,mode).catch(e=>alert(e.message||e)));$('salarySavedBtn')?.addEventListener('click',()=>downloadWorkbook(true,mode).catch(e=>alert(e.message||e)));$('salaryUploadBtn')?.addEventListener('click',()=>$('salaryUploadInput')?.click());$('salaryUploadInput')?.addEventListener('change',async()=>{const file=$('salaryUploadInput').files?.[0];$('salaryUploadInput').value='';if(!file)return;const key=mode,b=$('salaryUploadBtn'),old=b.textContent;try{b.disabled=true;b.textContent='Uploading...';setStatus(`Validating ${model(key).label} workbook...`);await uploadExcel(file,key)}catch(e){console.error(e);setStatus(`${model(key).label} upload rejected: ${e.message||e}`,'error');alert(`${model(key).label} upload rejected: ${e.message||e}`)}finally{b.disabled=false;b.textContent=old}})}
 async function boot(){if(booted||booting)return;booting=true;try{const ready=await initFirebase();if(!ready){booting=false;setTimeout(boot,300);return}await loadProfile();await loadDirectoryAndAccounts();await loadMode('existing');bind();render();booted=true;setStatus(`HR Salaries ready · ${departments.length} company departments · ${accounts.length} employee-cost G/Ls · Excel input only`,'ready')}catch(e){console.error(e);setStatus(e.message||String(e),'error');if(String(e.message||e).includes('only to HR'))setTimeout(()=>location.replace('index.html'),1600)}finally{booting=false}}
