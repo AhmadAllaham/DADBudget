@@ -36,39 +36,68 @@
     ['Jordan','United Arab Emirates',1400,500],['Ireland','Jordan',1400,550],['Jordan','Romania',1400,500],['Jordan','SPHI',2200,1200],
     ['Jordan','Tunisia',1800,800]
   ];
-  const rates=sourceRates.map(row=>[country(row[0]),...row.slice(1).map(jd)]),rateMap=new Map(rates.map(row=>[norm(row[0]),row]));
+
+  // Existing Jordan standard is the fallback for missing destination components.
+  // Visa can legitimately be zero; all other standard travel components receive a usable rate.
+  const DEFAULT_RATE_USD=[140,100,30,35,0,20,20,25];
+  const DEFAULT_TICKET_USD={business:1400,economy:500};
+  function completeUsdRate(row){
+    const out=[...row];
+    [1,2,3,4,6,7,8].forEach((index)=>{if(Number(out[index])<=0)out[index]=DEFAULT_RATE_USD[index-1]});
+    return out;
+  }
+
+  const explicitUsdRates=sourceRates.map(row=>completeUsdRate(row));
+  const explicitNames=new Set(explicitUsdRates.map(row=>norm(row[0])));
+  const routeCountries=[...new Set(sourceTickets.flatMap(row=>[country(row[0]),country(row[1])]))];
+  const fallbackCountries=routeCountries.filter(name=>!explicitNames.has(norm(name)));
+  const completedUsdRates=[...explicitUsdRates,...fallbackCountries.map(name=>[name,...DEFAULT_RATE_USD])];
+  const rates=completedUsdRates.map(row=>[country(row[0]),...row.slice(1).map(jd)]),rateMap=new Map(rates.map(row=>[norm(row[0]),row]));
   const tickets=sourceTickets.map(row=>[country(row[0]),country(row[1]),jd(row[2]),jd(row[3])]);
   const ticketMap=new Map();tickets.forEach(row=>ticketMap.set(`${norm(row[0])}|${norm(row[1])}`,row));
   const countries=[...new Set([...rates.map(r=>r[0]),...tickets.flatMap(r=>[r[0],r[1]])])].sort((a,b)=>a.localeCompare(b));
   const isBusiness=title=>['CLEVEL','DIRECTOR'].includes(norm(title));
+  const fallbackBusinessTicket=jd(DEFAULT_TICKET_USD.business),fallbackEconomyTicket=jd(DEFAULT_TICKET_USD.economy),standardPerDiem=jd(DEFAULT_RATE_USD[5]);
+  const fallbackRate=DEFAULT_RATE_USD.map(jd);
+
   function quote({title,fromCity,destination,numberOfNights}){
-    const from=country(fromCity),to=country(destination),nights=Math.max(0,Number(numberOfNights)||0),rate=rateMap.get(norm(to));
+    const from=country(fromCity),to=country(destination),nights=Math.max(0,Number(numberOfNights)||0),rate=rateMap.get(norm(to))||[to,...fallbackRate],local=!!from&&!!to&&norm(from)===norm(to);
     const direct=ticketMap.get(`${norm(from)}|${norm(to)}`),reverse=ticketMap.get(`${norm(to)}|${norm(from)}`),ticket=direct||reverse;
+    const ticketAmount=local?0:ticket?(isBusiness(title)?ticket[2]:ticket[3]):(isBusiness(title)?fallbackBusinessTicket:fallbackEconomyTicket);
+    const perDiem=Math.max(standardPerDiem,Number(rate[6])||0);
     const amounts={
-      '6020001':ticket?(isBusiness(title)?ticket[2]:ticket[3]):0,
-      '6020002':rate?(isBusiness(title)?rate[1]:rate[2])*nights:0,
-      '6020003':rate?rate[3]*nights:0,
-      '6020004':rate?rate[4]*nights:0,
-      '6020005':rate?rate[5]:0,
-      '6020006':rate?rate[6]*nights:0,
-      '6020007':rate?rate[7]:0,
-      '6020008':0,
+      '6020001':ticketAmount,
+      '6020002':(isBusiness(title)?rate[1]:rate[2])*nights,
+      '6020003':rate[3]*nights,
+      '6020004':rate[4]*nights,
+      '6020005':rate[5],
+      '6020006':local?0:perDiem*nights,
+      '6020007':rate[7],
+      '6020008':local?perDiem*nights:0,
       '6020009':0,
-      '6020010':rate?rate[8]:0
+      '6020010':rate[8]
     };
-    const calculatedTotal=Object.values(amounts).reduce((s,v)=>s+v,0),unpriced=!!from&&!!to&&!ticket&&!rate;
-    return{from,to,hasRoute:!!ticket,hasDestinationRate:!!rate,unpriced,pricingStatus:unpriced?'unpriced':'fixed',amounts,calculatedTotal,total:unpriced?0.005:calculatedTotal};
+    const calculatedTotal=Object.values(amounts).reduce((s,v)=>s+v,0),usedFallbackDestination=fallbackCountries.some(name=>norm(name)===norm(to)),usedFallbackRoute=!local&&!ticket;
+    return{from,to,hasRoute:local||!!ticket,hasDestinationRate:!usedFallbackDestination,usedFallbackDestination,usedFallbackRoute,unpriced:false,pricingStatus:(usedFallbackDestination||usedFallbackRoute)?'fallback':'fixed',amounts,calculatedTotal,total:calculatedTotal};
   }
+
   function formulaFor(row,column){
-    const rateRange="'Travel Rates'!$A$2:$I$100",routeKeys="'Travel Rates'!$L$2:$L$100",business="'Travel Rates'!$M$2:$M$100",economy="'Travel Rates'!$N$2:$N$100";
-    const destination=`$F${row}`,nights=`$I${row}`,title=`$D${row}`,route=`$E${row}&\"|\"&$F${row}`,reverseRoute=`$F${row}&\"|\"&$E${row}`,businessTitle=`OR(${title}=\"C Level\",${title}=\"Director\")`,lookupIndex={K:2,L:4,M:5,N:6,O:7,P:8,S:9}[column];
-    const ready=`AND(${title}<>\"\",$E${row}<>\"\",${destination}<>\"\",${nights}<>\"\")`;
-    if(column==='J')return`IF(${ready},IFERROR(IF(${businessTitle},IF(SUMIFS(${business},${routeKeys},${route})>0,SUMIFS(${business},${routeKeys},${route}),SUMIFS(${business},${routeKeys},${reverseRoute})),IF(SUMIFS(${economy},${routeKeys},${route})>0,SUMIFS(${economy},${routeKeys},${route}),SUMIFS(${economy},${routeKeys},${reverseRoute}))),0),\"\")`;
-    if(column==='K')return`IF(${ready},IFERROR(IF(${businessTitle},VLOOKUP(${destination},${rateRange},2,FALSE),VLOOKUP(${destination},${rateRange},3,FALSE))*${nights},0),\"\")`;
-    if(['L','M','O'].includes(column))return`IF(${ready},IFERROR(VLOOKUP(${destination},${rateRange},${lookupIndex},FALSE)*${nights},0),\"\")`;
-    if(['N','P','S'].includes(column))return`IF(${ready},IFERROR(VLOOKUP(${destination},${rateRange},${lookupIndex},FALSE),0),\"\")`;
+    const rateRange="'Travel Rates'!$A$2:$I$200",routeKeys="'Travel Rates'!$L$2:$L$200",business="'Travel Rates'!$M$2:$M$200",economy="'Travel Rates'!$N$2:$N$200";
+    const destination=`$F${row}`,nights=`$I${row}`,title=`$D${row}`,from=`$E${row}`,route=`${from}&\"|\"&${destination}`,reverseRoute=`${destination}&\"|\"&${from}`,businessTitle=`OR(${title}=\"C Level\",${title}=\"Director\")`;
+    const ready=`AND(${title}<>\"\",${from}<>\"\",${destination}<>\"\",${nights}<>\"\")`,rateValue=(index,fallback)=>`IFERROR(VLOOKUP(${destination},${rateRange},${index},FALSE),${fallback})`;
+    if(column==='J')return`IF(${ready},IF(${from}=${destination},0,IF(${businessTitle},IF(SUMIFS(${business},${routeKeys},${route})>0,SUMIFS(${business},${routeKeys},${route}),IF(SUMIFS(${business},${routeKeys},${reverseRoute})>0,SUMIFS(${business},${routeKeys},${reverseRoute}),${fallbackBusinessTicket})),IF(SUMIFS(${economy},${routeKeys},${route})>0,SUMIFS(${economy},${routeKeys},${route}),IF(SUMIFS(${economy},${routeKeys},${reverseRoute})>0,SUMIFS(${economy},${routeKeys},${reverseRoute}),${fallbackEconomyTicket})))),\"\")`;
+    if(column==='K')return`IF(${ready},IF(${businessTitle},${rateValue(2,fallbackRate[0])},${rateValue(3,fallbackRate[1])})*${nights},\"\")`;
+    if(column==='L')return`IF(${ready},${rateValue(4,fallbackRate[2])}*${nights},\"\")`;
+    if(column==='M')return`IF(${ready},${rateValue(5,fallbackRate[3])}*${nights},\"\")`;
+    if(column==='N')return`IF(${ready},${rateValue(6,fallbackRate[4])},\"\")`;
+    if(column==='O')return`IF(${ready},IF(${from}<>${destination},MAX(${standardPerDiem},${rateValue(7,standardPerDiem)})*${nights},0),\"\")`;
+    if(column==='P')return`IF(${ready},${rateValue(8,fallbackRate[6])},\"\")`;
+    if(column==='Q')return`IF(${ready},IF(${from}=${destination},MAX(${standardPerDiem},${rateValue(7,standardPerDiem)})*${nights},0),\"\")`;
+    if(column==='R')return`IF(${ready},0,\"\")`;
+    if(column==='S')return`IF(${ready},${rateValue(9,fallbackRate[7])},\"\")`;
     return`IF(${ready},0,\"\")`;
   }
+
   async function configureExcelJs(workbook,sheet,{cc,rows=[],rowCount=40,months=[]}={}){
     const totalRows=Math.max(rowCount,rows.length),titles=['C Level','Director','Manager','Other'],nightValues=Array.from({length:20},(_,i)=>i+1);
     for(let i=0;i<totalRows;i++){
@@ -82,7 +111,7 @@
     const countryFormula=`Lists!$A$2:$A$${countries.length+1}`,monthFormula=`Lists!$B$2:$B$${months.length+1}`;for(let r=2;r<=totalRows+1;r++){sheet.getCell(r,4).dataValidation={type:'list',allowBlank:false,formulae:['Lists!$C$2:$C$5']};sheet.getCell(r,5).dataValidation={type:'list',allowBlank:false,formulae:[countryFormula]};sheet.getCell(r,6).dataValidation={type:'list',allowBlank:false,formulae:[countryFormula]};sheet.getCell(r,8).dataValidation={type:'list',allowBlank:false,formulae:[monthFormula]};sheet.getCell(r,9).dataValidation={type:'list',allowBlank:false,formulae:['Lists!$D$2:$D$21']}}
     await sheet.protect('DAD-Travel-2027',{selectLockedCells:true,selectUnlockedCells:true,autoFilter:true});return{lists,pricing};
   }
-  window.DADTravelPricing={USD_TO_JD,countries,rates,tickets,country,quote,configureExcelJs};
+  window.DADTravelPricing={USD_TO_JD,countries,rates,tickets,country,quote,configureExcelJs,pricingVersion:'20261018-complete-rates-perdiem-1',fallback:{countries:fallbackCountries,businessTicket:fallbackBusinessTicket,economyTicket:fallbackEconomyTicket,perDiem:standardPerDiem,rate:fallbackRate}};
 })();
 
 (function(){
