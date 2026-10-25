@@ -69,7 +69,71 @@ function hasAllocation(x){if(num(x?.trainingAnnual)>0)return true;if(Array.isArr
 async function saveAll(label,fileName){if(!editing)throw Error('Only the L&D Manager or Main Admin can upload these allocations.');rebuildTravel();const user=api.auth.currentUser,actions=[];directory.forEach(d=>{const x=allocations.get(d.cc)||{cc:d.cc,departmentName:d.name,trainingAnnual:0,trainingByMonth:annualMonths(0),travelRows:[],travelByGl:{}};x.trainingAnnual=Math.max(0,num(x.trainingAnnual));x.trainingByMonth=annualMonths(x.trainingAnnual);const ref=fs.doc(api.db,'system_status',`training_allocation_${d.cc}`);if(hasAllocation(x)){actions.push({type:'set',cc:d.cc,ref,data:{cc:d.cc,departmentName:d.name,sourceCc:SOURCE_CC,fiscalYear:YEAR,trainingAccount:'6010020',trainingAnnual:x.trainingAnnual,trainingByMonth:x.trainingByMonth,travelRows:Array.isArray(x.travelRows)?x.travelRows:[],travelByGl:x.travelByGl||{},updatedBy:user.uid,updatedByEmail:clean(user.email).toLowerCase(),updatedAt:fs.serverTimestamp(),clientUpdatedAt:new Date().toISOString()}})}else if(existingAllocationCcs.has(d.cc)){actions.push({type:'delete',cc:d.cc,ref})}});status(`Saving ${label} · ${actions.length} changed allocation records...`);for(let i=0;i<actions.length;i+=15)await Promise.all(actions.slice(i,i+15).map(x=>x.type==='delete'?fs.deleteDoc(x.ref):fs.setDoc(x.ref,x.data,{merge:false})));existingAllocationCcs=new Set(actions.filter(x=>x.type==='set').map(x=>x.cc));allocations=new Map([...allocations].filter(([,x])=>hasAllocation(x)));if(isReportViewer())await loadTrainingReportSnapshot();status(`${clean(fileName)||label} · uploaded successfully · ${existingAllocationCcs.size} active beneficiary allocations`);renderTraining();renderTravel();renderTrainingReport()}
 async function uploadTraining(file){try{if(typeof XLSX==='undefined')throw Error('Excel upload engine is still loading.');status('Validating complete Department Training template...');const wb=XLSX.read(await file.arrayBuffer(),{type:'array'}),values=parseTraining(wb);values.forEach((amount,cc)=>{const current=allocations.get(cc)||{cc,departmentName:departmentName(cc),travelRows:[],travelByGl:{}};current.trainingAnnual=amount;current.trainingByMonth=annualMonths(amount);allocations.set(cc,current)});await saveAll('Department Training',file.name)}catch(e){console.error(e);status('Department Training upload rejected',true);alert('Department Training upload rejected: '+(e?.message||e))}finally{if($('trainingUploadInput'))$('trainingUploadInput').value=''}}
 async function uploadTravel(file){try{if(typeof XLSX==='undefined')throw Error('Excel upload engine is still loading.');status('Validating complete Training Travel template...');const wb=XLSX.read(await file.arrayBuffer(),{type:'array'}),rows=parseTravel(wb);if(!rows.length&&travelRows.length&&!confirm('The uploaded Training Travel template contains no allocation rows. This will clear all existing Training Travel allocations. Continue?')){status(`Ready · ${directory.length} beneficiary departments available.`);return}travelRows=rows;await saveAll('Training Travel Allocation',file.name)}catch(e){console.error(e);status('Training Travel upload rejected',true);alert('Training Travel upload rejected: '+(e?.message||e))}finally{if($('travelUploadInput'))$('travelUploadInput').value=''}}
-function bind(){if($('trainingSearch'))$('trainingSearch').oninput=renderTraining;if($('travelSearch'))$('travelSearch').oninput=renderTravel;if($('trainingReportSearch'))$('trainingReportSearch').oninput=renderTrainingReport;if($('trainingUploadBtn'))$('trainingUploadBtn').onclick=()=>$('trainingUploadInput')?.click();if($('travelUploadBtn'))$('travelUploadBtn').onclick=()=>$('travelUploadInput')?.click();if($('trainingUploadInput'))$('trainingUploadInput').onchange=()=>{const f=$('trainingUploadInput').files?.[0];if(f)uploadTraining(f)};if($('travelUploadInput'))$('travelUploadInput').onchange=()=>{const f=$('travelUploadInput').files?.[0];if(f)uploadTravel(f)}}
+// Export the current report from the same loaded rows and search used on screen.
+async function downloadTrainingReport(){
+ const button=$('trainingExportBtn');
+ if(!loaded||button?.disabled)return;
+ const original=button.textContent;
+ try{
+  button.disabled=true;button.textContent='Preparing Excel...';
+  if(!window.ExcelJS)throw Error('Excel download engine is still loading. Please try again.');
+  let title,headers,rows,numericColumns,fileName;
+  const matches=(values,search)=>{const q=clean($(search)?.value).toLowerCase();return !q||values.some(v=>clean(v).toLowerCase().includes(q))};
+  let searchId;
+  if($('trainingReportPanel')?.classList.contains('active')){
+   if(!isReportViewer())throw Error('You do not have access to this report.');
+   if(trainingReportError)throw Error('Training Expense data could not load. Please refresh before downloading.');
+   title='Company Training Expense Report';searchId='trainingReportSearch';
+   headers=['Department','Fund Center','Actual YTD (JD)','FY Budget 2026 (JD)','Remaining (JD)','FY Budget 2027 (JD)','OPEX Account'];
+   rows=trainingReportRows.filter(d=>matches([d.cc,d.name],searchId)).map(d=>[d.name,d.cc,d.actual,d.fy26,d.remaining,d.fy27,'6010020']);
+   numericColumns=[3,4,5,6];fileName='Training_Expense_Report_2027';
+  }else if($('travelPanel')?.classList.contains('active')){
+   title='Training Travel Allocation';searchId='travelSearch';
+   headers=['Beneficiary Department','Fund Center','Month','Travel G/L','Travel Expense Type','Amount (JD)','Training / Purpose'];
+   rows=travelRows.filter(r=>matches([r.cc,departmentName(r.cc),r.gl,r.note,r.month],searchId)).map(r=>[departmentName(r.cc),r.cc,`${r.month} ${YEAR}`,r.gl,TRAVEL.find(x=>x[0]===r.gl)?.[1]||r.gl,num(r.amount),clean(r.note)]);
+   numericColumns=[6];fileName='Training_Travel_Allocation_Report_2027';
+  }else{
+   title='Department Training Allocation';searchId='trainingSearch';
+   headers=['Beneficiary Department','Fund Center','FY Budget 2027 (JD)','Monthly Allocation (JD)','OPEX Account'];
+   rows=directory.filter(d=>matches([d.cc,d.name],searchId)).map(d=>{const annual=num(allocations.get(d.cc)?.trainingAnnual);return[d.name,d.cc,annual,annual/12,'6010020']});
+   numericColumns=[3,4];fileName='Department_Training_Allocation_Report_2027';
+  }
+  if(!rows.length)throw Error('No matching data to export. Clear the search or choose another report.');
+  const workbook=new window.ExcelJS.Workbook();workbook.creator='DAD Budget 2027';workbook.created=new Date();
+  const sheet=workbook.addWorksheet('Training Report');
+  sheet.mergeCells(1,1,1,headers.length);sheet.getCell('A1').value=`DAD BUDGET 2027 · ${title}`;
+  sheet.getCell('A1').font={name:'Calibri',size:16,bold:true,color:{argb:'FF173F68'}};sheet.getRow(1).height=32;
+  sheet.mergeCells(2,1,2,headers.length);sheet.getCell('A2').value=`Currency: JOD | Exported: ${new Date().toISOString()} | Search: ${clean($(searchId)?.value)||'All'} | Rows: ${rows.length}`;
+  sheet.getCell('A2').font={size:10,color:{argb:'FF607D82'}};
+  sheet.addRow([]);sheet.addRow(headers);
+  rows.forEach(values=>sheet.addRow(values));
+  const lastDataRow=sheet.rowCount,total=sheet.addRow(['TOTAL']);
+  numericColumns.forEach(col=>{
+   const letter=sheet.getColumn(col).letter;
+   total.getCell(col).value={formula:`SUM(${letter}5:${letter}${lastDataRow})`,result:rows.reduce((sum,row)=>sum+num(row[col-1]),0)};
+   sheet.getColumn(col).numFmt='#,##0.00;[Red](#,##0.00);"-"';
+  });
+  sheet.getColumn(2).numFmt='@';
+  sheet.eachRow((row,index)=>{
+   if(index<4)return;
+   row.height=index===4?34:23;
+   row.eachCell({includeEmpty:true},cell=>{
+    cell.font={name:'Calibri',size:11,color:{argb:'FF334F54'}};
+    cell.alignment={vertical:'middle',wrapText:true};
+    if(index===4||index===total.number){cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0A2C61'}};cell.font={name:'Calibri',size:11,bold:true,color:{argb:'FFFFFFFF'}}}
+    else if(index%2===1)cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF0F8F6'}};
+   });
+  });
+  headers.forEach((header,i)=>sheet.getColumn(i+1).width=i===0?44:numericColumns.includes(i+1)?24:header==='Training / Purpose'?48:header==='Travel Expense Type'?30:20);
+  sheet.views=[{state:'frozen',ySplit:4}];
+  sheet.autoFilter={from:{row:4,column:1},to:{row:lastDataRow,column:headers.length}};
+  sheet.pageSetup={orientation:'landscape',paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:0,printTitlesRow:'1:4'};
+  const buffer=await workbook.xlsx.writeBuffer(),url=URL.createObjectURL(new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})),link=document.createElement('a');
+  link.href=url;link.download=`${fileName}_${new Date().toISOString().slice(0,10)}.xlsx`;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);
+ }catch(error){console.error('Training report export failed',error);alert('Excel report download failed: '+(error?.message||error))}
+ finally{button.disabled=false;button.textContent=original}
+}
+function bind(){if($('trainingExportBtn')){$('trainingExportBtn').disabled=false;$('trainingExportBtn').onclick=downloadTrainingReport;}if($('trainingSearch'))$('trainingSearch').oninput=renderTraining;if($('travelSearch'))$('travelSearch').oninput=renderTravel;if($('trainingReportSearch'))$('trainingReportSearch').oninput=renderTrainingReport;if($('trainingUploadBtn'))$('trainingUploadBtn').onclick=()=>$('trainingUploadInput')?.click();if($('travelUploadBtn'))$('travelUploadBtn').onclick=()=>$('travelUploadInput')?.click();if($('trainingUploadInput'))$('trainingUploadInput').onchange=()=>{const f=$('trainingUploadInput').files?.[0];if(f)uploadTraining(f)};if($('travelUploadInput'))$('travelUploadInput').onchange=()=>{const f=$('travelUploadInput').files?.[0];if(f)uploadTravel(f)}}
 async function refresh(){if(busy||loaded)return;busy=true;try{api=window.DADFirebase;if(!api?.db||!api.auth?.currentUser){setTimeout(refresh,350);return}fs=await import('https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js');const p=profile();editing=canEdit(p);await loadDirectoryAndAllocations();const reportViewer=isReportViewer(),managerReportOnly=p?.role==='manager'&&!editing&&reportEmail()!==REPORT_EMAIL&&reportEmail()!==ALL_REPORT_EMAIL;if(reportViewer){try{if(snapshotOnlyReport()){const snapshotReady=await loadTrainingReportSnapshot();if(!snapshotReady)throw Error('Training report snapshot is not available.')}else await loadTrainingOpexReport()}catch(e){console.error('Direct Training OPEX report load failed',e);try{const snapshotReady=await loadTrainingReportSnapshot();if(!snapshotReady)throw e}catch(fallbackError){console.error('Training OPEX report fallback load failed',fallbackError);trainingReportError=clean(e?.code||e?.message||e)}}}loaded=true;document.body.classList.toggle('training-readonly',!editing);if($('trainingUploadBtn'))$('trainingUploadBtn').disabled=!editing;if($('travelUploadBtn'))$('travelUploadBtn').disabled=!editing;bind();renderTraining();renderTravel();renderTrainingReport();const reportTab=$('trainingReportTab');if(reportTab){reportTab.hidden=!reportViewer;if(reportViewer)reportTab.click()}if(managerReportOnly){if($('trainingTab'))$('trainingTab').hidden=true;if($('travelTab'))$('travelTab').hidden=true}const source=directorySource?` · ${directorySource}`:'';status(reportViewer?(trainingReportError?`Training Expense report could not load. Please refresh.`:`Training Expense report ready · ${trainingReportRows.length} ${reportScope()?'assigned':'company'} departments.`):(editing?`Ready · ${directory.length} complete beneficiary departments available${source}.`:`Read-only view · ${directory.length} complete beneficiary departments available${source}.`),Boolean(reportViewer&&trainingReportError))}catch(e){console.error(e);status('Unable to load complete department directory: '+(e?.code||e?.message||e),true)}finally{busy=false}}
 window.addEventListener('dad-user-ready',refresh);window.addEventListener('dad-firebase-ready',()=>setTimeout(refresh,50));window.addEventListener('load',()=>setTimeout(refresh,900));setTimeout(refresh,1200);
 })();
