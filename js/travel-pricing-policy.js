@@ -117,5 +117,5 @@
 (function(){
   if(!/opex\.html$/i.test((location.pathname||'').split('?')[0]))return;
   if(document.querySelector('script[data-complete-opex-template]'))return;
-  const s=document.createElement('script');s.src='js/opex-template-complete.js?v=20260916-local-transport-1';s.dataset.completeOpexTemplate='1';document.head.appendChild(s);
+  const s=document.createElement('script');s.src='js/opex-template-complete.js?v=20261026-download-init-1';s.dataset.completeOpexTemplate='1';document.head.appendChild(s);
 })();

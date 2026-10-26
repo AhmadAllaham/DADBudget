@@ -5,10 +5,10 @@ if(!/opex\.html$/i.test((location.pathname||'').split('?')[0]))return;
 const KEY='dadBudgetOPEXBaselineV17';
 const LOCAL_TRANSPORT_GL='6020009';
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const IT_NAMES=new Set(['Internet and Connectivity Charges','IT Consultation','Subscriptions, Books and Magazines','Subscriptions and Magazines','Software Licenses'].map(norm));
 const clean=v=>String(v??'').trim();
 const num=v=>{const x=Number(v||0);return Number.isFinite(x)?x:0};
 function norm(v){return clean(v).toUpperCase().replace(/[^A-Z0-9]/g,'')}
+const IT_NAMES=new Set(['Internet and Connectivity Charges','IT Consultation','Subscriptions, Books and Magazines','Subscriptions and Magazines','Software Licenses'].map(norm));
 function loadModel(){try{const m=JSON.parse(localStorage.getItem(KEY)||'null');if(m?.departments)return m}catch(_){}const keys=Object.keys(localStorage).filter(k=>/^dadBudgetOPEXBaselineV\d+$/i.test(k)).sort((a,b)=>Number((b.match(/\d+$/)||[0])[0])-Number((a.match(/\d+$/)||[0])[0]));for(const k of keys){try{const m=JSON.parse(localStorage.getItem(k)||'null');if(m?.departments)return m}catch(_){}}return null}
 function isTravel(code){const n=Number(clean(code));return Number.isFinite(n)&&n>=6020001&&n<=6020010}
 function isTravelSheetControlled(code){return isTravel(code)&&clean(code)!==LOCAL_TRANSPORT_GL}
@@ -31,6 +31,8 @@ async function downloadComplete(){
  if(!model||!dept){alert('Upload the Finance OPEX baseline first, then select one department.');return}
  if(cc==='ALL'||window.DADDepartmentGroups?.groupFor?.(cc)){alert('Select one individual Fund Center to download its upload template.');return}
  if(typeof ExcelJS==='undefined'){alert('Excel template engine is still loading. Please try again in a few seconds.');return}
+ // Let the browser paint the download state before workbook protection work.
+ await new Promise(resolve=>setTimeout(resolve,0));
  const wb=new ExcelJS.Workbook();wb.creator='DAD Budget 2027';wb.created=new Date();wb.calcProperties.fullCalcOnLoad=true;wb.calcProperties.forceFullCalc=true;
  const info=wb.addWorksheet('Instructions');[
   ['DAD BUDGET 2027 - COMPLETE DEPARTMENT TEMPLATE'],['Department',dept.name],['Fund Center',dept.cc],[],['HOW TO USE'],
@@ -57,6 +59,6 @@ async function downloadComplete(){
 }
 
 function installUploadCompatibility(){if(!window.XLSX?.read||window.XLSX.__dadNoUtilitiesCompat)return;const original=window.XLSX.read;window.XLSX.read=function(data,opts){const wb=original.call(this,data,opts);try{const hasOpex=wb.SheetNames.some(n=>norm(n)==='OPEXBUDGET2027'),hasUtilities=wb.SheetNames.some(n=>['UTILITIESBUDGET','UTILITIES'].includes(norm(n)));if(hasOpex&&!hasUtilities){const selected=clean(document.getElementById('deptFilter')?.value),model=loadModel(),saved=Array.isArray(model?.departments?.[selected]?.utilityAllocations)?model.departments[selected].utilityAllocations:[],rows=[['Target Fund Center','Department','G/L Account','Account Name','Details','Landing',...MONTHS,'FY Budget 2027']];saved.forEach(x=>rows.push([clean(x.cc),clean(model?.departments?.[x.cc]?.name||x.cc),clean(x.gl),clean(x.accountName),clean(x.details),num(x.landing),...MONTHS.map((_,i)=>num(x.newBudgetByMonth?.[`2027-${String(i+1).padStart(2,'0')}`])),0]));const name='Utilities Budget';wb.Sheets[name]=XLSX.utils.aoa_to_sheet(rows);wb.SheetNames.push(name)}}catch(e){console.warn('OPEX Utilities compatibility sheet was not added',e)}return wb};window.XLSX.__dadNoUtilitiesCompat=true}
-function bind(){installUploadCompatibility();const b=document.getElementById('masterTemplateBtn');if(!b||b.dataset.completeTemplateBound==='1')return;b.dataset.completeTemplateBound='1';b.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();downloadComplete().catch(err=>{console.error(err);alert('Template download failed: '+err.message)})},true)}
+function bind(){installUploadCompatibility();const b=document.getElementById('masterTemplateBtn');if(!b||b.dataset.completeTemplateBound==='1')return;b.dataset.completeTemplateBound='1';b.addEventListener('click',async e=>{e.preventDefault();e.stopImmediatePropagation();if(b.disabled)return;const label=b.textContent;b.disabled=true;b.textContent='Preparing template...';b.setAttribute('aria-busy','true');try{await downloadComplete()}catch(err){console.error(err);alert('Template download failed: '+err.message)}finally{b.disabled=false;b.textContent=label;b.removeAttribute('aria-busy')}},true)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();window.addEventListener('load',()=>setTimeout(bind,0));
 })();
