@@ -137,4 +137,4 @@ function bind(){
 window.DADTravelWorkbook={download,upload};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
 })();
-if(/travel-budget\.html$/i.test((location.pathname||'').split('?')[0]))import('./travel-budget-stable.js?v=20260830-travel-filter-3').catch(e=>console.error('Stable Travel data view failed:',e));
+if(/travel-budget\.html$/i.test((location.pathname||'').split('?')[0]))import('./travel-budget-stable.js?v=20261026-all-travel-export-1').catch(e=>console.error('Stable Travel data view failed:',e));
