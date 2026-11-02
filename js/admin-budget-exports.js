@@ -76,14 +76,20 @@ async function exportCapex(btn){
     if(!departments.length)throw new Error('No CAPEX departments were found.');
     const wb=new ExcelJS.Workbook();wb.creator='DAD Budget 2027';wb.created=new Date();
     const summary=wb.addWorksheet('Summary');summary.addRow(['Fund Center','Department','CAPEX Requests','FY CAPEX 2027','Scheduled Payments','Status','Revision','Submitted By','Submitted At','Source File']);departments.forEach(d=>summary.addRow([d.cc,d.name,d.lines.length,d.total,d.paymentTotal,workflow(d.meta),num(d.meta.revision),clean(d.meta.submittedEmail),dateText(d.meta.submittedAt)||clean(d.meta.clientSubmittedAt),clean(d.meta.fileName)]));styleSheet(summary,[18,34,16,20,20,20,11,28,22,38]);moneyColumns(summary,4,5);
-    const headers=['Request ID','Company','Fund Center','Department','Asset Category','Budget Description','Justification','Priority','Quantity',...MONTHS,'Q1 2027','Q2 2027','Q3 2027','Q4 2027','FY CAPEX 2027','Status','Revision','Submitted By','Source File'];
+    const headers=['Request ID','Company','Fund Center','Department','Asset Category','Budget Description','Justification','Priority','Quantity',...MONTHS,'Q1 27','Q2 27','Q3 27','Q4 27','FY CAPEX 2027','Status','Revision','Submitted By','Source File'];
     const widths=[22,18,18,32,28,42,42,14,12,...Array(12).fill(13),16,16,16,16,20,20,11,28,38];
-    const all=wb.addWorksheet('All CAPEX');all.addRow(headers);
+    const all=wb.addWorksheet('CAPEX Budget 2027');all.addRow(headers);
     departments.forEach(d=>{
       const sourceLines=d.lines.length?d.lines:[{requestId:'',months:Array(12).fill(0),total:0}],rows=sourceLines.map(line=>{const q1=line.months.slice(0,3).reduce((s,v)=>s+v,0),q2=line.months.slice(3,6).reduce((s,v)=>s+v,0),q3=line.months.slice(6,9).reduce((s,v)=>s+v,0),q4=line.months.slice(9,12).reduce((s,v)=>s+v,0);return[clean(line.requestId),clean(line.company),d.cc,d.name,clean(line.category),clean(line.description),clean(line.justification),clean(line.priority),num(line.quantity),...line.months,q1,q2,q3,q4,line.total,workflow(d.meta),num(d.meta.revision),clean(d.meta.submittedEmail),clean(d.meta.fileName)]});
       rows.forEach(row=>all.addRow(row));
     });
     styleSheet(all,widths);moneyColumns(all,10,26);
+    all.views=[{state:'frozen',ySplit:1,xSplit:4}];
+    // Keep template totals live when Finance adjusts monthly amounts in Excel.
+    for(let n=2;n<=all.rowCount;n++){
+      const row=all.getRow(n);
+      ['J:L','M:O','P:R','S:U','J:U'].forEach((range,i)=>{const [from,to]=range.split(':');const result=num(row.getCell(22+i).value);row.getCell(22+i).value={formula:`SUM(${from}${n}:${to}${n})`,result}});
+    }
     const paymentSheet=wb.addWorksheet('Payment Schedule');paymentSheet.addRow(['Fund Center','Department','Asset Category','Budget Description','FY CAPEX 2027',...MONTHS,'Q1 Payments','Q2 Payments','Q3 Payments','Q4 Payments','FY 2027 Payments','2028','Total Payments','Remaining','Workflow Status','Revision','Source File']);departments.forEach(d=>d.lines.forEach(line=>{const requestPayments=d.payments.filter(p=>clean(p.requestId)===clean(line.requestId)),months=Array(12).fill(0);requestPayments.filter(p=>clean(p.expectedPaymentDate).startsWith('2027-')).forEach(p=>{const month=Number(clean(p.expectedPaymentDate).slice(5,7))-1;if(month>=0&&month<12)months[month]+=num(p.amount)});const quarters=[months.slice(0,3),months.slice(3,6),months.slice(6,9),months.slice(9,12)].map(a=>a.reduce((s,v)=>s+v,0)),paid2027=months.reduce((s,v)=>s+v,0),paid2028=requestPayments.filter(p=>clean(p.expectedPaymentDate).startsWith('2028-')).reduce((s,p)=>s+num(p.amount),0),paid=paid2027+paid2028;paymentSheet.addRow([d.cc,d.name,clean(line.category),clean(line.description),num(line.total),...months,...quarters,paid2027,paid2028,paid,num(line.total)-paid,workflow(d.meta),num(d.meta.revision),clean(d.meta.fileName)])}));styleSheet(paymentSheet,[18,32,28,42,18,...Array(12).fill(13),16,16,16,16,18,16,18,18,20,11,38]);moneyColumns(paymentSheet,5,25);
     await saveWorkbook(wb,'CAPEX_FY_Budget_2027_All_Departments_All_Rows.xlsx');
   }catch(error){alert('CAPEX admin export failed: '+(error?.message||error))}finally{btn.disabled=false;btn.textContent=old}
